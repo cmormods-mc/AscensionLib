@@ -42,23 +42,44 @@ public final class AscensionRewards {
             payouts.put(player, amounts);
         }
         var result = settle(encounterId, outcome, "tower_boss", payouts);
-        awardAttunement(encounterId, result);
+        var paid = new java.util.ArrayList<UUID>();
+        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        awardAttunement("tower_boss:" + encounterId, paid);
         return result;
     }
 
-    /** Attunement a Pokemon earns per settled Tower boss victory (ECONOMY.md: 3 per qualifying victory). */
-    static final int TOWER_BOSS_ATTUNEMENT = 3;
+    /**
+     * Gives each participant's party attunement for a won raid (a Pokemon's progress toward promotion), without paying any material:
+     * Raids keeps its own rewards. Only {@code VICTORY} counts; call it for the players who earned the victory. Once per
+     * (encounter, Pokemon), so a repeated call changes nothing more. Players who are offline miss it.
+     *
+     * @param encounterId the raid's own encounter ID (never reused); it may be any string without {@code |}
+     * @param outcome     {@code VICTORY}, {@code DEFEAT} or {@code ABORTED}
+     * @return how many players' parties were handled; 0 when the library is disabled or the outcome is not a victory
+     */
+    public static int settleRaidAttunement(String encounterId, String outcome, java.util.Collection<UUID> players) {
+        if (!"VICTORY".equals(outcome)) return 0;
+        if (encounterId == null || encounterId.isBlank() || encounterId.contains("|"))
+            throw new IllegalArgumentException("Invalid encounter ID");
+        return awardAttunement("raid:" + encounterId, players);
+    }
 
-    /** Credits each paid player's party, once per encounter; players who are offline at settlement miss it. */
-    private static void awardAttunement(UUID encounterId, Map<UUID, String> statuses) {
+    /** Attunement a Pokemon earns per qualifying victory (ECONOMY.md: 3). */
+    static final int VICTORY_ATTUNEMENT = 3;
+
+    /** Credits each player's party, once per key; players who are offline miss it. Returns the players handled. */
+    private static int awardAttunement(String key, java.util.Collection<UUID> players) {
         var service = AscensionApi.service().orElse(null);
         var server = AscensionApi.server();
-        if (service == null || server == null) return;
-        statuses.forEach((player, status) -> {
-            if (!status.equals("GRANTED") && !status.equals("ALREADY_GRANTED")) return;
+        if (service == null || server == null) return 0;
+        int handled = 0;
+        for (var player : players) {
             var online = server.getPlayerList().getPlayer(player);
-            if (online != null) service.awardPartyAttunement(online, "tower_boss:" + encounterId, TOWER_BOSS_ATTUNEMENT);
-        });
+            if (online == null) continue;
+            service.awardPartyAttunement(online, key, VICTORY_ATTUNEMENT);
+            handled++;
+        }
+        return handled;
     }
 
     /**
