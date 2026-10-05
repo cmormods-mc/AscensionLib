@@ -1,0 +1,35 @@
+{
+  "schemaVersion":1,
+  "catalogVersion":1,
+  "status":"provisional-derived-bands-require-balance-approval",
+  "bandRule":"Rank I is the affix's existing affixes.json range. Each later band starts one above the previous maximum and spans ceil(rankIMax / 2) values, so rank V tops out near 3x rank I. type_focus reproduces the specification's Fire Focus example. Values are placeholders until the balance pass.",
+  "ranks":{
+    "type_focus":         [[4,8], [9,12], [13,16], [17,20], [21,24]],
+    "physical_force":     [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "special_force":      [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "healthy_force":      [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "last_stand":         [[5,10], [11,15], [16,20], [21,25], [26,30]],
+    "defiant_force":      [[4,8], [9,12], [13,16], [17,20], [21,24]],
+    "type_ward":          [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "healthy_guard":      [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "steadfast_guard":    [[4,8], [9,12], [13,16], [17,20], [21,24]],
+    "status_guard":       [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "opening_guard":      [[5,10], [11,15], [16,20], [21,25], [26,30]],
+    "restorative":        [[5,15], [16,23], [24,31], [32,39], [40,47]],
+    "type_mastery":       [[12,20], [21,30], [31,40], [41,50], [51,60]],
+    "overwhelming_force": [[8,12], [13,18], [19,24], [25,30], [31,36]],
+    "kindred_force":      [[6,10], [11,15], [16,20], [21,25], [26,30]],
+    "executioner":        [[6,12], [13,18], [19,24], [25,30], [31,36]],
+    "opening_strike":     [[8,14], [15,21], [22,28], [29,35], [36,42]],
+    "super_effective_force": [[6,12], [13,18], [19,24], [25,30], [31,36]],
+    "iron_resolve":       [[5,9], [10,14], [15,19], [20,24], [25,29]],
+    "type_bulwark":       [[8,14], [15,21], [22,28], [29,35], [36,42]],
+    "resilient_hide":     [[5,10], [11,15], [16,20], [21,25], [26,30]],
+    "triumphant":         [[5,10], [11,15], [16,20], [21,25], [26,30]],
+    "physical_bulwark":   [[3,6], [7,9], [10,12], [13,15], [16,18]],
+    "special_bulwark":    [[3,6], [7,9], [10,12], [13,15], [16,18]]
+  },
+  "uniques":[
+    {"id":"ashen_heart","name":"Ashen Heart"}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion":1,
+  "status":"proposed-effects-require-simulator-spike",
+  "rollRule":"Weighted draw without replacement by family (a higher weight is more common; the standard templates use 100, powerhouses 3-8); typed variants selected after family; inclusive integer values.",
+  "affixes":[
+    {"id":"type_focus","name":"Type Focus","slot":"prefix","family":"type_offense","channel":"outgoingDamage","min":4,"max":8,"weight":100,"parameter":"one_current_species_type","condition":"Move has the selected type","phase":"alpha"},
+    {"id":"physical_force","name":"Physical Force","slot":"prefix","family":"category_offense","channel":"outgoingDamage","min":3,"max":6,"weight":100,"condition":"Move is physical","phase":"alpha"},
+    {"id":"special_force","name":"Special Force","slot":"prefix","family":"category_offense","channel":"outgoingDamage","min":3,"max":6,"weight":100,"condition":"Move is special","phase":"alpha"},
+    {"id":"healthy_force","name":"Healthy Force","slot":"prefix","family":"healthy_offense","channel":"outgoingDamage","min":3,"max":6,"weight":100,"condition":"User HP is at least 80% before move","phase":"alpha"},
+    {"id":"last_stand","name":"Last Stand","slot":"prefix","family":"injured_offense","channel":"outgoingDamage","min":5,"max":10,"weight":100,"condition":"User HP is at most 35% before move","phase":"release"},
+    {"id":"defiant_force","name":"Defiant Force","slot":"prefix","family":"status_offense","channel":"outgoingDamage","min":4,"max":8,"weight":100,"condition":"User has a nonvolatile status before move; does not remove native status penalties","phase":"release"},
+    {"id":"type_ward","name":"Type Ward","slot":"suffix","family":"type_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"parameter":"one_uniform_standard_type","condition":"Incoming move has selected type","phase":"alpha"},
+    {"id":"healthy_guard","name":"Healthy Guard","slot":"suffix","family":"healthy_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Holder HP is at least 80% before incoming move","phase":"alpha"},
+    {"id":"steadfast_guard","name":"Steadfast Guard","slot":"suffix","family":"injured_defense","channel":"incomingReduction","min":4,"max":8,"weight":100,"condition":"Holder HP is at most 35% before incoming move","phase":"release"},
+    {"id":"status_guard","name":"Status Guard","slot":"suffix","family":"status_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Holder has a nonvolatile status before incoming move","phase":"alpha"},
+    {"id":"opening_guard","name":"Opening Guard","slot":"suffix","family":"opening_defense","channel":"incomingReduction","min":5,"max":10,"weight":100,"condition":"First incoming damaging move that deals direct damage this battle; all its hits share reduction","phase":"alpha"},
+    {"id":"restorative","name":"Restorative","slot":"suffix","family":"move_recovery","channel":"healing","min":5,"max":15,"weight":100,"condition":"Self-recovery or drain caused by holder's move; excludes items, abilities, residual and ally healing","phase":"release"},
+
+    {"id":"type_mastery","name":"Type Mastery","slot":"prefix","family":"type_offense","channel":"outgoingDamage","min":12,"max":20,"weight":8,"parameter":"one_current_species_type","condition":"Move has the selected type (one of the Pokemon's current types); rare, replaces Type Focus because they share a family","phase":"release"},
+    {"id":"overwhelming_force","name":"Overwhelming Force","slot":"prefix","family":"universal_offense","channel":"outgoingDamage","min":8,"max":12,"weight":3,"condition":"Every damaging move; very rare","phase":"release"},
+    {"id":"kindred_force","name":"Kindred Force","slot":"prefix","family":"affinity_offense","channel":"outgoingDamage","min":6,"max":10,"weight":40,"condition":"Move type matches one of the user's current types","phase":"release"},
+    {"id":"executioner","name":"Executioner","slot":"prefix","family":"finisher_offense","channel":"outgoingDamage","min":6,"max":12,"weight":40,"condition":"Target HP is at most 50% before the move","phase":"release"},
+    {"id":"opening_strike","name":"Opening Strike","slot":"prefix","family":"opening_offense","channel":"outgoingDamage","min":8,"max":14,"weight":40,"condition":"User's first damaging move after entering battle; all its hits share the bonus","phase":"release"},
+    {"id":"super_effective_force","name":"Super Effective Force","slot":"prefix","family":"effectiveness_offense","channel":"outgoingDamage","min":6,"max":12,"weight":30,"condition":"Move is super effective against the target by native type effectiveness","phase":"release"},
+    {"id":"iron_resolve","name":"Iron Resolve","slot":"suffix","family":"universal_defense","channel":"incomingReduction","min":5,"max":9,"weight":3,"condition":"Every incoming damaging move; very rare","phase":"release"},
+    {"id":"type_bulwark","name":"Type Bulwark","slot":"suffix","family":"type_defense","channel":"incomingReduction","min":8,"max":14,"weight":8,"parameter":"one_uniform_standard_type","condition":"Incoming move has selected type; rare, replaces Type Ward because they share a family","phase":"release"},
+    {"id":"resilient_hide","name":"Resilient Hide","slot":"suffix","family":"effectiveness_defense","channel":"incomingReduction","min":5,"max":10,"weight":30,"condition":"Incoming move is super effective against the holder by native type effectiveness","phase":"release"},
+    {"id":"triumphant","name":"Triumphant","slot":"suffix","family":"kill_recovery","channel":"healing","min":5,"max":10,"weight":40,"condition":"Holder's direct move faints the target; restores a percentage of the holder's maximum HP once per faint; no recursive triggers; excludes items, abilities, residual and ally healing","phase":"release"},
+    {"id":"physical_bulwark","name":"Physical Bulwark","slot":"suffix","family":"category_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Incoming move is physical","phase":"release"},
+    {"id":"special_bulwark","name":"Special Bulwark","slot":"suffix","family":"category_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Incoming move is special","phase":"release"}
+  ]
+}

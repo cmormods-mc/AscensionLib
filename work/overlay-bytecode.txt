@@ -1,0 +1,2425 @@
+Compiled from "BattleOverlay.java"
+public final class com.cobblemon.mod.common.client.gui.battle.BattleOverlay extends net.minecraft.client.gui.Gui implements com.cobblemon.mod.common.api.scheduling.Schedulable {
+  public static final com.cobblemon.mod.common.client.gui.battle.BattleOverlay$Companion Companion;
+
+  private double opacity;
+
+  private float passedSeconds;
+
+  private java.util.UUID lastKnownBattle;
+
+  public com.cobblemon.mod.common.client.gui.battle.widgets.BattleMessagePane messagePane;
+
+  private boolean hidePortraits;
+
+  private final com.cobblemon.mod.common.api.scheduling.SchedulingTracker schedulingTracker;
+
+  public static final double MAX_OPACITY;
+
+  public static final double MIN_OPACITY;
+
+  public static final double OPACITY_CHANGE_PER_SECOND;
+
+  public static final int HORIZONTAL_INSET;
+
+  public static final int VERTICAL_INSET;
+
+  public static final int HORIZONTAL_SPACING;
+
+  public static final int VERTICAL_SPACING;
+
+  public static final int COMPACT_VERTICAL_SPACING;
+
+  public static final int INFO_OFFSET_X;
+
+  public static final int COMPACT_INFO_OFFSET_X;
+
+  public static final int TILE_WIDTH;
+
+  public static final int COMPACT_TILE_WIDTH;
+
+  public static final int TILE_HEIGHT;
+
+  public static final int COMPACT_TILE_HEIGHT;
+
+  public static final int COMPACT_TILE_TEXTURE_HEIGHT;
+
+  public static final int PORTRAIT_DIAMETER;
+
+  public static final int COMPACT_PORTRAIT_DIAMETER;
+
+  public static final int PORTRAIT_OFFSET_X;
+
+  public static final int COMPACT_PORTRAIT_OFFSET_X;
+
+  public static final int PORTRAIT_OFFSET_Y;
+
+  public static final int COMPACT_PORTRAIT_OFFSET_Y;
+
+  public static final double ROLE_CYCLE_SECONDS;
+
+  public static final float SCALE;
+
+  private static final kotlin.jvm.functions.Function1<java.lang.Float, java.lang.Float> PROMPT_TEXT_OPACITY_CURVE;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoBase;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoBaseFlipped;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoBaseCompact;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoBaseFlippedCompact;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoRole;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoRoleFlipped;
+
+  private static final net.minecraft.resources.ResourceLocation battleInfoUnderlay;
+
+  private static final net.minecraft.resources.ResourceLocation caughtIndicator;
+
+  public com.cobblemon.mod.common.client.gui.battle.BattleOverlay();
+    Code:
+       0: aload_0
+       1: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+       4: invokespecial #208                // Method net/minecraft/client/gui/Gui."<init>":(Lnet/minecraft/client/Minecraft;)V
+       7: aload_0
+       8: ldc2_w        #145                // double 0.5d
+      11: putfield      #210                // Field opacity:D
+      14: aload_0
+      15: new           #212                // class com/cobblemon/mod/common/api/scheduling/SchedulingTracker
+      18: dup
+      19: invokespecial #214                // Method com/cobblemon/mod/common/api/scheduling/SchedulingTracker."<init>":()V
+      22: putfield      #216                // Field schedulingTracker:Lcom/cobblemon/mod/common/api/scheduling/SchedulingTracker;
+      25: return
+
+  public final double getOpacity();
+    Code:
+       0: aload_0
+       1: getfield      #210                // Field opacity:D
+       4: dreturn
+
+  public final void setOpacity(double);
+    Code:
+       0: aload_0
+       1: dload_1
+       2: putfield      #210                // Field opacity:D
+       5: return
+
+  public final double getOpacityRatio();
+    Code:
+       0: aload_0
+       1: getfield      #210                // Field opacity:D
+       4: ldc2_w        #145                // double 0.5d
+       7: dsub
+       8: ldc2_w        #145                // double 0.5d
+      11: ddiv
+      12: dreturn
+
+  public final float getPassedSeconds();
+    Code:
+       0: aload_0
+       1: getfield      #220                // Field passedSeconds:F
+       4: freturn
+
+  public final void setPassedSeconds(float);
+    Code:
+       0: aload_0
+       1: fload_1
+       2: putfield      #220                // Field passedSeconds:F
+       5: return
+
+  public final java.util.UUID getLastKnownBattle();
+    Code:
+       0: aload_0
+       1: getfield      #222                // Field lastKnownBattle:Ljava/util/UUID;
+       4: areturn
+
+  public final void setLastKnownBattle(java.util.UUID);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: putfield      #222                // Field lastKnownBattle:Ljava/util/UUID;
+       5: return
+
+  public final com.cobblemon.mod.common.client.gui.battle.widgets.BattleMessagePane getMessagePane();
+    Code:
+       0: aload_0
+       1: getfield      #224                // Field messagePane:Lcom/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane;
+       4: dup
+       5: ifnull        9
+       8: areturn
+       9: pop
+      10: ldc           #227                // String messagePane
+      12: invokestatic  #233                // Method kotlin/jvm/internal/Intrinsics.throwUninitializedPropertyAccessException:(Ljava/lang/String;)V
+      15: aconst_null
+      16: areturn
+
+  public final void setMessagePane(com.cobblemon.mod.common.client.gui.battle.widgets.BattleMessagePane);
+    Code:
+       0: aload_1
+       1: ldc           #234                // String <set-?>
+       3: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: aload_1
+       8: putfield      #224                // Field messagePane:Lcom/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane;
+      11: return
+
+  public final boolean getHidePortraits();
+    Code:
+       0: aload_0
+       1: getfield      #240                // Field hidePortraits:Z
+       4: ireturn
+
+  public final void setHidePortraits(boolean);
+    Code:
+       0: aload_0
+       1: iload_1
+       2: putfield      #240                // Field hidePortraits:Z
+       5: return
+
+  public com.cobblemon.mod.common.api.scheduling.SchedulingTracker getSchedulingTracker();
+    Code:
+       0: aload_0
+       1: getfield      #216                // Field schedulingTracker:Lcom/cobblemon/mod/common/api/scheduling/SchedulingTracker;
+       4: areturn
+
+  public void render(net.minecraft.client.gui.GuiGraphics, net.minecraft.client.DeltaTracker);
+    Code:
+       0: aload_1
+       1: ldc           #241                // String context
+       3: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_2
+       7: ldc           #242                // String tickCounter
+       9: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      12: aload_2
+      13: invokeinterface #247,  1          // InterfaceMethod net/minecraft/client/DeltaTracker.getRealtimeDeltaTicks:()F
+      18: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+      21: astore        5
+      23: aload         5
+      25: checkcast     #255                // class java/lang/Number
+      28: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+      31: fstore        6
+      33: iconst_0
+      34: istore        7
+      36: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+      39: dup
+      40: invokestatic  #262                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+      43: invokevirtual #265                // Method net/minecraft/client/Minecraft.isPaused:()Z
+      46: ifne          53
+      49: iconst_1
+      50: goto          54
+      53: iconst_0
+      54: ifeq          62
+      57: aload         5
+      59: goto          63
+      62: aconst_null
+      63: dup
+      64: ifnull        73
+      67: invokevirtual #268                // Method java/lang/Float.floatValue:()F
+      70: goto          75
+      73: pop
+      74: fconst_0
+      75: fstore_3
+      76: aload_0
+      77: invokevirtual #270                // Method getSchedulingTracker:()Lcom/cobblemon/mod/common/api/scheduling/SchedulingTracker;
+      80: fload_3
+      81: ldc_w         #271                // float 20.0f
+      84: fdiv
+      85: invokevirtual #274                // Method com/cobblemon/mod/common/api/scheduling/SchedulingTracker.update:(F)V
+      88: aload_0
+      89: aload_0
+      90: getfield      #220                // Field passedSeconds:F
+      93: fload_3
+      94: bipush        20
+      96: i2f
+      97: fdiv
+      98: fadd
+      99: putfield      #220                // Field passedSeconds:F
+     102: aload_0
+     103: getfield      #220                // Field passedSeconds:F
+     106: ldc_w         #275                // float 100.0f
+     109: fcmpl
+     110: ifle          125
+     113: aload_0
+     114: aload_0
+     115: getfield      #220                // Field passedSeconds:F
+     118: bipush        100
+     120: i2f
+     121: fsub
+     122: putfield      #220                // Field passedSeconds:F
+     125: getstatic     #281                // Field com/cobblemon/mod/common/client/CobblemonClient.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonClient;
+     128: invokevirtual #285                // Method com/cobblemon/mod/common/client/CobblemonClient.getBattle:()Lcom/cobblemon/mod/common/client/battle/ClientBattle;
+     131: dup
+     132: ifnonnull     137
+     135: pop
+     136: return
+     137: astore        4
+     139: aload_0
+     140: aload         4
+     142: invokevirtual #290                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getMinimised:()Z
+     145: ifeq          168
+     148: aload_0
+     149: getfield      #210                // Field opacity:D
+     152: fload_3
+     153: f2d
+     154: ldc2_w        #148                // double 0.1d
+     157: dmul
+     158: dsub
+     159: ldc2_w        #145                // double 0.5d
+     162: invokestatic  #296                // Method java/lang/Double.max:(DD)D
+     165: goto          183
+     168: aload_0
+     169: getfield      #210                // Field opacity:D
+     172: fload_3
+     173: f2d
+     174: ldc2_w        #148                // double 0.1d
+     177: dmul
+     178: dadd
+     179: dconst_1
+     180: invokestatic  #299                // Method java/lang/Double.min:(DD)D
+     183: putfield      #210                // Field opacity:D
+     186: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+     189: getfield      #303                // Field net/minecraft/client/Minecraft.screen:Lnet/minecraft/client/gui/screens/Screen;
+     192: astore        5
+     194: aload_0
+     195: getfield      #240                // Field hidePortraits:Z
+     198: ifne          708
+     201: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+     204: getfield      #307                // Field net/minecraft/client/Minecraft.player:Lnet/minecraft/client/player/LocalPlayer;
+     207: dup
+     208: ifnull        218
+     211: invokevirtual #312                // Method net/minecraft/client/player/LocalPlayer.getUUID:()Ljava/util/UUID;
+     214: dup
+     215: ifnonnull     220
+     218: pop
+     219: return
+     220: astore        6
+     222: aload         4
+     224: invokevirtual #322                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getSide1:()Lcom/cobblemon/mod/common/client/battle/ClientBattleSide;
+     227: invokevirtual #328                // Method com/cobblemon/mod/common/client/battle/ClientBattleSide.getActors:()Ljava/util/List;
+     230: checkcast     #330                // class java/lang/Iterable
+     233: astore        8
+     235: iconst_0
+     236: istore        9
+     238: aload         8
+     240: instanceof    #332                // class java/util/Collection
+     243: ifeq          263
+     246: aload         8
+     248: checkcast     #332                // class java/util/Collection
+     251: invokeinterface #335,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+     256: ifeq          263
+     259: iconst_0
+     260: goto          319
+     263: aload         8
+     265: invokeinterface #339,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+     270: astore        10
+     272: aload         10
+     274: invokeinterface #344,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+     279: ifeq          318
+     282: aload         10
+     284: invokeinterface #348,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+     289: astore        11
+     291: aload         11
+     293: checkcast     #350                // class com/cobblemon/mod/common/client/battle/ClientBattleActor
+     296: astore        12
+     298: iconst_0
+     299: istore        13
+     301: aload         12
+     303: invokevirtual #353                // Method com/cobblemon/mod/common/client/battle/ClientBattleActor.getUuid:()Ljava/util/UUID;
+     306: aload         6
+     308: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     311: ifeq          272
+     314: iconst_1
+     315: goto          319
+     318: iconst_0
+     319: ifeq          330
+     322: aload         4
+     324: invokevirtual #322                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getSide1:()Lcom/cobblemon/mod/common/client/battle/ClientBattleSide;
+     327: goto          335
+     330: aload         4
+     332: invokevirtual #360                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getSide2:()Lcom/cobblemon/mod/common/client/battle/ClientBattleSide;
+     335: astore        7
+     337: aload         7
+     339: aload         4
+     341: invokevirtual #322                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getSide1:()Lcom/cobblemon/mod/common/client/battle/ClientBattleSide;
+     344: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     347: ifeq          358
+     350: aload         4
+     352: invokevirtual #360                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getSide2:()Lcom/cobblemon/mod/common/client/battle/ClientBattleSide;
+     355: goto          363
+     358: aload         4
+     360: invokevirtual #322                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getSide1:()Lcom/cobblemon/mod/common/client/battle/ClientBattleSide;
+     363: astore        8
+     365: aload         5
+     367: instanceof    #362                // class com/cobblemon/mod/common/client/gui/battle/BattleGUI
+     370: ifeq          388
+     373: aload         5
+     375: checkcast     #362                // class com/cobblemon/mod/common/client/gui/battle/BattleGUI
+     378: invokevirtual #366                // Method com/cobblemon/mod/common/client/gui/battle/BattleGUI.getCurrentActionSelection:()Lcom/cobblemon/mod/common/client/gui/battle/subscreen/BattleActionSelection;
+     381: ifnull        388
+     384: iconst_1
+     385: goto          389
+     388: iconst_0
+     389: istore        9
+     391: aload         4
+     393: invokevirtual #370                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleFormat:()Lcom/cobblemon/mod/common/battles/BattleFormat;
+     396: invokevirtual #376                // Method com/cobblemon/mod/common/battles/BattleFormat.getBattleType:()Lcom/cobblemon/mod/common/battles/BattleType;
+     399: invokeinterface #382,  1          // InterfaceMethod com/cobblemon/mod/common/battles/BattleType.getSlotsPerActor:()I
+     404: iconst_1
+     405: if_icmpgt     425
+     408: aload         4
+     410: invokevirtual #370                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleFormat:()Lcom/cobblemon/mod/common/battles/BattleFormat;
+     413: invokevirtual #376                // Method com/cobblemon/mod/common/battles/BattleFormat.getBattleType:()Lcom/cobblemon/mod/common/battles/BattleType;
+     416: invokeinterface #385,  1          // InterfaceMethod com/cobblemon/mod/common/battles/BattleType.getActorsPerSide:()I
+     421: iconst_1
+     422: if_icmple     457
+     425: iload         9
+     427: ifeq          457
+     430: aload         4
+     432: invokevirtual #389                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getFirstUnansweredRequest:()Lcom/cobblemon/mod/common/client/battle/SingleActionRequest;
+     435: dup
+     436: ifnull        452
+     439: invokevirtual #395                // Method com/cobblemon/mod/common/client/battle/SingleActionRequest.getActivePokemon:()Lcom/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon;
+     442: dup
+     443: ifnull        452
+     446: invokevirtual #401                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getPNX:()Ljava/lang/String;
+     449: goto          458
+     452: pop
+     453: aconst_null
+     454: goto          458
+     457: aconst_null
+     458: astore        10
+     460: aload         7
+     462: invokevirtual #407                // Method com/cobblemon/mod/common/client/battle/ClientBattleSide.getActiveClientBattlePokemon:()Ljava/lang/Iterable;
+     465: astore        11
+     467: iconst_0
+     468: istore        12
+     470: iconst_0
+     471: istore        13
+     473: aload         11
+     475: invokeinterface #339,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+     480: astore        14
+     482: aload         14
+     484: invokeinterface #344,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+     489: ifeq          581
+     492: aload         14
+     494: invokeinterface #348,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+     499: astore        15
+     501: iload         13
+     503: iinc          13, 1
+     506: istore        16
+     508: iload         16
+     510: ifge          516
+     513: invokestatic  #412                // Method kotlin/collections/CollectionsKt.throwIndexOverflow:()V
+     516: iload         16
+     518: aload         15
+     520: checkcast     #397                // class com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon
+     523: astore        17
+     525: istore        18
+     527: iconst_0
+     528: istore        19
+     530: aload_0
+     531: aload_1
+     532: fload_3
+     533: aload         17
+     535: iconst_1
+     536: iload         18
+     538: getstatic     #417                // Field com/cobblemon/mod/common/api/pokedex/PokedexEntryProgress.UNREGISTERED:Lcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;
+     541: aload         17
+     543: invokevirtual #401                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getPNX:()Ljava/lang/String;
+     546: aload         10
+     548: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     551: iconst_0
+     552: aload         4
+     554: invokevirtual #370                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleFormat:()Lcom/cobblemon/mod/common/battles/BattleFormat;
+     557: invokevirtual #376                // Method com/cobblemon/mod/common/battles/BattleFormat.getBattleType:()Lcom/cobblemon/mod/common/battles/BattleType;
+     560: invokeinterface #420,  1          // InterfaceMethod com/cobblemon/mod/common/battles/BattleType.getPokemonPerSide:()I
+     565: iconst_1
+     566: if_icmple     573
+     569: iconst_1
+     570: goto          574
+     573: iconst_0
+     574: invokevirtual #422                // Method drawTile:(Lnet/minecraft/client/gui/GuiGraphics;FLcom/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon;ZILcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;ZZZ)V
+     577: nop
+     578: goto          482
+     581: nop
+     582: aload         8
+     584: invokevirtual #407                // Method com/cobblemon/mod/common/client/battle/ClientBattleSide.getActiveClientBattlePokemon:()Ljava/lang/Iterable;
+     587: astore        11
+     589: iconst_0
+     590: istore        12
+     592: iconst_0
+     593: istore        13
+     595: aload         11
+     597: invokeinterface #339,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+     602: astore        14
+     604: aload         14
+     606: invokeinterface #344,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+     611: ifeq          707
+     614: aload         14
+     616: invokeinterface #348,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+     621: astore        15
+     623: iload         13
+     625: iinc          13, 1
+     628: istore        16
+     630: iload         16
+     632: ifge          638
+     635: invokestatic  #412                // Method kotlin/collections/CollectionsKt.throwIndexOverflow:()V
+     638: iload         16
+     640: aload         15
+     642: checkcast     #397                // class com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon
+     645: astore        17
+     647: istore        18
+     649: iconst_0
+     650: istore        19
+     652: aload_0
+     653: aload_1
+     654: fload_3
+     655: aload         17
+     657: iconst_0
+     658: aload         8
+     660: invokevirtual #407                // Method com/cobblemon/mod/common/client/battle/ClientBattleSide.getActiveClientBattlePokemon:()Ljava/lang/Iterable;
+     663: invokestatic  #426                // Method kotlin/collections/CollectionsKt.count:(Ljava/lang/Iterable;)I
+     666: iload         18
+     668: isub
+     669: iconst_1
+     670: isub
+     671: aload         4
+     673: invokevirtual #430                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getKnowledge:()Lcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;
+     676: iconst_0
+     677: iconst_0
+     678: aload         4
+     680: invokevirtual #370                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleFormat:()Lcom/cobblemon/mod/common/battles/BattleFormat;
+     683: invokevirtual #376                // Method com/cobblemon/mod/common/battles/BattleFormat.getBattleType:()Lcom/cobblemon/mod/common/battles/BattleType;
+     686: invokeinterface #420,  1          // InterfaceMethod com/cobblemon/mod/common/battles/BattleType.getPokemonPerSide:()I
+     691: iconst_1
+     692: if_icmple     699
+     695: iconst_1
+     696: goto          700
+     699: iconst_0
+     700: invokevirtual #422                // Method drawTile:(Lnet/minecraft/client/gui/GuiGraphics;FLcom/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon;ZILcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;ZZZ)V
+     703: nop
+     704: goto          604
+     707: nop
+     708: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+     711: getfield      #303                // Field net/minecraft/client/Minecraft.screen:Lnet/minecraft/client/gui/screens/Screen;
+     714: instanceof    #362                // class com/cobblemon/mod/common/client/gui/battle/BattleGUI
+     717: ifne          853
+     720: aload         4
+     722: invokevirtual #433                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getMustChoose:()Z
+     725: ifeq          853
+     728: getstatic     #435                // Field PROMPT_TEXT_OPACITY_CURVE:Lkotlin/jvm/functions/Function1;
+     731: aload_0
+     732: getfield      #220                // Field passedSeconds:F
+     735: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     738: invokeinterface #441,  2          // InterfaceMethod kotlin/jvm/functions/Function1.invoke:(Ljava/lang/Object;)Ljava/lang/Object;
+     743: checkcast     #255                // class java/lang/Number
+     746: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+     749: fstore        6
+     751: aload_1
+     752: aconst_null
+     753: ldc_w         #443                // String ui.actions_label
+     756: iconst_1
+     757: anewarray     #316                // class java/lang/Object
+     760: astore        8
+     762: aload         8
+     764: iconst_0
+     765: getstatic     #448                // Field com/cobblemon/mod/common/client/keybind/keybinds/PartySendBinding.INSTANCE:Lcom/cobblemon/mod/common/client/keybind/keybinds/PartySendBinding;
+     768: checkcast     #450                // class net/minecraft/client/KeyMapping
+     771: invokestatic  #456                // Method com/cobblemon/mod/common/client/keybind/CurrentKeyAccessorKt.boundKey:(Lnet/minecraft/client/KeyMapping;)Lcom/mojang/blaze3d/platform/InputConstants$Key;
+     774: invokevirtual #460                // Method com/mojang/blaze3d/platform/InputConstants$Key.getDisplayName:()Lnet/minecraft/network/chat/Component;
+     777: dup
+     778: ldc_w         #462                // String getDisplayName(...)
+     781: invokestatic  #465                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+     784: aastore
+     785: aload         8
+     787: invokestatic  #471                // Method com/cobblemon/mod/common/util/LocalizationUtilsKt.battleLang:(Ljava/lang/String;[Ljava/lang/Object;)Lnet/minecraft/network/chat/MutableComponent;
+     790: dup
+     791: ldc_w         #473                // String battleLang(...)
+     794: invokestatic  #465                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+     797: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+     800: invokevirtual #477                // Method net/minecraft/client/Minecraft.getWindow:()Lcom/mojang/blaze3d/platform/Window;
+     803: invokevirtual #482                // Method com/mojang/blaze3d/platform/Window.getGuiScaledWidth:()I
+     806: iconst_2
+     807: idiv
+     808: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     811: checkcast     #255                // class java/lang/Number
+     814: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+     817: invokevirtual #477                // Method net/minecraft/client/Minecraft.getWindow:()Lcom/mojang/blaze3d/platform/Window;
+     820: invokevirtual #490                // Method com/mojang/blaze3d/platform/Window.getGuiScaledHeight:()I
+     823: iconst_5
+     824: idiv
+     825: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     828: checkcast     #255                // class java/lang/Number
+     831: fconst_0
+     832: fload         6
+     834: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     837: checkcast     #255                // class java/lang/Number
+     840: iconst_0
+     841: iconst_0
+     842: iconst_1
+     843: iconst_0
+     844: aconst_null
+     845: aconst_null
+     846: sipush        7586
+     849: aconst_null
+     850: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+     853: aload         5
+     855: ifnull        866
+     858: aload         5
+     860: instanceof    #498                // class net/minecraft/client/gui/screens/ChatScreen
+     863: ifeq          935
+     866: aload_0
+     867: getfield      #222                // Field lastKnownBattle:Ljava/util/UUID;
+     870: aload         4
+     872: invokevirtual #501                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleId:()Ljava/util/UUID;
+     875: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     878: ifne          914
+     881: aload_0
+     882: aload         4
+     884: invokevirtual #501                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleId:()Ljava/util/UUID;
+     887: putfield      #222                // Field lastKnownBattle:Ljava/util/UUID;
+     890: aload_0
+     891: new           #226                // class com/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane
+     894: dup
+     895: getstatic     #281                // Field com/cobblemon/mod/common/client/CobblemonClient.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonClient;
+     898: invokevirtual #285                // Method com/cobblemon/mod/common/client/CobblemonClient.getBattle:()Lcom/cobblemon/mod/common/client/battle/ClientBattle;
+     901: dup
+     902: invokestatic  #262                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+     905: invokevirtual #505                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getMessages:()Lcom/cobblemon/mod/common/client/battle/ClientBattleMessageQueue;
+     908: invokespecial #508                // Method com/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane."<init>":(Lcom/cobblemon/mod/common/client/battle/ClientBattleMessageQueue;)V
+     911: invokevirtual #510                // Method setMessagePane:(Lcom/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane;)V
+     914: aload_0
+     915: invokevirtual #512                // Method getMessagePane:()Lcom/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane;
+     918: ldc_w         #513                // float 0.3f
+     921: invokevirtual #515                // Method com/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane.setOpacity:(F)V
+     924: aload_0
+     925: invokevirtual #512                // Method getMessagePane:()Lcom/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane;
+     928: aload_1
+     929: iconst_0
+     930: iconst_0
+     931: fconst_0
+     932: invokevirtual #518                // Method com/cobblemon/mod/common/client/gui/battle/widgets/BattleMessagePane.render:(Lnet/minecraft/client/gui/GuiGraphics;IIF)V
+     935: return
+
+  public final void drawTile(net.minecraft.client.gui.GuiGraphics, float, com.cobblemon.mod.common.client.battle.ActiveClientBattlePokemon, boolean, int, com.cobblemon.mod.common.api.pokedex.PokedexEntryProgress, boolean, boolean, boolean);
+    Code:
+       0: aload_1
+       1: ldc           #241                // String context
+       3: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_3
+       7: ldc_w         #547                // String activeBattlePokemon
+      10: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      13: aload         6
+      15: ldc_w         #548                // String dexState
+      18: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      21: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+      24: astore        10
+      26: aload_3
+      27: invokevirtual #552                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getBattlePokemon:()Lcom/cobblemon/mod/common/client/battle/ClientBattlePokemon;
+      30: dup
+      31: ifnonnull     36
+      34: pop
+      35: return
+      36: astore        11
+      38: getstatic     #281                // Field com/cobblemon/mod/common/client/CobblemonClient.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonClient;
+      41: invokevirtual #285                // Method com/cobblemon/mod/common/client/CobblemonClient.getBattle:()Lcom/cobblemon/mod/common/client/battle/ClientBattle;
+      44: dup
+      45: ifnonnull     50
+      48: pop
+      49: return
+      50: astore        12
+      52: aload         12
+      54: invokevirtual #370                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleFormat:()Lcom/cobblemon/mod/common/battles/BattleFormat;
+      57: invokevirtual #376                // Method com/cobblemon/mod/common/battles/BattleFormat.getBattleType:()Lcom/cobblemon/mod/common/battles/BattleType;
+      60: invokeinterface #382,  1          // InterfaceMethod com/cobblemon/mod/common/battles/BattleType.getSlotsPerActor:()I
+      65: istore        13
+      67: aload_3
+      68: invokevirtual #557                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getActorShowdownId:()Ljava/lang/String;
+      71: iconst_1
+      72: invokevirtual #561                // Method java/lang/String.charAt:(I)C
+      75: invokestatic  #567                // Method kotlin/text/CharsKt.digitToInt:(C)I
+      78: iconst_1
+      79: isub
+      80: iconst_2
+      81: idiv
+      82: bipush        10
+      84: imul
+      85: istore        14
+      87: bipush        12
+      89: i2f
+      90: iload         13
+      92: iload         5
+      94: isub
+      95: iconst_1
+      96: isub
+      97: i2f
+      98: ldc_w         #568                // float 4.0f
+     101: fmul
+     102: fadd
+     103: fstore        15
+     105: bipush        10
+     107: iload         5
+     109: iload         9
+     111: ifeq          119
+     114: bipush        30
+     116: goto          121
+     119: bipush        40
+     121: imul
+     122: iadd
+     123: iload         4
+     125: ifeq          133
+     128: iload         14
+     130: goto          154
+     133: aload         12
+     135: invokevirtual #370                // Method com/cobblemon/mod/common/client/battle/ClientBattle.getBattleFormat:()Lcom/cobblemon/mod/common/battles/BattleFormat;
+     138: invokevirtual #376                // Method com/cobblemon/mod/common/battles/BattleFormat.getBattleType:()Lcom/cobblemon/mod/common/battles/BattleType;
+     141: invokeinterface #385,  1          // InterfaceMethod com/cobblemon/mod/common/battles/BattleType.getActorsPerSide:()I
+     146: iconst_1
+     147: isub
+     148: bipush        10
+     150: imul
+     151: iload         14
+     153: isub
+     154: iadd
+     155: istore        16
+     157: iload         4
+     159: ifne          192
+     162: aload         10
+     164: invokevirtual #477                // Method net/minecraft/client/Minecraft.getWindow:()Lcom/mojang/blaze3d/platform/Window;
+     167: invokevirtual #482                // Method com/mojang/blaze3d/platform/Window.getGuiScaledWidth:()I
+     170: i2f
+     171: fload         15
+     173: fsub
+     174: iload         9
+     176: ifeq          185
+     179: sipush        128
+     182: goto          188
+     185: sipush        140
+     188: i2f
+     189: fsub
+     190: fstore        15
+     192: iload         4
+     194: ifeq          218
+     197: iload         9
+     199: ifeq          208
+     202: sipush        128
+     205: goto          211
+     208: sipush        140
+     211: ineg
+     212: i2f
+     213: fconst_1
+     214: fsub
+     215: goto          227
+     218: aload         10
+     220: invokevirtual #477                // Method net/minecraft/client/Minecraft.getWindow:()Lcom/mojang/blaze3d/platform/Window;
+     223: invokevirtual #482                // Method com/mojang/blaze3d/platform/Window.getGuiScaledWidth:()I
+     226: i2f
+     227: fstore        17
+     229: aload_3
+     230: fload         17
+     232: invokevirtual #571                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.setInvisibleX:(F)V
+     235: aload_3
+     236: fload         15
+     238: invokevirtual #574                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.setXDisplacement:(F)V
+     241: aload_3
+     242: fload_2
+     243: invokevirtual #577                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.animate:(F)V
+     246: aload_3
+     247: invokevirtual #580                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getXDisplacement:()F
+     250: fstore        15
+     252: aload_3
+     253: invokevirtual #583                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getHue:()I
+     256: istore        18
+     258: iload         18
+     260: bipush        16
+     262: ishr
+     263: sipush        255
+     266: iand
+     267: i2f
+     268: ldc_w         #584                // float 255.0f
+     271: fdiv
+     272: fstore        19
+     274: iload         18
+     276: bipush        8
+     278: ishr
+     279: sipush        255
+     282: iand
+     283: i2f
+     284: ldc_w         #584                // float 255.0f
+     287: fdiv
+     288: fstore        20
+     290: iload         18
+     292: sipush        255
+     295: iand
+     296: i2f
+     297: ldc_w         #584                // float 255.0f
+     300: fdiv
+     301: fstore        21
+     303: aload_3
+     304: invokevirtual #588                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getActor:()Lcom/cobblemon/mod/common/client/battle/ClientBattleActor;
+     307: invokevirtual #591                // Method com/cobblemon/mod/common/client/battle/ClientBattleActor.getPokemon:()Ljava/util/List;
+     310: checkcast     #330                // class java/lang/Iterable
+     313: astore        24
+     315: aload         24
+     317: invokeinterface #339,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+     322: astore        25
+     324: aload         25
+     326: invokeinterface #344,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+     331: ifeq          385
+     334: aload         25
+     336: invokeinterface #348,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+     341: astore        26
+     343: aload         26
+     345: checkcast     #593                // class com/cobblemon/mod/common/pokemon/Pokemon
+     348: astore        27
+     350: iconst_0
+     351: istore        28
+     353: aload         27
+     355: invokevirtual #594                // Method com/cobblemon/mod/common/pokemon/Pokemon.getUuid:()Ljava/util/UUID;
+     358: aload_3
+     359: invokevirtual #552                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getBattlePokemon:()Lcom/cobblemon/mod/common/client/battle/ClientBattlePokemon;
+     362: dup
+     363: ifnull        372
+     366: invokevirtual #595                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getUuid:()Ljava/util/UUID;
+     369: goto          374
+     372: pop
+     373: aconst_null
+     374: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     377: ifeq          324
+     380: aload         26
+     382: goto          386
+     385: aconst_null
+     386: checkcast     #593                // class com/cobblemon/mod/common/pokemon/Pokemon
+     389: astore        22
+     391: fload         15
+     393: fstore        23
+     395: iload         16
+     397: i2f
+     398: fstore        24
+     400: iload         4
+     402: ifne          409
+     405: iconst_1
+     406: goto          410
+     409: iconst_0
+     410: istore        25
+     412: aload         11
+     414: invokevirtual #599                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getSpecies:()Lcom/cobblemon/mod/common/pokemon/Species;
+     417: astore        26
+     419: aload         11
+     421: invokevirtual #602                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getLevel:()I
+     424: istore        27
+     426: aload         11
+     428: invokevirtual #605                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getDisplayName:()Lnet/minecraft/network/chat/MutableComponent;
+     431: astore        28
+     433: aload         11
+     435: invokevirtual #609                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getGender:()Lcom/cobblemon/mod/common/pokemon/Gender;
+     438: astore        29
+     440: aload         11
+     442: invokevirtual #613                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getStatus:()Lcom/cobblemon/mod/common/pokemon/status/PersistentStatus;
+     445: astore        30
+     447: aload         11
+     449: invokevirtual #617                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getState:()Lcom/cobblemon/mod/common/client/render/models/blockbench/FloatingState;
+     452: astore        31
+     454: new           #619                // class kotlin/Triple
+     457: dup
+     458: fload         19
+     460: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     463: fload         20
+     465: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     468: fload         21
+     470: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     473: invokespecial #622                // Method kotlin/Triple."<init>":(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V
+     476: astore        32
+     478: aload_0
+     479: getfield      #210                // Field opacity:D
+     482: d2f
+     483: fstore        33
+     485: aload_3
+     486: invokevirtual #626                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getBallCapturing:()Lcom/cobblemon/mod/common/client/battle/ClientBallDisplay;
+     489: astore        34
+     491: aload         11
+     493: invokevirtual #629                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getMaxHp:()F
+     496: f2i
+     497: istore        35
+     499: aload         11
+     501: invokevirtual #632                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getHpValue:()F
+     504: fstore        36
+     506: aload         11
+     508: invokevirtual #635                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.isHpFlat:()Z
+     511: istore        37
+     513: aload         12
+     515: invokevirtual #638                // Method com/cobblemon/mod/common/client/battle/ClientBattle.isPvW:()Z
+     518: ifne          737
+     521: iload         4
+     523: ifeq          622
+     526: aload_3
+     527: invokevirtual #588                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getActor:()Lcom/cobblemon/mod/common/client/battle/ClientBattleActor;
+     530: invokevirtual #640                // Method com/cobblemon/mod/common/client/battle/ClientBattleActor.getActivePokemon:()Ljava/util/List;
+     533: checkcast     #330                // class java/lang/Iterable
+     536: astore        39
+     538: iconst_0
+     539: istore        40
+     541: aload         39
+     543: invokeinterface #339,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+     548: astore        41
+     550: aload         41
+     552: invokeinterface #344,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+     557: ifeq          614
+     560: aload         41
+     562: invokeinterface #348,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+     567: astore        42
+     569: aload         42
+     571: checkcast     #397                // class com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon
+     574: astore        43
+     576: iconst_0
+     577: istore        44
+     579: aload         43
+     581: invokevirtual #552                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getBattlePokemon:()Lcom/cobblemon/mod/common/client/battle/ClientBattlePokemon;
+     584: dup
+     585: ifnull        594
+     588: invokevirtual #632                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getHpValue:()F
+     591: goto          596
+     594: pop
+     595: fconst_0
+     596: fconst_0
+     597: fcmpl
+     598: ifle          605
+     601: iconst_1
+     602: goto          606
+     605: iconst_0
+     606: ifeq          550
+     609: aload         42
+     611: goto          615
+     614: aconst_null
+     615: aload_3
+     616: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     619: ifne          727
+     622: iload         4
+     624: ifne          737
+     627: aload_3
+     628: invokevirtual #588                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getActor:()Lcom/cobblemon/mod/common/client/battle/ClientBattleActor;
+     631: invokevirtual #640                // Method com/cobblemon/mod/common/client/battle/ClientBattleActor.getActivePokemon:()Ljava/util/List;
+     634: astore        39
+     636: iconst_0
+     637: istore        40
+     639: aload         39
+     641: aload         39
+     643: invokeinterface #657,  1          // InterfaceMethod java/util/List.size:()I
+     648: invokeinterface #661,  2          // InterfaceMethod java/util/List.listIterator:(I)Ljava/util/ListIterator;
+     653: astore        41
+     655: aload         41
+     657: invokeinterface #666,  1          // InterfaceMethod java/util/ListIterator.hasPrevious:()Z
+     662: ifeq          719
+     665: aload         41
+     667: invokeinterface #669,  1          // InterfaceMethod java/util/ListIterator.previous:()Ljava/lang/Object;
+     672: astore        42
+     674: aload         42
+     676: checkcast     #397                // class com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon
+     679: astore        43
+     681: iconst_0
+     682: istore        44
+     684: aload         43
+     686: invokevirtual #552                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getBattlePokemon:()Lcom/cobblemon/mod/common/client/battle/ClientBattlePokemon;
+     689: dup
+     690: ifnull        699
+     693: invokevirtual #632                // Method com/cobblemon/mod/common/client/battle/ClientBattlePokemon.getHpValue:()F
+     696: goto          701
+     699: pop
+     700: fconst_0
+     701: fconst_0
+     702: fcmpl
+     703: ifle          710
+     706: iconst_1
+     707: goto          711
+     710: iconst_0
+     711: ifeq          655
+     714: aload         42
+     716: goto          720
+     719: aconst_null
+     720: aload_3
+     721: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     724: ifeq          737
+     727: aload_3
+     728: invokevirtual #588                // Method com/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon.getActor:()Lcom/cobblemon/mod/common/client/battle/ClientBattleActor;
+     731: invokevirtual #670                // Method com/cobblemon/mod/common/client/battle/ClientBattleActor.getDisplayName:()Lnet/minecraft/network/chat/MutableComponent;
+     734: goto          738
+     737: aconst_null
+     738: astore        38
+     740: aload_0
+     741: aload_1
+     742: fload         23
+     744: fload         24
+     746: fload_2
+     747: iload         25
+     749: aload         26
+     751: iload         27
+     753: aload         28
+     755: aload         29
+     757: aload         30
+     759: aload         31
+     761: checkcast     #672                // class com/cobblemon/mod/common/client/render/models/blockbench/PosableState
+     764: aload         32
+     766: fload         33
+     768: aload         34
+     770: iload         35
+     772: fload         36
+     774: iload         7
+     776: iload         8
+     778: iload         9
+     780: aload         38
+     782: iload         37
+     784: aload         6
+     786: invokevirtual #674                // Method drawBattleTile:(Lnet/minecraft/client/gui/GuiGraphics;FFFZLcom/cobblemon/mod/common/pokemon/Species;ILnet/minecraft/network/chat/MutableComponent;Lcom/cobblemon/mod/common/pokemon/Gender;Lcom/cobblemon/mod/common/pokemon/status/PersistentStatus;Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableState;Lkotlin/Triple;FLcom/cobblemon/mod/common/client/battle/ClientBallDisplay;IFZZZLnet/minecraft/network/chat/MutableComponent;ZLcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;)V
+     789: return
+
+  public static void drawTile$default(com.cobblemon.mod.common.client.gui.battle.BattleOverlay, net.minecraft.client.gui.GuiGraphics, float, com.cobblemon.mod.common.client.battle.ActiveClientBattlePokemon, boolean, int, com.cobblemon.mod.common.api.pokedex.PokedexEntryProgress, boolean, boolean, boolean, int, java.lang.Object);
+    Code:
+       0: iload         10
+       2: bipush        64
+       4: iand
+       5: ifeq          11
+       8: iconst_0
+       9: istore        7
+      11: iload         10
+      13: sipush        128
+      16: iand
+      17: ifeq          23
+      20: iconst_0
+      21: istore        8
+      23: iload         10
+      25: sipush        256
+      28: iand
+      29: ifeq          35
+      32: iconst_0
+      33: istore        9
+      35: aload_0
+      36: aload_1
+      37: fload_2
+      38: aload_3
+      39: iload         4
+      41: iload         5
+      43: aload         6
+      45: iload         7
+      47: iload         8
+      49: iload         9
+      51: invokevirtual #422                // Method drawTile:(Lnet/minecraft/client/gui/GuiGraphics;FLcom/cobblemon/mod/common/client/battle/ActiveClientBattlePokemon;ZILcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;ZZZ)V
+      54: return
+
+  public final void drawBattleTile(net.minecraft.client.gui.GuiGraphics, float, float, float, boolean, com.cobblemon.mod.common.pokemon.Species, int, net.minecraft.network.chat.MutableComponent, com.cobblemon.mod.common.pokemon.Gender, com.cobblemon.mod.common.pokemon.status.PersistentStatus, com.cobblemon.mod.common.client.render.models.blockbench.PosableState, kotlin.Triple<java.lang.Float, java.lang.Float, java.lang.Float>, float, com.cobblemon.mod.common.client.battle.ClientBallDisplay, int, float, boolean, boolean, boolean, net.minecraft.network.chat.MutableComponent, boolean, com.cobblemon.mod.common.api.pokedex.PokedexEntryProgress);
+    Code:
+       0: aload_1
+       1: ldc           #241                // String context
+       3: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload         6
+       8: ldc_w         #701                // String species
+      11: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      14: aload         8
+      16: ldc_w         #702                // String displayName
+      19: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      22: aload         9
+      24: ldc_w         #703                // String gender
+      27: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      30: aload         11
+      32: ldc_w         #704                // String state
+      35: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      38: aload         22
+      40: ldc_w         #548                // String dexState
+      43: invokestatic  #238                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      46: iload         19
+      48: ifeq          57
+      51: sipush        128
+      54: goto          60
+      57: sipush        140
+      60: istore        23
+      62: iload         19
+      64: ifeq          71
+      67: iconst_4
+      68: goto          72
+      71: iconst_5
+      72: istore        24
+      74: iload         19
+      76: ifeq          84
+      79: bipush        7
+      81: goto          86
+      84: bipush        8
+      86: istore        25
+      88: iload         19
+      90: ifeq          98
+      93: bipush        19
+      95: goto          100
+      98: bipush        28
+     100: istore        26
+     102: iload         19
+     104: ifeq          112
+     107: bipush        6
+     109: goto          114
+     112: bipush        7
+     114: istore        27
+     116: fload_2
+     117: iload         5
+     119: ifne          127
+     122: iload         24
+     124: goto          135
+     127: iload         23
+     129: iload         26
+     131: isub
+     132: iload         24
+     134: isub
+     135: i2f
+     136: fadd
+     137: fstore        28
+     139: aload_1
+     140: invokevirtual #708                // Method net/minecraft/client/gui/GuiGraphics.pose:()Lcom/mojang/blaze3d/vertex/PoseStack;
+     143: astore        29
+     145: aload         29
+     147: invokestatic  #262                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+     150: aload         29
+     152: astore        30
+     154: getstatic     #710                // Field battleInfoUnderlay:Lnet/minecraft/resources/ResourceLocation;
+     157: astore        31
+     159: fload_3
+     160: iload         25
+     162: i2f
+     163: fadd
+     164: fstore        32
+     166: aload         30
+     168: aload         31
+     170: fload         28
+     172: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     175: checkcast     #255                // class java/lang/Number
+     178: fload         32
+     180: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     183: checkcast     #255                // class java/lang/Number
+     186: iload         26
+     188: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     191: checkcast     #255                // class java/lang/Number
+     194: iload         26
+     196: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     199: checkcast     #255                // class java/lang/Number
+     202: aconst_null
+     203: aconst_null
+     204: aconst_null
+     205: aconst_null
+     206: aconst_null
+     207: aconst_null
+     208: aconst_null
+     209: aconst_null
+     210: fload         13
+     212: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     215: checkcast     #255                // class java/lang/Number
+     218: iconst_0
+     219: fconst_0
+     220: ldc_w         #711                // int 114624
+     223: aconst_null
+     224: invokestatic  #717                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.blitk$default:(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/resources/ResourceLocation;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;ZFILjava/lang/Object;)V
+     227: aload         10
+     229: ifnull        577
+     232: iload         19
+     234: ifeq          242
+     237: bipush        40
+     239: goto          244
+     242: bipush        37
+     244: istore        30
+     246: aload         29
+     248: astore        31
+     250: aload         10
+     252: invokevirtual #724                // Method com/cobblemon/mod/common/pokemon/status/PersistentStatus.getShowdownName:()Ljava/lang/String;
+     255: invokedynamic #736,  0            // InvokeDynamic #0:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;
+     260: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+     263: astore        32
+     265: fload_2
+     266: iload         5
+     268: ifeq          276
+     271: bipush        65
+     273: goto          288
+     276: iload         19
+     278: ifeq          286
+     281: bipush        23
+     283: goto          288
+     286: bipush        38
+     288: i2f
+     289: fadd
+     290: fstore        33
+     292: fload_3
+     293: iload         19
+     295: ifeq          303
+     298: bipush        22
+     300: goto          305
+     303: bipush        28
+     305: i2f
+     306: fadd
+     307: fstore        34
+     309: iload         19
+     311: ifeq          319
+     314: bipush        6
+     316: goto          321
+     319: bipush        7
+     321: istore        35
+     323: iload         5
+     325: ifeq          332
+     328: iconst_0
+     329: goto          337
+     332: bipush        74
+     334: iload         30
+     336: isub
+     337: istore        36
+     339: iload         19
+     341: ifeq          348
+     344: iconst_1
+     345: goto          349
+     348: iconst_0
+     349: istore        37
+     351: aload         31
+     353: aload         32
+     355: fload         33
+     357: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     360: checkcast     #255                // class java/lang/Number
+     363: fload         34
+     365: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     368: checkcast     #255                // class java/lang/Number
+     371: iload         35
+     373: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     376: checkcast     #255                // class java/lang/Number
+     379: iload         30
+     381: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     384: checkcast     #255                // class java/lang/Number
+     387: iload         36
+     389: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     392: checkcast     #255                // class java/lang/Number
+     395: iload         37
+     397: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     400: checkcast     #255                // class java/lang/Number
+     403: bipush        74
+     405: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     408: checkcast     #255                // class java/lang/Number
+     411: bipush        7
+     413: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     416: checkcast     #255                // class java/lang/Number
+     419: aconst_null
+     420: aconst_null
+     421: aconst_null
+     422: aconst_null
+     423: fload         13
+     425: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     428: checkcast     #255                // class java/lang/Number
+     431: iconst_0
+     432: fconst_0
+     433: ldc_w         #743                // int 113664
+     436: aconst_null
+     437: invokestatic  #717                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.blitk$default:(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/resources/ResourceLocation;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;ZFILjava/lang/Object;)V
+     440: aload_1
+     441: iload         19
+     443: ifeq          450
+     446: aconst_null
+     447: goto          456
+     450: getstatic     #748                // Field com/cobblemon/mod/common/client/CobblemonResources.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonResources;
+     453: invokevirtual #752                // Method com/cobblemon/mod/common/client/CobblemonResources.getDEFAULT_LARGE:()Lnet/minecraft/resources/ResourceLocation;
+     456: aload         10
+     458: invokevirtual #724                // Method com/cobblemon/mod/common/pokemon/status/PersistentStatus.getShowdownName:()Ljava/lang/String;
+     461: invokedynamic #755,  0            // InvokeDynamic #1:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;
+     466: iconst_0
+     467: anewarray     #316                // class java/lang/Object
+     470: invokestatic  #758                // Method com/cobblemon/mod/common/util/LocalizationUtilsKt.lang:(Ljava/lang/String;[Ljava/lang/Object;)Lnet/minecraft/network/chat/MutableComponent;
+     473: dup
+     474: ldc_w         #760                // String lang(...)
+     477: invokestatic  #465                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+     480: invokestatic  #766                // Method com/cobblemon/mod/common/api/text/TextKt.bold:(Lnet/minecraft/network/chat/MutableComponent;)Lnet/minecraft/network/chat/MutableComponent;
+     483: fload_2
+     484: iload         19
+     486: ifeq          504
+     489: iload         5
+     491: ifeq          499
+     494: bipush        87
+     496: goto          516
+     499: bipush        30
+     501: goto          516
+     504: iload         5
+     506: ifeq          514
+     509: bipush        86
+     511: goto          516
+     514: bipush        41
+     516: i2f
+     517: fadd
+     518: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     521: checkcast     #255                // class java/lang/Number
+     524: fload_3
+     525: iload         19
+     527: ifeq          535
+     530: bipush        23
+     532: goto          537
+     535: bipush        27
+     537: i2f
+     538: fadd
+     539: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     542: checkcast     #255                // class java/lang/Number
+     545: iload         19
+     547: ifeq          555
+     550: ldc           #187                // float 0.5f
+     552: goto          556
+     555: fconst_1
+     556: fload         13
+     558: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     561: checkcast     #255                // class java/lang/Number
+     564: iconst_0
+     565: iconst_0
+     566: iconst_0
+     567: iconst_0
+     568: aconst_null
+     569: aconst_null
+     570: sipush        8064
+     573: aconst_null
+     574: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+     577: aload_1
+     578: fload         28
+     580: f2i
+     581: fload_3
+     582: iload         25
+     584: i2f
+     585: fadd
+     586: f2i
+     587: fload         28
+     589: iload         26
+     591: i2f
+     592: fadd
+     593: f2i
+     594: fload_3
+     595: iload         26
+     597: i2f
+     598: fadd
+     599: iload         25
+     601: i2f
+     602: fadd
+     603: f2i
+     604: invokevirtual #770                // Method net/minecraft/client/gui/GuiGraphics.enableScissor:(IIII)V
+     607: aload         29
+     609: invokevirtual #773                // Method com/mojang/blaze3d/vertex/PoseStack.pushPose:()V
+     612: aload         29
+     614: fload         28
+     616: f2d
+     617: iload         26
+     619: i2d
+     620: ldc2_w        #774                // double 2.0d
+     623: ddiv
+     624: dadd
+     625: fload_3
+     626: f2d
+     627: iload         25
+     629: i2d
+     630: dadd
+     631: iload         19
+     633: ifeq          642
+     636: ldc2_w        #776                // double 15.0d
+     639: goto          645
+     642: ldc2_w        #778                // double 5.0d
+     645: dsub
+     646: dconst_0
+     647: invokevirtual #783                // Method com/mojang/blaze3d/vertex/PoseStack.translate:(DDD)V
+     650: aload         14
+     652: ifnull        677
+     655: aload         14
+     657: invokevirtual #786                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getCurrentPose:()Ljava/lang/String;
+     660: ldc_w         #788                // String shut
+     663: invokestatic  #357                // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     666: ifne          677
+     669: aload         14
+     671: ldc_w         #788                // String shut
+     674: invokevirtual #791                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.setCurrentPose:(Ljava/lang/String;)V
+     677: aload         14
+     679: ifnull        722
+     682: aload         14
+     684: invokevirtual #795                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getStateEmitter:()Lcom/cobblemon/mod/common/api/reactive/SettableObservable;
+     687: invokevirtual #800                // Method com/cobblemon/mod/common/api/reactive/SettableObservable.get:()Ljava/lang/Object;
+     690: getstatic     #804                // Field com/cobblemon/mod/common/entity/pokeball/EmptyPokeBallEntity$CaptureState.SHAKE:Lcom/cobblemon/mod/common/entity/pokeball/EmptyPokeBallEntity$CaptureState;
+     693: if_acmpne     722
+     696: aload         14
+     698: astore        30
+     700: aload         29
+     702: astore        31
+     704: aload_0
+     705: aload         30
+     707: aload         31
+     709: fconst_0
+     710: fload         4
+     712: iload         5
+     714: iconst_4
+     715: aconst_null
+     716: invokestatic  #808                // Method drawPokeBall$default:(Lcom/cobblemon/mod/common/client/gui/battle/BattleOverlay;Lcom/cobblemon/mod/common/client/battle/ClientBallDisplay;Lcom/mojang/blaze3d/vertex/PoseStack;FFZILjava/lang/Object;)V
+     719: goto          832
+     722: aload         6
+     724: invokevirtual #811                // Method com/cobblemon/mod/common/pokemon/Species.getResourceIdentifier:()Lnet/minecraft/resources/ResourceLocation;
+     727: astore        30
+     729: aload         29
+     731: astore        31
+     733: ldc_w         #812                // float 18.0f
+     736: aload         14
+     738: dup
+     739: ifnull        748
+     742: invokevirtual #815                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getScale:()F
+     745: goto          750
+     748: pop
+     749: fconst_1
+     750: fmul
+     751: iload         19
+     753: ifeq          762
+     756: ldc_w         #816                // float 0.65f
+     759: goto          763
+     762: fconst_1
+     763: fmul
+     764: fstore        32
+     766: aload         6
+     768: aload         11
+     770: invokevirtual #820                // Method com/cobblemon/mod/common/client/render/models/blockbench/PosableState.getCurrentAspects:()Ljava/util/Set;
+     773: invokevirtual #824                // Method com/cobblemon/mod/common/pokemon/Species.getForm:(Ljava/util/Set;)Lcom/cobblemon/mod/common/pokemon/FormData;
+     776: invokevirtual #829                // Method com/cobblemon/mod/common/pokemon/FormData.getBaseScale:()F
+     779: fstore        33
+     781: getstatic     #834                // Field com/cobblemon/mod/common/Cobblemon.INSTANCE:Lcom/cobblemon/mod/common/Cobblemon;
+     784: invokevirtual #838                // Method com/cobblemon/mod/common/Cobblemon.getConfig:()Lcom/cobblemon/mod/common/config/CobblemonConfig;
+     787: invokevirtual #843                // Method com/cobblemon/mod/common/config/CobblemonConfig.getAnimateBattleTiles:()Z
+     790: ifeq          798
+     793: fload         4
+     795: goto          799
+     798: fconst_0
+     799: fstore        34
+     801: aload         30
+     803: aload         31
+     805: fload         32
+     807: fload         33
+     809: iload         5
+     811: aload         11
+     813: fload         34
+     815: fconst_0
+     816: fconst_0
+     817: fconst_0
+     818: fconst_0
+     819: fconst_0
+     820: iconst_0
+     821: fconst_0
+     822: fconst_0
+     823: fconst_0
+     824: fconst_0
+     825: ldc_w         #844                // int 126848
+     828: aconst_null
+     829: invokestatic  #848                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.drawPosablePortrait$default:(Lnet/minecraft/resources/ResourceLocation;Lcom/mojang/blaze3d/vertex/PoseStack;FFZLcom/cobblemon/mod/common/client/render/models/blockbench/PosableState;FFFFFFZFFFFILjava/lang/Object;)V
+     832: aload         29
+     834: invokevirtual #851                // Method com/mojang/blaze3d/vertex/PoseStack.popPose:()V
+     837: aload_1
+     838: invokevirtual #854                // Method net/minecraft/client/gui/GuiGraphics.disableScissor:()V
+     841: aload         29
+     843: astore        30
+     845: iload         19
+     847: ifeq          867
+     850: iload         5
+     852: ifeq          861
+     855: getstatic     #856                // Field battleInfoBaseFlippedCompact:Lnet/minecraft/resources/ResourceLocation;
+     858: goto          881
+     861: getstatic     #858                // Field battleInfoBaseCompact:Lnet/minecraft/resources/ResourceLocation;
+     864: goto          881
+     867: iload         5
+     869: ifeq          878
+     872: getstatic     #860                // Field battleInfoBaseFlipped:Lnet/minecraft/resources/ResourceLocation;
+     875: goto          881
+     878: getstatic     #862                // Field battleInfoBase:Lnet/minecraft/resources/ResourceLocation;
+     881: astore        31
+     883: iload         19
+     885: ifeq          893
+     888: bipush        28
+     890: goto          895
+     893: bipush        40
+     895: istore        32
+     897: iload         19
+     899: ifeq          907
+     902: bipush        56
+     904: goto          909
+     907: bipush        40
+     909: istore        33
+     911: iload         18
+     913: ifeq          926
+     916: iload         19
+     918: ifeq          926
+     921: bipush        28
+     923: goto          927
+     926: iconst_0
+     927: istore        34
+     929: aload         30
+     931: aload         31
+     933: fload_2
+     934: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     937: checkcast     #255                // class java/lang/Number
+     940: fload_3
+     941: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     944: checkcast     #255                // class java/lang/Number
+     947: iload         32
+     949: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     952: checkcast     #255                // class java/lang/Number
+     955: iload         23
+     957: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     960: checkcast     #255                // class java/lang/Number
+     963: aconst_null
+     964: iload         34
+     966: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     969: checkcast     #255                // class java/lang/Number
+     972: aconst_null
+     973: iload         33
+     975: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     978: checkcast     #255                // class java/lang/Number
+     981: aconst_null
+     982: aconst_null
+     983: aconst_null
+     984: aconst_null
+     985: fload         13
+     987: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+     990: checkcast     #255                // class java/lang/Number
+     993: iconst_0
+     994: fconst_0
+     995: ldc_w         #863                // int 113984
+     998: aconst_null
+     999: invokestatic  #717                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.blitk$default:(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/resources/ResourceLocation;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;ZFILjava/lang/Object;)V
+    1002: aload_0
+    1003: getfield      #220                // Field passedSeconds:F
+    1006: f2d
+    1007: ldc2_w        #184                // double 2.5d
+    1010: ddiv
+    1011: iconst_1
+    1012: i2d
+    1013: drem
+    1014: iconst_5
+    1015: i2d
+    1016: dmul
+    1017: invokestatic  #869                // Method java/lang/Math.floor:(D)D
+    1020: dstore        30
+    1022: aload         12
+    1024: ifnull        1369
+    1027: iload         17
+    1029: ifeq          1049
+    1032: dload         30
+    1034: ldc2_w        #870                // double 4.0d
+    1037: dcmpg
+    1038: ifne          1045
+    1041: iconst_1
+    1042: goto          1046
+    1045: iconst_0
+    1046: ifne          1369
+    1049: aload         12
+    1051: astore        32
+    1053: aload         32
+    1055: invokevirtual #874                // Method kotlin/Triple.component1:()Ljava/lang/Object;
+    1058: checkcast     #255                // class java/lang/Number
+    1061: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+    1064: fstore        33
+    1066: aload         32
+    1068: invokevirtual #877                // Method kotlin/Triple.component2:()Ljava/lang/Object;
+    1071: checkcast     #255                // class java/lang/Number
+    1074: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+    1077: fstore        34
+    1079: aload         32
+    1081: invokevirtual #880                // Method kotlin/Triple.component3:()Ljava/lang/Object;
+    1084: checkcast     #255                // class java/lang/Number
+    1087: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+    1090: fstore        35
+    1092: aload         29
+    1094: astore        36
+    1096: iload         5
+    1098: ifeq          1107
+    1101: getstatic     #882                // Field battleInfoRoleFlipped:Lnet/minecraft/resources/ResourceLocation;
+    1104: goto          1110
+    1107: getstatic     #884                // Field battleInfoRole:Lnet/minecraft/resources/ResourceLocation;
+    1110: astore        37
+    1112: fload_2
+    1113: iload         19
+    1115: ifeq          1133
+    1118: iload         5
+    1120: ifeq          1128
+    1123: bipush        93
+    1125: goto          1145
+    1128: bipush        8
+    1130: goto          1145
+    1133: iload         5
+    1135: ifeq          1143
+    1138: bipush        102
+    1140: goto          1145
+    1143: bipush        11
+    1145: i2f
+    1146: fadd
+    1147: fstore        38
+    1149: fload_3
+    1150: iconst_1
+    1151: i2f
+    1152: fadd
+    1153: fstore        39
+    1155: iload         17
+    1157: ifeq          1171
+    1160: dload         30
+    1162: iconst_3
+    1163: i2d
+    1164: dmul
+    1165: invokestatic  #887                // Method java/lang/Double.valueOf:(D)Ljava/lang/Double;
+    1168: goto          1176
+    1171: bipush        9
+    1173: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1176: checkcast     #255                // class java/lang/Number
+    1179: astore        40
+    1181: aload         36
+    1183: aload         37
+    1185: fload         38
+    1187: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1190: checkcast     #255                // class java/lang/Number
+    1193: fload         39
+    1195: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1198: checkcast     #255                // class java/lang/Number
+    1201: iconst_3
+    1202: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1205: checkcast     #255                // class java/lang/Number
+    1208: bipush        27
+    1210: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1213: checkcast     #255                // class java/lang/Number
+    1216: aconst_null
+    1217: aload         40
+    1219: aconst_null
+    1220: bipush        12
+    1222: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1225: checkcast     #255                // class java/lang/Number
+    1228: aconst_null
+    1229: fload         33
+    1231: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1234: checkcast     #255                // class java/lang/Number
+    1237: fload         34
+    1239: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1242: checkcast     #255                // class java/lang/Number
+    1245: fload         35
+    1247: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1250: checkcast     #255                // class java/lang/Number
+    1253: fload         13
+    1255: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1258: checkcast     #255                // class java/lang/Number
+    1261: iconst_0
+    1262: fconst_0
+    1263: ldc_w         #888                // int 99648
+    1266: aconst_null
+    1267: invokestatic  #717                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.blitk$default:(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/resources/ResourceLocation;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;ZFILjava/lang/Object;)V
+    1270: aload         22
+    1272: getstatic     #891                // Field com/cobblemon/mod/common/api/pokedex/PokedexEntryProgress.OWNED:Lcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;
+    1275: if_acmpne     1369
+    1278: aload         29
+    1280: astore        36
+    1282: getstatic     #893                // Field caughtIndicator:Lnet/minecraft/resources/ResourceLocation;
+    1285: astore        37
+    1287: fload_2
+    1288: bipush        7
+    1290: i2f
+    1291: fadd
+    1292: ldc           #187                // float 0.5f
+    1294: fdiv
+    1295: fstore        38
+    1297: fload_3
+    1298: bipush        9
+    1300: i2f
+    1301: fadd
+    1302: ldc           #187                // float 0.5f
+    1304: fdiv
+    1305: fstore        39
+    1307: aload         36
+    1309: aload         37
+    1311: fload         38
+    1313: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1316: checkcast     #255                // class java/lang/Number
+    1319: fload         39
+    1321: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1324: checkcast     #255                // class java/lang/Number
+    1327: bipush        10
+    1329: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1332: checkcast     #255                // class java/lang/Number
+    1335: bipush        10
+    1337: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1340: checkcast     #255                // class java/lang/Number
+    1343: aconst_null
+    1344: aconst_null
+    1345: aconst_null
+    1346: aconst_null
+    1347: aconst_null
+    1348: aconst_null
+    1349: aconst_null
+    1350: aconst_null
+    1351: fload         13
+    1353: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1356: checkcast     #255                // class java/lang/Number
+    1359: iconst_0
+    1360: ldc           #187                // float 0.5f
+    1362: ldc_w         #894                // int 49088
+    1365: aconst_null
+    1366: invokestatic  #717                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.blitk$default:(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/resources/ResourceLocation;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;ZFILjava/lang/Object;)V
+    1369: fload_2
+    1370: iload         5
+    1372: ifne          1386
+    1375: iload         26
+    1377: iload         24
+    1379: iadd
+    1380: iload         27
+    1382: iadd
+    1383: goto          1388
+    1386: iload         27
+    1388: i2f
+    1389: fadd
+    1390: fstore        32
+    1392: aload_1
+    1393: getstatic     #748                // Field com/cobblemon/mod/common/client/CobblemonResources.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonResources;
+    1396: invokevirtual #752                // Method com/cobblemon/mod/common/client/CobblemonResources.getDEFAULT_LARGE:()Lnet/minecraft/resources/ResourceLocation;
+    1399: aload         8
+    1401: invokestatic  #766                // Method com/cobblemon/mod/common/api/text/TextKt.bold:(Lnet/minecraft/network/chat/MutableComponent;)Lnet/minecraft/network/chat/MutableComponent;
+    1404: fload         32
+    1406: aload         22
+    1408: getstatic     #891                // Field com/cobblemon/mod/common/api/pokedex/PokedexEntryProgress.OWNED:Lcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;
+    1411: if_acmpne     1419
+    1414: bipush        7
+    1416: goto          1420
+    1419: iconst_0
+    1420: i2f
+    1421: fadd
+    1422: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1425: checkcast     #255                // class java/lang/Number
+    1428: fload_3
+    1429: iload         19
+    1431: ifeq          1438
+    1434: iconst_5
+    1435: goto          1440
+    1438: bipush        7
+    1440: i2f
+    1441: fadd
+    1442: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1445: checkcast     #255                // class java/lang/Number
+    1448: fconst_0
+    1449: fload         13
+    1451: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1454: checkcast     #255                // class java/lang/Number
+    1457: iconst_0
+    1458: iconst_0
+    1459: iconst_0
+    1460: iconst_1
+    1461: aconst_null
+    1462: aconst_null
+    1463: sipush        7072
+    1466: aconst_null
+    1467: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+    1470: aload         9
+    1472: getstatic     #897                // Field com/cobblemon/mod/common/pokemon/Gender.GENDERLESS:Lcom/cobblemon/mod/common/pokemon/Gender;
+    1475: if_acmpeq     1613
+    1478: aload         9
+    1480: getstatic     #900                // Field com/cobblemon/mod/common/pokemon/Gender.MALE:Lcom/cobblemon/mod/common/pokemon/Gender;
+    1483: if_acmpne     1490
+    1486: iconst_1
+    1487: goto          1491
+    1490: iconst_0
+    1491: istore        33
+    1493: iload         33
+    1495: ifeq          1510
+    1498: ldc_w         #902                // String ?
+    1501: invokestatic  #906                // Method com/cobblemon/mod/common/api/text/TextKt.text:(Ljava/lang/String;)Lnet/minecraft/network/chat/MutableComponent;
+    1504: invokestatic  #766                // Method com/cobblemon/mod/common/api/text/TextKt.bold:(Lnet/minecraft/network/chat/MutableComponent;)Lnet/minecraft/network/chat/MutableComponent;
+    1507: goto          1519
+    1510: ldc_w         #908                // String ?
+    1513: invokestatic  #906                // Method com/cobblemon/mod/common/api/text/TextKt.text:(Ljava/lang/String;)Lnet/minecraft/network/chat/MutableComponent;
+    1516: invokestatic  #766                // Method com/cobblemon/mod/common/api/text/TextKt.bold:(Lnet/minecraft/network/chat/MutableComponent;)Lnet/minecraft/network/chat/MutableComponent;
+    1519: astore        34
+    1521: getstatic     #748                // Field com/cobblemon/mod/common/client/CobblemonResources.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonResources;
+    1524: invokevirtual #752                // Method com/cobblemon/mod/common/client/CobblemonResources.getDEFAULT_LARGE:()Lnet/minecraft/resources/ResourceLocation;
+    1527: astore        35
+    1529: fload         32
+    1531: bipush        63
+    1533: i2f
+    1534: fadd
+    1535: fstore        36
+    1537: fload_3
+    1538: iload         19
+    1540: ifeq          1547
+    1543: iconst_5
+    1544: goto          1549
+    1547: bipush        7
+    1549: i2f
+    1550: fadd
+    1551: fstore        37
+    1553: iload         33
+    1555: ifeq          1564
+    1558: ldc_w         #909                // int 3329023
+    1561: goto          1567
+    1564: ldc_w         #910                // int 16536660
+    1567: istore        38
+    1569: aload_1
+    1570: aload         35
+    1572: aload         34
+    1574: fload         36
+    1576: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1579: checkcast     #255                // class java/lang/Number
+    1582: fload         37
+    1584: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1587: checkcast     #255                // class java/lang/Number
+    1590: fconst_0
+    1591: fload         13
+    1593: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1596: checkcast     #255                // class java/lang/Number
+    1599: iconst_0
+    1600: iload         38
+    1602: iconst_0
+    1603: iconst_1
+    1604: aconst_null
+    1605: aconst_null
+    1606: sipush        6816
+    1609: aconst_null
+    1610: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+    1613: aload_1
+    1614: getstatic     #748                // Field com/cobblemon/mod/common/client/CobblemonResources.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonResources;
+    1617: invokevirtual #752                // Method com/cobblemon/mod/common/client/CobblemonResources.getDEFAULT_LARGE:()Lnet/minecraft/resources/ResourceLocation;
+    1620: ldc_w         #912                // String ui.lv
+    1623: iconst_0
+    1624: anewarray     #316                // class java/lang/Object
+    1627: invokestatic  #758                // Method com/cobblemon/mod/common/util/LocalizationUtilsKt.lang:(Ljava/lang/String;[Ljava/lang/Object;)Lnet/minecraft/network/chat/MutableComponent;
+    1630: dup
+    1631: ldc_w         #760                // String lang(...)
+    1634: invokestatic  #465                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+    1637: invokestatic  #766                // Method com/cobblemon/mod/common/api/text/TextKt.bold:(Lnet/minecraft/network/chat/MutableComponent;)Lnet/minecraft/network/chat/MutableComponent;
+    1640: fload         32
+    1642: bipush        69
+    1644: i2f
+    1645: fadd
+    1646: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1649: checkcast     #255                // class java/lang/Number
+    1652: fload_3
+    1653: iload         19
+    1655: ifeq          1662
+    1658: iconst_5
+    1659: goto          1664
+    1662: bipush        7
+    1664: i2f
+    1665: fadd
+    1666: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1669: checkcast     #255                // class java/lang/Number
+    1672: fconst_0
+    1673: fload         13
+    1675: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1678: checkcast     #255                // class java/lang/Number
+    1681: iconst_0
+    1682: iconst_0
+    1683: iconst_0
+    1684: iconst_1
+    1685: aconst_null
+    1686: aconst_null
+    1687: sipush        7072
+    1690: aconst_null
+    1691: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+    1694: aload_1
+    1695: getstatic     #748                // Field com/cobblemon/mod/common/client/CobblemonResources.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonResources;
+    1698: invokevirtual #752                // Method com/cobblemon/mod/common/client/CobblemonResources.getDEFAULT_LARGE:()Lnet/minecraft/resources/ResourceLocation;
+    1701: iload         7
+    1703: invokestatic  #915                // Method java/lang/String.valueOf:(I)Ljava/lang/String;
+    1706: invokestatic  #906                // Method com/cobblemon/mod/common/api/text/TextKt.text:(Ljava/lang/String;)Lnet/minecraft/network/chat/MutableComponent;
+    1709: invokestatic  #766                // Method com/cobblemon/mod/common/api/text/TextKt.bold:(Lnet/minecraft/network/chat/MutableComponent;)Lnet/minecraft/network/chat/MutableComponent;
+    1712: fload         32
+    1714: bipush        82
+    1716: i2f
+    1717: fadd
+    1718: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1721: checkcast     #255                // class java/lang/Number
+    1724: fload_3
+    1725: iload         19
+    1727: ifeq          1734
+    1730: iconst_5
+    1731: goto          1736
+    1734: bipush        7
+    1736: i2f
+    1737: fadd
+    1738: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1741: checkcast     #255                // class java/lang/Number
+    1744: fconst_0
+    1745: fload         13
+    1747: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1750: checkcast     #255                // class java/lang/Number
+    1753: iconst_0
+    1754: iconst_0
+    1755: iconst_0
+    1756: iconst_1
+    1757: aconst_null
+    1758: aconst_null
+    1759: sipush        7072
+    1762: aconst_null
+    1763: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+    1766: iload         21
+    1768: ifeq          1780
+    1771: fload         16
+    1773: iload         15
+    1775: i2f
+    1776: fdiv
+    1777: goto          1782
+    1780: fload         16
+    1782: fstore        33
+    1784: fload         33
+    1786: fconst_0
+    1787: fconst_0
+    1788: bipush        6
+    1790: aconst_null
+    1791: invokestatic  #919                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.getDepletableRedGreen$default:(FFFILjava/lang/Object;)Lkotlin/Pair;
+    1794: astore        34
+    1796: aload         34
+    1798: invokevirtual #922                // Method kotlin/Pair.component1:()Ljava/lang/Object;
+    1801: checkcast     #255                // class java/lang/Number
+    1804: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+    1807: fstore        35
+    1809: aload         34
+    1811: invokevirtual #923                // Method kotlin/Pair.component2:()Ljava/lang/Object;
+    1814: checkcast     #255                // class java/lang/Number
+    1817: invokevirtual #258                // Method java/lang/Number.floatValue:()F
+    1820: fstore        36
+    1822: bipush        97
+    1824: istore        37
+    1826: fload         33
+    1828: iload         37
+    1830: i2f
+    1831: fmul
+    1832: fstore        38
+    1834: iload         19
+    1836: ifeq          1852
+    1839: iload         5
+    1841: ifeq          1848
+    1844: iconst_1
+    1845: goto          1853
+    1848: iconst_3
+    1849: goto          1853
+    1852: iconst_2
+    1853: istore        39
+    1855: iload         5
+    1857: ifne          1869
+    1860: fload         32
+    1862: iload         39
+    1864: i2f
+    1865: fsub
+    1866: goto          1882
+    1869: fload         32
+    1871: iload         39
+    1873: i2f
+    1874: fsub
+    1875: iload         37
+    1877: i2f
+    1878: fload         38
+    1880: fsub
+    1881: fadd
+    1882: fstore        40
+    1884: aload         29
+    1886: getstatic     #748                // Field com/cobblemon/mod/common/client/CobblemonResources.INSTANCE:Lcom/cobblemon/mod/common/client/CobblemonResources;
+    1889: invokevirtual #926                // Method com/cobblemon/mod/common/client/CobblemonResources.getWHITE:()Lnet/minecraft/resources/ResourceLocation;
+    1892: fload         40
+    1894: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1897: checkcast     #255                // class java/lang/Number
+    1900: fload_3
+    1901: iload         19
+    1903: ifeq          1911
+    1906: bipush        16
+    1908: goto          1913
+    1911: bipush        22
+    1913: i2f
+    1914: fadd
+    1915: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1918: checkcast     #255                // class java/lang/Number
+    1921: iconst_4
+    1922: invokestatic  #487                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+    1925: checkcast     #255                // class java/lang/Number
+    1928: fload         38
+    1930: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1933: checkcast     #255                // class java/lang/Number
+    1936: aconst_null
+    1937: aconst_null
+    1938: aconst_null
+    1939: aconst_null
+    1940: aconst_null
+    1941: fload         35
+    1943: ldc_w         #927                // float 0.8f
+    1946: fmul
+    1947: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1950: checkcast     #255                // class java/lang/Number
+    1953: fload         36
+    1955: ldc_w         #927                // float 0.8f
+    1958: fmul
+    1959: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1962: checkcast     #255                // class java/lang/Number
+    1965: ldc_w         #928                // float 0.27f
+    1968: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    1971: checkcast     #255                // class java/lang/Number
+    1974: aconst_null
+    1975: iconst_0
+    1976: fconst_0
+    1977: ldc_w         #929                // int 116672
+    1980: aconst_null
+    1981: invokestatic  #717                // Method com/cobblemon/mod/common/api/gui/GuiUtilsKt.blitk$default:(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/resources/ResourceLocation;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;Ljava/lang/Number;ZFILjava/lang/Object;)V
+    1984: iload         21
+    1986: ifeq          2002
+    1989: fload         16
+    1991: f2i
+    1992: iload         15
+    1994: invokedynamic #934,  0            // InvokeDynamic #2:makeConcatWithConstants:(II)Ljava/lang/String;
+    1999: goto          2016
+    2002: fload         16
+    2004: bipush        100
+    2006: i2f
+    2007: fmul
+    2008: invokestatic  #940                // Method net/minecraft/util/Mth.ceil:(F)I
+    2011: invokedynamic #944,  0            // InvokeDynamic #3:makeConcatWithConstants:(I)Ljava/lang/String;
+    2016: invokestatic  #906                // Method com/cobblemon/mod/common/api/text/TextKt.text:(Ljava/lang/String;)Lnet/minecraft/network/chat/MutableComponent;
+    2019: astore        41
+    2021: aload_1
+    2022: aconst_null
+    2023: aload         41
+    2025: fload         32
+    2027: f2d
+    2028: iload         5
+    2030: ifne          2039
+    2033: ldc2_w        #945                // double 39.5d
+    2036: goto          2042
+    2039: ldc2_w        #947                // double 44.5d
+    2042: dadd
+    2043: invokestatic  #887                // Method java/lang/Double.valueOf:(D)Ljava/lang/Double;
+    2046: checkcast     #255                // class java/lang/Number
+    2049: fload_3
+    2050: iload         19
+    2052: ifeq          2060
+    2055: bipush        16
+    2057: goto          2062
+    2060: bipush        22
+    2062: i2f
+    2063: fadd
+    2064: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2067: checkcast     #255                // class java/lang/Number
+    2070: ldc           #187                // float 0.5f
+    2072: fload         13
+    2074: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2077: checkcast     #255                // class java/lang/Number
+    2080: iconst_0
+    2081: iconst_0
+    2082: iconst_1
+    2083: iconst_1
+    2084: aconst_null
+    2085: aconst_null
+    2086: sipush        6530
+    2089: aconst_null
+    2090: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+    2093: aload         20
+    2095: ifnull        2227
+    2098: iload         5
+    2100: ifne          2166
+    2103: aload         20
+    2105: astore        42
+    2107: fload_2
+    2108: bipush        9
+    2110: i2f
+    2111: fadd
+    2112: fstore        43
+    2114: fload_3
+    2115: iconst_5
+    2116: i2f
+    2117: fsub
+    2118: fstore        44
+    2120: aload_1
+    2121: aconst_null
+    2122: aload         42
+    2124: fload         43
+    2126: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2129: checkcast     #255                // class java/lang/Number
+    2132: fload         44
+    2134: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2137: checkcast     #255                // class java/lang/Number
+    2140: ldc           #187                // float 0.5f
+    2142: fload         13
+    2144: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2147: checkcast     #255                // class java/lang/Number
+    2150: iconst_0
+    2151: iconst_0
+    2152: iconst_0
+    2153: iconst_1
+    2154: aconst_null
+    2155: aconst_null
+    2156: sipush        7042
+    2159: aconst_null
+    2160: invokestatic  #496                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledText$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZZLjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+    2163: goto          2227
+    2166: aload         20
+    2168: astore        42
+    2170: fload_2
+    2171: iload         23
+    2173: i2f
+    2174: fadd
+    2175: bipush        9
+    2177: i2f
+    2178: fsub
+    2179: fstore        43
+    2181: fload_3
+    2182: iconst_5
+    2183: i2f
+    2184: fsub
+    2185: fstore        44
+    2187: aload_1
+    2188: aconst_null
+    2189: aload         42
+    2191: fload         43
+    2193: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2196: checkcast     #255                // class java/lang/Number
+    2199: fload         44
+    2201: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2204: checkcast     #255                // class java/lang/Number
+    2207: ldc           #187                // float 0.5f
+    2209: fload         13
+    2211: invokestatic  #253                // Method java/lang/Float.valueOf:(F)Ljava/lang/Float;
+    2214: checkcast     #255                // class java/lang/Number
+    2217: iconst_0
+    2218: iconst_0
+    2219: iconst_1
+    2220: sipush        386
+    2223: aconst_null
+    2224: invokestatic  #952                // Method com/cobblemon/mod/common/client/render/RenderHelperKt.drawScaledTextJustifiedRight$default:(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/resources/ResourceLocation;Lnet/minecraft/network/chat/MutableComponent;Ljava/lang/Number;Ljava/lang/Number;FLjava/lang/Number;IIZILjava/lang/Object;)V
+    2227: return
+
+  public static void drawBattleTile$default(com.cobblemon.mod.common.client.gui.battle.BattleOverlay, net.minecraft.client.gui.GuiGraphics, float, float, float, boolean, com.cobblemon.mod.common.pokemon.Species, int, net.minecraft.network.chat.MutableComponent, com.cobblemon.mod.common.pokemon.Gender, com.cobblemon.mod.common.pokemon.status.PersistentStatus, com.cobblemon.mod.common.client.render.models.blockbench.PosableState, kotlin.Triple, float, com.cobblemon.mod.common.client.battle.ClientBallDisplay, int, float, boolean, boolean, boolean, net.minecraft.network.chat.MutableComponent, boolean, com.cobblemon.mod.common.api.pokedex.PokedexEntryProgress, int, java.lang.Object);
+    Code:
+       0: iload         23
+       2: sipush        8192
+       5: iand
+       6: ifeq          12
+       9: aconst_null
+      10: astore        14
+      12: iload         23
+      14: ldc_w         #973                // int 65536
+      17: iand
+      18: ifeq          24
+      21: iconst_0
+      22: istore        17
+      24: iload         23
+      26: ldc_w         #974                // int 131072
+      29: iand
+      30: ifeq          36
+      33: iconst_0
+      34: istore        18
+      36: iload         23
+      38: ldc_w         #975                // int 262144
+      41: iand
+      42: ifeq          48
+      45: iconst_0
+      46: istore        19
+      48: iload         23
+      50: ldc_w         #976                // int 524288
+      53: iand
+      54: ifeq          60
+      57: aconst_null
+      58: astore        20
+      60: aload_0
+      61: aload_1
+      62: fload_2
+      63: fload_3
+      64: fload         4
+      66: iload         5
+      68: aload         6
+      70: iload         7
+      72: aload         8
+      74: aload         9
+      76: aload         10
+      78: aload         11
+      80: aload         12
+      82: fload         13
+      84: aload         14
+      86: iload         15
+      88: fload         16
+      90: iload         17
+      92: iload         18
+      94: iload         19
+      96: aload         20
+      98: iload         21
+     100: aload         22
+     102: invokevirtual #674                // Method drawBattleTile:(Lnet/minecraft/client/gui/GuiGraphics;FFFZLcom/cobblemon/mod/common/pokemon/Species;ILnet/minecraft/network/chat/MutableComponent;Lcom/cobblemon/mod/common/pokemon/Gender;Lcom/cobblemon/mod/common/pokemon/status/PersistentStatus;Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableState;Lkotlin/Triple;FLcom/cobblemon/mod/common/client/battle/ClientBallDisplay;IFZZZLnet/minecraft/network/chat/MutableComponent;ZLcom/cobblemon/mod/common/api/pokedex/PokedexEntryProgress;)V
+     105: return
+
+  private final void drawPokeBall(com.cobblemon.mod.common.client.battle.ClientBallDisplay, com.mojang.blaze3d.vertex.PoseStack, float, float, boolean);
+    Code:
+       0: new           #978                // class com/cobblemon/mod/common/client/render/models/blockbench/repository/RenderContext
+       3: dup
+       4: invokespecial #979                // Method com/cobblemon/mod/common/client/render/models/blockbench/repository/RenderContext."<init>":()V
+       7: astore        6
+       9: getstatic     #984                // Field com/cobblemon/mod/common/client/render/models/blockbench/repository/VaryingModelRepository.INSTANCE:Lcom/cobblemon/mod/common/client/render/models/blockbench/repository/VaryingModelRepository;
+      12: aload_1
+      13: invokevirtual #988                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getPokeBall:()Lcom/cobblemon/mod/common/pokeball/PokeBall;
+      16: invokevirtual #993                // Method com/cobblemon/mod/common/pokeball/PokeBall.getName:()Lnet/minecraft/resources/ResourceLocation;
+      19: aload_1
+      20: checkcast     #672                // class com/cobblemon/mod/common/client/render/models/blockbench/PosableState
+      23: invokevirtual #997                // Method com/cobblemon/mod/common/client/render/models/blockbench/repository/VaryingModelRepository.getPoser:(Lnet/minecraft/resources/ResourceLocation;Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableState;)Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableModel;
+      26: astore        7
+      28: getstatic     #984                // Field com/cobblemon/mod/common/client/render/models/blockbench/repository/VaryingModelRepository.INSTANCE:Lcom/cobblemon/mod/common/client/render/models/blockbench/repository/VaryingModelRepository;
+      31: aload_1
+      32: invokevirtual #988                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getPokeBall:()Lcom/cobblemon/mod/common/pokeball/PokeBall;
+      35: invokevirtual #993                // Method com/cobblemon/mod/common/pokeball/PokeBall.getName:()Lnet/minecraft/resources/ResourceLocation;
+      38: aload_1
+      39: checkcast     #672                // class com/cobblemon/mod/common/client/render/models/blockbench/PosableState
+      42: invokevirtual #1001               // Method com/cobblemon/mod/common/client/render/models/blockbench/repository/VaryingModelRepository.getTexture:(Lnet/minecraft/resources/ResourceLocation;Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableState;)Lnet/minecraft/resources/ResourceLocation;
+      45: astore        8
+      47: aload         8
+      49: invokestatic  #1007               // Method net/minecraft/client/renderer/RenderType.entityCutout:(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/client/renderer/RenderType;
+      52: astore        9
+      54: invokestatic  #1012               // Method com/mojang/blaze3d/systems/RenderSystem.applyModelViewMatrix:()V
+      57: getstatic     #1018               // Field com/mojang/math/Axis.YP:Lcom/mojang/math/Axis;
+      60: ldc_w         #1019               // float -32.0f
+      63: iload         5
+      65: ifeq          74
+      68: ldc_w         #1020               // float -1.0f
+      71: goto          75
+      74: fconst_1
+      75: fmul
+      76: invokeinterface #1026,  2         // InterfaceMethod com/mojang/math/Axis.rotationDegrees:(F)Lorg/joml/Quaternionf;
+      81: astore        10
+      83: getstatic     #1029               // Field com/mojang/math/Axis.XP:Lcom/mojang/math/Axis;
+      86: ldc_w         #1030               // float 5.0f
+      89: invokeinterface #1026,  2         // InterfaceMethod com/mojang/math/Axis.rotationDegrees:(F)Lorg/joml/Quaternionf;
+      94: astore        11
+      96: aload_1
+      97: aload         7
+      99: invokevirtual #1034               // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.setCurrentModel:(Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableModel;)V
+     102: aload_1
+     103: getstatic     #1040               // Field com/cobblemon/mod/common/entity/PoseType.PORTRAIT:Lcom/cobblemon/mod/common/entity/PoseType;
+     106: invokevirtual #1044               // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.setPoseToFirstSuitable:(Lcom/cobblemon/mod/common/entity/PoseType;)V
+     109: aload_1
+     110: fload         4
+     112: invokevirtual #1047               // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.updatePartialTicks:(F)V
+     115: aload         7
+     117: aconst_null
+     118: aload_1
+     119: checkcast     #672                // class com/cobblemon/mod/common/client/render/models/blockbench/PosableState
+     122: fconst_0
+     123: fconst_0
+     124: fconst_0
+     125: fconst_0
+     126: fconst_0
+     127: invokevirtual #1051               // Method com/cobblemon/mod/common/client/render/models/blockbench/PosableModel.applyAnimations:(Lnet/minecraft/world/entity/Entity;Lcom/cobblemon/mod/common/client/render/models/blockbench/PosableState;FFFFF)V
+     130: aload_2
+     131: fload_3
+     132: fload_3
+     133: fload_3
+     134: fneg
+     135: invokevirtual #1054               // Method com/mojang/blaze3d/vertex/PoseStack.scale:(FFF)V
+     138: aload_2
+     139: dconst_0
+     140: ldc2_w        #1055               // double 5.5d
+     143: ldc2_w        #1057               // double -4.0d
+     146: invokevirtual #783                // Method com/mojang/blaze3d/vertex/PoseStack.translate:(DDD)V
+     149: aload_2
+     150: invokevirtual #773                // Method com/mojang/blaze3d/vertex/PoseStack.pushPose:()V
+     153: aload_2
+     154: fload_3
+     155: aload_1
+     156: invokevirtual #815                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getScale:()F
+     159: fmul
+     160: fload_3
+     161: aload_1
+     162: invokevirtual #815                // Method com/cobblemon/mod/common/client/battle/ClientBallDisplay.getScale:()F
+     165: fmul
+     166: ldc_w         #1059               // float 0.1f
+     169: invokevirtual #1054               // Method com/mojang/blaze3d/vertex/PoseStack.scale:(FFF)V
+     172: aload_2
+     173: aload         10
+     175: invokevirtual #1063               // Method com/mojang/blaze3d/vertex/PoseStack.mulPose:(Lorg/joml/Quaternionf;)V
+     178: aload_2
+     179: aload         11
+     181: invokevirtual #1063               // Method com/mojang/blaze3d/vertex/PoseStack.mulPose:(Lorg/joml/Quaternionf;)V
+     184: new           #1065               // class org/joml/Vector3f
+     187: dup
+     188: ldc_w         #1066               // float 2.2f
+     191: ldc_w         #568                // float 4.0f
+     194: ldc_w         #1067               // float -4.0f
+     197: invokespecial #1069               // Method org/joml/Vector3f."<init>":(FFF)V
+     200: astore        12
+     202: new           #1065               // class org/joml/Vector3f
+     205: dup
+     206: ldc_w         #1070               // float 1.1f
+     209: ldc_w         #1067               // float -4.0f
+     212: ldc_w         #1071               // float 7.0f
+     215: invokespecial #1069               // Method org/joml/Vector3f."<init>":(FFF)V
+     218: astore        13
+     220: aload         12
+     222: aload         13
+     224: invokestatic  #1075               // Method com/mojang/blaze3d/systems/RenderSystem.setShaderLights:(Lorg/joml/Vector3f;Lorg/joml/Vector3f;)V
+     227: aload         10
+     229: invokevirtual #1081               // Method org/joml/Quaternionf.conjugate:()Lorg/joml/Quaternionf;
+     232: pop
+     233: invokestatic  #205                // Method net/minecraft/client/Minecraft.getInstance:()Lnet/minecraft/client/Minecraft;
+     236: invokevirtual #1085               // Method net/minecraft/client/Minecraft.renderBuffers:()Lnet/minecraft/client/renderer/RenderBuffers;
+     239: invokevirtual #1091               // Method net/minecraft/client/renderer/RenderBuffers.bufferSource:()Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;
+     242: astore        14
+     244: aload         14
+     246: aload         9
+     248: invokevirtual #1095               // Method net/minecraft/client/renderer/MultiBufferSource$BufferSource.getBuffer:(Lnet/minecraft/client/renderer/RenderType;)Lcom/mojang/blaze3d/vertex/VertexConsumer;
+     251: astore        15
+     253: bipush        11
+     255: bipush        7
+     257: invokestatic  #1101               // Method net/minecraft/client/renderer/LightTexture.pack:(II)I
+     260: istore        16
+     262: aload         7
+     264: aload         6
+     266: aload_2
+     267: aload         15
+     269: invokestatic  #262                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+     272: aload         15
+     274: iload         16
+     276: getstatic     #1106               // Field net/minecraft/client/renderer/texture/OverlayTexture.NO_OVERLAY:I
+     279: iconst_m1
+     280: invokevirtual #1109               // Method com/cobblemon/mod/common/client/render/models/blockbench/PosableModel.render:(Lcom/cobblemon/mod/common/client/render/models/blockbench/repository/RenderContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;III)V
+     283: aload         14
+     285: invokevirtual #1112               // Method net/minecraft/client/renderer/MultiBufferSource$BufferSource.endBatch:()V
+     288: aload_2
+     289: invokevirtual #851                // Method com/mojang/blaze3d/vertex/PoseStack.popPose:()V
+     292: invokestatic  #1117               // Method com/mojang/blaze3d/platform/Lighting.setupFor3DItems:()V
+     295: return
+
+  static void drawPokeBall$default(com.cobblemon.mod.common.client.gui.battle.BattleOverlay, com.cobblemon.mod.common.client.battle.ClientBallDisplay, com.mojang.blaze3d.vertex.PoseStack, float, float, boolean, int, java.lang.Object);
+    Code:
+       0: iload         6
+       2: iconst_4
+       3: iand
+       4: ifeq          11
+       7: ldc_w         #1030               // float 5.0f
+      10: fstore_3
+      11: iload         6
+      13: bipush        16
+      15: iand
+      16: ifeq          22
+      19: iconst_0
+      20: istore        5
+      22: aload_0
+      23: aload_1
+      24: aload_2
+      25: fload_3
+      26: fload         4
+      28: iload         5
+      30: invokespecial #1136               // Method drawPokeBall:(Lcom/cobblemon/mod/common/client/battle/ClientBallDisplay;Lcom/mojang/blaze3d/vertex/PoseStack;FFZ)V
+      33: return
+
+  public final void onLogout();
+    Code:
+       0: aload_0
+       1: ldc2_w        #145                // double 0.5d
+       4: putfield      #210                // Field opacity:D
+       7: aload_0
+       8: fconst_0
+       9: putfield      #220                // Field passedSeconds:F
+      12: aload_0
+      13: aconst_null
+      14: putfield      #222                // Field lastKnownBattle:Ljava/util/UUID;
+      17: return
+
+  public com.cobblemon.mod.common.api.scheduling.ScheduledTask momentarily(kotlin.jvm.functions.Function0<kotlin.Unit>);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: invokespecial #1142               // InterfaceMethod com/cobblemon/mod/common/api/scheduling/Schedulable.momentarily:(Lkotlin/jvm/functions/Function0;)Lcom/cobblemon/mod/common/api/scheduling/ScheduledTask;
+       5: areturn
+
+  public com.cobblemon.mod.common.api.scheduling.ScheduledTask after(float, kotlin.jvm.functions.Function0<kotlin.Unit>);
+    Code:
+       0: aload_0
+       1: fload_1
+       2: aload_2
+       3: invokespecial #1149               // InterfaceMethod com/cobblemon/mod/common/api/scheduling/Schedulable.after:(FLkotlin/jvm/functions/Function0;)Lcom/cobblemon/mod/common/api/scheduling/ScheduledTask;
+       6: areturn
+
+  public com.cobblemon.mod.common.api.scheduling.ScheduledTask lerp(float, kotlin.jvm.functions.Function1<? super java.lang.Float, kotlin.Unit>);
+    Code:
+       0: aload_0
+       1: fload_1
+       2: aload_2
+       3: invokespecial #1154               // InterfaceMethod com/cobblemon/mod/common/api/scheduling/Schedulable.lerp:(FLkotlin/jvm/functions/Function1;)Lcom/cobblemon/mod/common/api/scheduling/ScheduledTask;
+       6: areturn
+
+  public java.util.concurrent.CompletableFuture<kotlin.Unit> delayedFuture(float);
+    Code:
+       0: aload_0
+       1: fload_1
+       2: invokespecial #1159               // InterfaceMethod com/cobblemon/mod/common/api/scheduling/Schedulable.delayedFuture:(F)Ljava/util/concurrent/CompletableFuture;
+       5: areturn
+
+  public com.cobblemon.mod.common.api.scheduling.ScheduledTask$Builder taskBuilder();
+    Code:
+       0: aload_0
+       1: invokespecial #1163               // InterfaceMethod com/cobblemon/mod/common/api/scheduling/Schedulable.taskBuilder:()Lcom/cobblemon/mod/common/api/scheduling/ScheduledTask$Builder;
+       4: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoBase$cp();
+    Code:
+       0: getstatic     #862                // Field battleInfoBase:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoBaseFlipped$cp();
+    Code:
+       0: getstatic     #860                // Field battleInfoBaseFlipped:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoBaseCompact$cp();
+    Code:
+       0: getstatic     #858                // Field battleInfoBaseCompact:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoBaseFlippedCompact$cp();
+    Code:
+       0: getstatic     #856                // Field battleInfoBaseFlippedCompact:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoRole$cp();
+    Code:
+       0: getstatic     #884                // Field battleInfoRole:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoRoleFlipped$cp();
+    Code:
+       0: getstatic     #882                // Field battleInfoRoleFlipped:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getBattleInfoUnderlay$cp();
+    Code:
+       0: getstatic     #710                // Field battleInfoUnderlay:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  public static final net.minecraft.resources.ResourceLocation access$getCaughtIndicator$cp();
+    Code:
+       0: getstatic     #893                // Field caughtIndicator:Lnet/minecraft/resources/ResourceLocation;
+       3: areturn
+
+  static {};
+    Code:
+       0: new           #122                // class com/cobblemon/mod/common/client/gui/battle/BattleOverlay$Companion
+       3: dup
+       4: aconst_null
+       5: invokespecial #1175               // Method com/cobblemon/mod/common/client/gui/battle/BattleOverlay$Companion."<init>":(Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+       8: putstatic     #1177               // Field Companion:Lcom/cobblemon/mod/common/client/gui/battle/BattleOverlay$Companion;
+      11: ldc           #187                // float 0.5f
+      13: ldc_w         #568                // float 4.0f
+      16: fconst_0
+      17: ldc           #187                // float 0.5f
+      19: iconst_4
+      20: aconst_null
+      21: invokestatic  #1183               // Method com/cobblemon/mod/common/client/render/models/blockbench/wavefunction/WaveFunctionKt.sineFunction$default:(FFFFILjava/lang/Object;)Lkotlin/jvm/functions/Function1;
+      24: putstatic     #435                // Field PROMPT_TEXT_OPACITY_CURVE:Lkotlin/jvm/functions/Function1;
+      27: ldc_w         #1185               // String textures/gui/battle/battle_info_base.png
+      30: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      33: putstatic     #862                // Field battleInfoBase:Lnet/minecraft/resources/ResourceLocation;
+      36: ldc_w         #1187               // String textures/gui/battle/battle_info_base_flipped.png
+      39: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      42: putstatic     #860                // Field battleInfoBaseFlipped:Lnet/minecraft/resources/ResourceLocation;
+      45: ldc_w         #1189               // String textures/gui/battle/battle_info_base_condensed.png
+      48: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      51: putstatic     #858                // Field battleInfoBaseCompact:Lnet/minecraft/resources/ResourceLocation;
+      54: ldc_w         #1191               // String textures/gui/battle/battle_info_base_flipped_condensed.png
+      57: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      60: putstatic     #856                // Field battleInfoBaseFlippedCompact:Lnet/minecraft/resources/ResourceLocation;
+      63: ldc_w         #1193               // String textures/gui/battle/battle_info_role.png
+      66: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      69: putstatic     #884                // Field battleInfoRole:Lnet/minecraft/resources/ResourceLocation;
+      72: ldc_w         #1195               // String textures/gui/battle/battle_info_role_flipped.png
+      75: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      78: putstatic     #882                // Field battleInfoRoleFlipped:Lnet/minecraft/resources/ResourceLocation;
+      81: ldc_w         #1197               // String textures/gui/battle/battle_info_underlay.png
+      84: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      87: putstatic     #710                // Field battleInfoUnderlay:Lnet/minecraft/resources/ResourceLocation;
+      90: ldc_w         #1199               // String textures/gui/battle/battle_owned_indicator.png
+      93: invokestatic  #742                // Method com/cobblemon/mod/common/util/MiscUtilsKt.cobblemonResource:(Ljava/lang/String;)Lnet/minecraft/resources/ResourceLocation;
+      96: putstatic     #893                // Field caughtIndicator:Lnet/minecraft/resources/ResourceLocation;
+      99: return
+}

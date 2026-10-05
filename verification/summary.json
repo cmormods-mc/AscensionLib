@@ -1,0 +1,36 @@
+{
+  "artifact": "L:\\Codex\\CobbleAscend\\ascensionlib\\build\\libs\\AscensionLib-0.1.0-prototype.jar",
+  "sha256": "56fef83025b04b2030a55890e5d506d9bc3ed610e13078533614a14f65084592",
+  "tests": {
+    "domain": {
+      "tests": 103,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "store": {
+      "tests": 51,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "nested": [
+    "domain-0.1.0-prototype.jar",
+    "sqlite-jdbc-3.53.4.0.jar",
+    "store-0.1.0-prototype.jar"
+  ],
+  "packaging": "Nested domain, store and sqlite-jdbc jars verified; bundled catalogs match design/",
+  "loader": "Live dev-server runs (verification/live-run-1..5.log, no player): store created on first start, reopened with the same authority after restart, progression disabled (not reset) when the database is missing or the authority mismatches, recovered when restored. SQLite native library loaded under Fabric Knot on the dev classpath (not nested jar-in-jar). No capture, hatch, level-up, PC or trade was exercised.",
+  "runtime": {
+    "minecraft": "1.21.1",
+    "cobblemon": "1.8.1+1.21.1",
+    "fabricLoader": "0.17.2",
+    "fabricApi": "0.116.6+1.21.1",
+    "java": "21.0.12"
+  },
+  "cobblemonArtifact": {
+    "modrinthVersion": "gBW3vLC7",
+    "sha512": "e9c475c6a8e73bfb378445944812f6e31271cdf50d3227124b44b31c295bf7e9085246ea05d005efff9b7227e7b4e3e34ff1480b1a4b3b97211b5fa127d234ed"
+  }
+}

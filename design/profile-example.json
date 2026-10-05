@@ -1,0 +1,24 @@
+{
+  "note":"Illustrative persistent-data projection of profile schema 1 (domain.v1.ProfileV1Codec output, pretty-printed). Not a Cobblemon JSON loader file. Canonical authority lives in the server progression store.",
+  "cobbleascend":{
+    "schemaVersion":1,
+    "profileId":"e2b02a9c-b02c-4414-8540-f25f60b48eef",
+    "pokemonId":"d8927a6a-e60d-44e8-a052-9a4d8c282141",
+    "authorityId":"9d6bb263-d230-42d7-a9d0-ea4710df4bb5",
+    "revision":2,
+    "rarity":"rare",
+    "initialRarity":"rare",
+    "origin":{"kind":"wild_capture"},
+    "catalogVersion":1,
+    "attunement":0,
+    "highestLevelObserved":37,
+    "awardedMilestones":[10,20,30],
+    "spentUpgradeCredits":1,
+    "ordinarySlots":[
+      {"slotId":"prefix:0","category":"prefix","rank":2,"affixId":"type_focus","parameters":{"type":"fire"},"rolledValue":10,"definitionVersion":1},
+      {"slotId":"prefix:1","category":"prefix","rank":1,"affixId":"physical_force","parameters":{},"rolledValue":4,"definitionVersion":1},
+      {"slotId":"suffix:0","category":"suffix","rank":1,"affixId":"opening_guard","parameters":{},"rolledValue":8,"definitionVersion":1}
+    ],
+    "unique":{"uniqueId":"ashen_heart","definitionVersion":1,"installedOperationId":"3f5c7d0e-7c53-4c63-9d3c-0b6a8f1a2e44"}
+  }
+}

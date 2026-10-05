@@ -1,0 +1,12 @@
+plugins {
+    id 'base'
+    id 'fabric-loom' version '1.13.6' apply false
+    id 'org.jetbrains.kotlin.jvm' version '2.2.20' apply false
+}
+allprojects {
+    group = 'com.cobbleascend'
+    version = '0.1.0-prototype'
+}
+subprojects {
+    repositories { mavenCentral() }
+}

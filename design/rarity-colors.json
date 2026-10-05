@@ -1,0 +1,12 @@
+{
+  "status": "preview palette; inspired by owner-provided artwork, not an exact pixel color extraction",
+  "rarities": {
+    "common": {"accent":"#c1c5cf","trim":"#dddddf","panel":"#293547","reference":"Novice Raider iron and slate"},
+    "uncommon": {"accent":"#1bd7e8","trim":"#a8e9f1","panel":"#073442","reference":"Novice Raider cyan crystal; no Collector colors"},
+    "rare": {"accent":"#38ccef","trim":"#38d8f6","panel":"#103e79","reference":"Veteran Raider blue and cyan"},
+    "epic": {"accent":"#af69ff","trim":"#9160e7","panel":"#2a1263","reference":"Legend Slayer indigo and violet"},
+    "legendary": {"accent":"#ffd437","trim":"#ffef9f","panel":"#25305b","reference":"Champion Raider gold and navy"},
+    "mythical": {"displayLabel":"Mythic","accent":"#ff3448","trim":"#e1e2e8","panel":"#620512","reference":"Owner-provided Myth Buster crimson, silver and white"}
+  },
+  "excludedReference": "collector.png"
+}

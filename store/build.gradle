@@ -1,0 +1,12 @@
+plugins { id 'java-library' }
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+dependencies {
+    api project(':domain')
+    implementation 'com.google.code.gson:gson:2.10.1'
+    // Pinned JDBC driver (bundles native SQLite). Checksum verified against Maven Central: sha1 47e21dd53efe1524fe0df6965cb65003ffe17172
+    implementation 'org.xerial:sqlite-jdbc:3.53.4.0'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+test { useJUnitPlatform() }

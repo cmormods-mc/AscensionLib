@@ -1,0 +1,8 @@
+.gradle/
+**/build/
+run/
+**/run/
+*.log
+__pycache__/
+work/preview-browsers/
+work/node_modules/

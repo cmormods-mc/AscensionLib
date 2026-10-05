@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascension Inspect Preview</title>
+<meta name="color-scheme" content="light dark">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600&display=swap');
+:root{
+  --font-pixel:'Pixelify Sans',ui-monospace,Menlo,Consolas,monospace;
+  --page-bg:#eef1f6;--page-fg:#2b3040;--page-muted:#5d667a;--control-bg:#fff;--control-line:#c0c4cf;
+  --paper:#f3f1ea;--paper-2:#e4e0d3;--paper-3:#fbfaf6;--ink:#2a2f3d;--ink-2:#5b6070;--line:#bdb7a5;--outline:#1b1d2a;
+  --blue:#3b6fb0;--teal:#1f9aa8;--prefix:#b3502b;--suffix:#2f7a55;--locked:#8d94a6;--ballred:#e0463b;
+}
+@media (prefers-color-scheme:dark){
+  :root{--page-bg:#12151d;--page-fg:#e6e9f2;--page-muted:#9da6bb;--control-bg:#1b2030;--control-line:#465069}
+}
+*{box-sizing:border-box}
+html{background:var(--page-bg)}
+body{margin:0;padding:16px;font:14px/1.45 system-ui,sans-serif;color:var(--page-fg);background:var(--page-bg)}
+[hidden]{display:none!important}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #f2b138;outline-offset:2px}
+.wrap{max-width:780px;margin:0 auto}
+h1{font:600 22px/1.2 var(--font-pixel);margin:0 0 4px}
+.lede{margin:0 0 14px;color:var(--page-muted);font-size:13px}
+.tools{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin:0 0 14px;font-size:13px}
+.tools label{display:flex;gap:7px;align-items:center}
+.tools select,.tools input[type=number]{background:var(--control-bg);color:var(--page-fg);border:1px solid var(--control-line);padding:6px 8px;max-width:100%}
+.tools input[type=number]{width:64px}
+.tools input[type=checkbox]{accent-color:var(--blue)}
+
+/* Entry-point mocks */
+.entry{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 16px}
+@media (max-width:600px){.entry{grid-template-columns:1fr}}
+.mock{background:linear-gradient(#232a3d,#171b29);border:2px solid var(--outline);box-shadow:inset 0 2px #4a5470;padding:10px 12px;color:#dfe4f0;font-family:var(--font-pixel);font-size:12px;min-height:128px}
+.mock h2{margin:0 0 8px;font:500 11px/1.2 system-ui,sans-serif;color:#9fb0cf;letter-spacing:.04em;text-transform:uppercase}
+.tile{display:flex;align-items:center;gap:8px;background:var(--paper);color:var(--ink);border:2px solid var(--outline);box-shadow:inset 0 2px #fff;padding:4px 6px;width:100%;max-width:230px}
+.tile + .tile{margin-top:8px;margin-left:auto}
+.tile .nm{flex:1;line-height:1.1}
+.tile .hp{height:6px;background:#a9a493;border:1px solid var(--outline);margin-top:3px}
+.tile .hp i{display:block;height:100%;background:#4cb36a}
+.mag{width:28px;height:28px;flex:none;display:grid;place-items:center;background:#d8d3c4;border:2px solid var(--outline);box-shadow:inset 0 2px #fff,inset 0 -2px #a39e8b;padding:0;color:var(--ink)}
+.mag:hover{background:#ece7d8}
+.mag:active{box-shadow:inset 0 2px #a39e8b}
+.mag svg{width:16px;height:16px;shape-rendering:crispEdges}
+.mock .cap{font:11px/1.35 system-ui,sans-serif;color:#9fb0cf;margin:8px 0 0}
+.summary-head{display:flex;align-items:center;gap:8px;background:var(--paper);color:var(--ink);border:2px solid var(--outline);box-shadow:inset 0 2px #fff;padding:6px 8px}
+.summary-head .nm{flex:1;font-size:15px}
+
+/* Game frame: a dark "screen" with a Pokedex-style red hinge */
+.game{position:relative;background:radial-gradient(circle at 20% 0,#2c3550,#171b29 70%);border:2px solid var(--outline);box-shadow:inset 0 2px #4a5470,inset 0 -2px #0c0e17;padding:22px 16px 20px}
+.win{position:relative;background:var(--paper);color:var(--ink);font-family:var(--font-pixel);border:3px solid var(--outline);box-shadow:0 4px #0b0e1766,inset 0 2px #fff,inset 0 -2px #a39e8b;max-width:720px;margin:auto;padding:5px}
+
+/* Header: a battle-scene backdrop themed by the primary type */
+.head{position:relative;display:flex;gap:12px;align-items:center;border:2px solid var(--outline);padding:10px 12px 10px 8px;min-height:136px;overflow:hidden;background:linear-gradient(var(--sky1),var(--sky2))}
+.head::before{content:"";position:absolute;inset:0;background:linear-gradient(45deg,rgba(255,255,255,.10) 25%,transparent 25% 50%,rgba(255,255,255,.10) 50% 75%,transparent 75%) 0 0/8px 8px;pointer-events:none}
+.head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(rgba(0,0,0,.0),rgba(0,0,0,.28));pointer-events:none}
+.motes{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.motes i{position:absolute;bottom:-6px;width:4px;height:4px;background:var(--mote);opacity:.0;animation:float 3.4s steps(8) infinite}
+@keyframes float{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-130px);opacity:0}}
+.stage{position:relative;width:176px;height:122px;flex:none}
+.ground{position:absolute;left:14px;right:14px;bottom:6px;height:22px;border-radius:50%;background:rgba(0,0,0,.30);box-shadow:inset 0 3px rgba(255,255,255,.16)}
+.sprite{position:absolute;left:50%;bottom:16px;width:144px;height:96px;transform:translateX(-50%);animation:bob 1.6s steps(2) infinite}
+@keyframes bob{50%{transform:translate(-50%,-3px)}}
+.sprite img{display:block;width:144px;height:96px;image-rendering:pixelated}
+.lock{position:absolute;inset:6px 8px 12px;pointer-events:none;opacity:0}
+.lock i{position:absolute;width:16px;height:16px;border:3px solid #fff;filter:drop-shadow(0 0 0 var(--outline))}
+.lock i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}.lock i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+.lock i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0}.lock i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0}
+.scouted .lock{opacity:1}
+.flash .lock{animation:lock .6s steps(6) 1}
+@keyframes lock{0%{transform:scale(1.45);opacity:0}60%{opacity:1}100%{transform:scale(1)}}
+.who{position:relative;min-width:0;flex:1;z-index:1}
+.dex{display:inline-block;font:600 11px/1 system-ui,sans-serif;background:rgba(0,0,0,.35);color:#fff;padding:3px 6px;letter-spacing:.06em}
+.plate{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;background:var(--paper-3);border:2px solid var(--outline);box-shadow:3px 3px 0 rgba(0,0,0,.35);padding:5px 10px}
+.name{font:600 26px/1 var(--font-pixel);color:var(--ink);text-shadow:2px 2px 0 var(--rarity-soft,#d9d4c4)}
+.lv{font:600 12px/1 system-ui,sans-serif;background:var(--outline);color:#fff;padding:4px 6px}
+.rarity{display:flex;align-items:center;gap:5px;margin-left:auto;font:600 13px/1 var(--font-pixel);padding:4px 8px 4px 5px;color:#fff;background:var(--rarity-panel,#3a4254);border:2px solid var(--outline);border-bottom:3px solid var(--rarity,#8d94a6)}
+.rarity.unk{background:#d9d4c4;color:#55596a;border:2px dashed #7d7a6d}
+.rarity svg,.ballsvg{width:18px;height:18px;shape-rendering:crispEdges;flex:none}
+.meta{margin-top:7px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font:12px system-ui,sans-serif;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.55)}
+.hpbar{display:flex;align-items:center;gap:6px;margin-top:6px;font:600 11px system-ui,sans-serif;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.55)}
+.hpbar .bar{flex:1;max-width:230px;height:10px;background:rgba(0,0,0,.45);border:2px solid var(--outline);padding:1px}
+.hpbar .bar i{display:block;height:100%;background:repeating-linear-gradient(90deg,#4cd37a 0 6px,#3fb866 6px 8px)}
+.closeball{position:absolute;right:8px;top:8px;z-index:2;width:34px;height:34px;padding:0;background:none;border:0}
+.closeball svg{width:34px;height:34px;shape-rendering:crispEdges}
+.closeball:hover svg{filter:brightness(1.12)}
+.stamp{position:absolute;right:10px;bottom:10px;z-index:2;font:600 11px/1.2 system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:rgba(18,24,40,.78);border:2px solid #fff;padding:4px 8px;transform:rotate(-3deg)}
+.stamp b{color:#ffd437}
+
+/* Body */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px;padding-top:6px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.head{flex-wrap:wrap;justify-content:center}.rarity{margin-left:0}}
+.panel{position:relative;background:var(--paper-3);border:2px solid var(--line);padding:0 0 10px;min-width:0}
+.panel h3{margin:0 0 8px;padding:6px 10px;font:600 13px/1.2 var(--font-pixel);color:#fff;background:var(--teal);border-bottom:2px solid var(--outline);display:flex;justify-content:space-between;gap:8px;align-items:center;letter-spacing:.03em}
+.panel.asc h3{background:var(--blue)}
+.panel h3 small{font:11px system-ui,sans-serif;color:#e6f6f8;letter-spacing:0}
+.panel .body{padding:0 10px}
+.field{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;padding:4px 0;border-bottom:1px dotted var(--line)}
+.field b{font-weight:600}
+.locked{color:var(--locked);letter-spacing:.14em}
+.types{display:flex;gap:4px}
+.type{font:600 11px/1 var(--font-pixel);padding:4px 8px;border:2px solid var(--outline);color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.4);box-shadow:inset 0 2px rgba(255,255,255,.28)}
+.stats{margin-top:8px;display:grid;gap:5px}
+.stat{display:grid;grid-template-columns:34px 1fr 30px;gap:6px;align-items:center;font-size:12px}
+.stat .track{height:10px;background:#cfcab9;border:2px solid #8f8a78;padding:1px}
+.stat .track i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--c) 0 5px,transparent 5px 7px)}
+.stat.q .track{background:repeating-linear-gradient(90deg,#cfcab9 0 6px,#dedacc 6px 12px);padding:0}
+.note{font:12px/1.4 system-ui,sans-serif;color:#4c566b;margin:8px 0 0}
+
+/* Scanner (unscouted) screen */
+.scan{position:relative;margin:0 10px;background:#0e2b33;border:2px solid var(--outline);box-shadow:inset 0 0 0 2px #1b5a66;padding:8px;color:#8fe9f0;overflow:hidden}
+.scan::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(143,233,240,.07) 0 2px,transparent 2px 4px);pointer-events:none}
+.scan::after{content:"";position:absolute;left:0;right:0;top:-30px;height:30px;background:linear-gradient(transparent,rgba(143,233,240,.28));animation:sweep 2.6s linear infinite;pointer-events:none}
+@keyframes sweep{to{transform:translateY(260px)}}
+.row.q{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 8px;margin-bottom:6px;border:2px dashed #2f8fa0;background:rgba(21,70,82,.55);color:#79d3dc;font-family:var(--font-pixel)}
+.row.q:last-child{margin-bottom:0}
+.row.q .tag{border-color:#2f8fa0;color:#79d3dc}
+.row.q .rname{letter-spacing:.24em;font-size:14px}
+.row.q .val{color:#79d3dc}
+.scan-note{font:12px/1.4 system-ui,sans-serif;color:#a6eef4;margin:8px 0 0;position:relative;z-index:1}
+
+/* Revealed rows */
+.row{width:100%;text-align:left;display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;background:#fff;color:var(--ink);border:2px solid var(--line);border-left:6px solid var(--cat,#999);padding:7px 9px;margin-bottom:6px;font-family:var(--font-pixel);position:relative}
+.row[data-cat=prefix]{--cat:var(--prefix)}.row[data-cat=suffix]{--cat:var(--suffix)}
+.row:hover{border-color:var(--cat)}
+.row[aria-expanded="true"]{box-shadow:inset 0 0 0 2px var(--cat)}
+.tag{font:600 10px/1 system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:3px 5px;border:2px solid currentColor}
+.tag.prefix{color:var(--prefix)}.tag.suffix{color:var(--suffix)}
+.rname{font-size:15px;line-height:1.1}
+.rname small{display:block;font:11px system-ui,sans-serif;color:#6a6e7d;margin-top:2px}
+.val{font-size:18px;font-weight:600;color:#2b4f86;text-align:right;line-height:1}
+.val small{display:block;font:11px system-ui,sans-serif;color:#6a6e7d;font-weight:400;margin-top:2px}
+.pips{display:flex;gap:3px;margin-top:4px}
+.pips i{width:10px;height:10px;border:2px solid #4d5a7d;background:#fff;transform:rotate(45deg) scale(.82)}
+.pips i.on{background:var(--cat);border-color:var(--outline)}
+.power{display:inline-flex;align-items:center;gap:3px;font:600 10px/1 system-ui,sans-serif;letter-spacing:.03em;background:#ffd437;color:#3a2800;padding:3px 5px;margin-left:6px;border:2px solid #7a5200;vertical-align:middle}
+.power::before{content:"";width:6px;height:6px;background:#3a2800;transform:rotate(45deg);animation:twinkle 1.2s steps(2) infinite}
+@keyframes twinkle{50%{opacity:.25}}
+.detail{grid-column:1/-1;font:12px/1.45 system-ui,sans-serif;color:#3e4860;border-top:1px dotted var(--line);margin-top:5px;padding-top:5px}
+.row.strong{background:linear-gradient(90deg,#fff 60%,#fff6cf)}
+
+/* Unique card: flame-edged */
+.unique{position:relative;margin-top:8px;padding:10px 12px;background:linear-gradient(#2b1d4a,#1c1233);color:#f1eaff;border:3px solid #a47bff;box-shadow:0 0 0 2px var(--outline),inset 0 0 0 2px #4b3585;overflow:hidden}
+.unique h4{margin:0 0 6px;font:600 16px var(--font-pixel);display:flex;align-items:center;gap:8px;color:#fff}
+.unique .chip{font:600 10px/1 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;background:#a47bff;color:#1c1233;padding:3px 6px}
+.unique p{margin:3px 0;font:12px/1.4 system-ui,sans-serif}
+.unique .good{color:#a6f2c1}.unique .bad{color:#ffb0b0}.unique .fine{color:#c9bde8}
+.unique .embers i{position:absolute;bottom:-4px;width:4px;height:4px;background:#ff9a4a;animation:float 2.8s steps(8) infinite;opacity:0}
+
+.badge{display:inline-flex;align-items:center;gap:5px;background:#ffd437;color:#3a2800;border:2px solid #7a5200;padding:3px 7px;font:600 11px system-ui,sans-serif}
+.badge.pulse{animation:pulse 1.4s steps(2) infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 3px rgba(255,212,55,.55)}}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;position:relative;z-index:1}
+.btn{background:var(--paper-2);color:var(--ink);border:2px solid var(--outline);box-shadow:inset 0 2px #fff,inset 0 -2px #a39e8b;padding:7px 12px;font-family:var(--font-pixel);font-size:13px}
+.btn.primary{background:var(--teal);color:#fff;box-shadow:inset 0 2px #6fd0da,inset 0 -2px #146b76}
+.btn.primary:hover:not(:disabled){background:#27acbb}
+.btn:disabled{opacity:.55;box-shadow:none}
+.btn:active:not(:disabled){box-shadow:inset 0 2px #a39e8b}
+.btn.link{background:none;border:0;box-shadow:none;text-decoration:underline;color:#2b4f86;padding:4px;font-size:12px}
+.foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;padding:7px 10px;background:var(--paper-2);border:2px solid var(--line);font:11px/1.3 system-ui,sans-serif;color:#4a556b}
+
+.reveal .row,.reveal .unique{animation:rise .34s steps(5) both;animation-delay:calc(var(--i,0)*100ms)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.reduced *,.reduced *::before,.reduced *::after{animation:none!important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.legend{font-size:12px;color:var(--page-muted);margin:12px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <h1>Ascension inspect screen</h1>
+  <p class="lede">Browser preview of the planned in-game inspector. Sample data only: nothing here reads a real Pokémon. Scouting sources are real design decisions; recipes, costs and rules are not final.</p>
+
+  <div class="tools">
+    <label>Scenario
+      <select id="scenario" aria-label="Scenario">
+        <option value="own">My Pokémon (Arcanine)</option>
+        <option value="trial">Tower enemy (Gyarados)</option>
+        <option value="boss">Raid boss (Houndoom)</option>
+        <option value="wild">Wild Pokémon (Gengar)</option>
+        <option value="pvp">PvP opponent</option>
+      </select>
+    </label>
+    <label>Scouters in bag <input type="number" id="bag" min="0" max="9" value="2" aria-label="Scouters in bag"></label>
+    <label><input type="checkbox" id="reduce"> Reduce motion</label>
+  </div>
+
+  <div class="entry" aria-label="Where the inspect buttons would appear">
+    <div class="mock">
+      <h2>Battle screen · button on each Pokémon tile</h2>
+      <div class="tile" id="tile-foe"><div class="nm"><span id="foe-name">Gyarados</span> Lv ??<div class="hp"><i style="width:82%"></i></div></div>
+        <button class="mag" data-open="foe" aria-label="Inspect opponent" title="Inspect opponent"></button></div>
+      <div class="tile"><div class="nm">Arcanine Lv 30<div class="hp"><i style="width:64%"></i></div></div>
+        <button class="mag" data-open="own" aria-label="Inspect my Pokémon" title="Inspect my Pokémon"></button></div>
+      <p class="cap">Positions are illustrative. The real buttons attach to Cobblemon's battle overlay.</p>
+    </div>
+    <div class="mock">
+      <h2>Pokémon summary screen · button in the header</h2>
+      <div class="summary-head"><span class="nm">Arcanine · Lv 30</span>
+        <button class="mag" data-open="own" aria-label="Open ascension inspector" title="Open ascension inspector"></button></div>
+      <p class="cap">Outside battle this opens the same screen for your own Pokémon.</p>
+    </div>
+  </div>
+
+  <div class="game">
+    <div id="stage" aria-live="polite"></div>
+  </div>
+  <p class="legend">Prefix = offensive, Suffix = defensive or recovery. Rank diamonds show I–V. “Powerhouse” marks the rare high-range affixes. Effects are labelled inactive because the battle integration is not built yet.</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+var RARITY={
+  common:{label:'Common',accent:'#c1c5cf',panel:'#293547'},
+  uncommon:{label:'Uncommon',accent:'#1bd7e8',panel:'#073442'},
+  rare:{label:'Rare',accent:'#38ccef',panel:'#103e79'},
+  epic:{label:'Epic',accent:'#af69ff',panel:'#2a1263'},
+  legendary:{label:'Legendary',accent:'#ffd437',panel:'#25305b'},
+  mythical:{label:'Mythic',accent:'#ff3448',panel:'#620512'}
+};
+var TYPE={
+  fire:{c:'#d4561f',sky:['#ffb36b','#e8643a'],mote:'#fff1a8'},
+  water:{c:'#2f72c0',sky:['#9be0ff','#2f86dc'],mote:'#ffffff'},
+  flying:{c:'#6f84cc',sky:['#d6e0ff','#8fa6ea'],mote:'#ffffff'},
+  dark:{c:'#52443f',sky:['#7a6a80','#2d2536'],mote:'#c9a8ff'},
+  ghost:{c:'#6a529a',sky:['#b79ce0','#4e3d82'],mote:'#e6d8ff'},
+  poison:{c:'#923fa5',sky:['#cfa0e0','#7a3d95'],mote:'#f5c9ff'}
+};
+var ROMAN=['','I','II','III','IV','V'];
+var STAT_NAMES=[['hp','HP'],['atk','Atk'],['def','Def'],['spa','SpA'],['spd','SpD'],['spe','Spe']];
+var SOURCE={trial:'Tower modifier',boss:'Raid scouting',wild:'Scouter'};
+
+/* Affix text mirrors design/affixes.json; bands mirror design/ranked-catalog.json (provisional). */
+var SCENARIOS={
+  own:{kind:'own',dex:59,name:'Arcanine',sprite:'arcanine',level:30,types:['fire'],base:{hp:90,atk:110,def:80,spa:100,spd:80,spe:95},hp:64,status:'',
+    rarity:'rare',pending:2,attunement:[3,10],
+    slots:[
+      {id:'prefix:0',cat:'prefix',name:'Type Focus',param:'fire',rank:2,value:10,band:[9,12],cond:'Move has the selected type.'},
+      {id:'prefix:1',cat:'prefix',name:'Physical Force',rank:1,value:4,band:[3,6],cond:'Move is physical.'},
+      {id:'suffix:0',cat:'suffix',name:'Opening Guard',rank:1,value:8,band:[5,10],cond:'First incoming damaging move that deals direct damage this battle; all its hits share the reduction.'}
+    ],unique:null},
+  trial:{kind:'enemy',dex:130,name:'Gyarados',sprite:'gyarados',level:55,types:['water','flying'],base:{hp:95,atk:125,def:79,spa:60,spd:100,spe:81},hp:82,status:'',
+    rarity:'epic',
+    slots:[
+      {id:'prefix:0',cat:'prefix',name:'Type Mastery',param:'water',rank:3,value:33,band:[31,40],power:true,cond:'Move has the selected type (one of the Pokémon\'s current types). Rare; replaces Type Focus.'},
+      {id:'prefix:1',cat:'prefix',name:'Super Effective Force',rank:2,value:15,band:[13,18],cond:'Move is super effective against the target by native type effectiveness.'},
+      {id:'suffix:0',cat:'suffix',name:'Resilient Hide',rank:1,value:7,band:[5,10],cond:'Incoming move is super effective against the holder by native type effectiveness.'},
+      {id:'suffix:1',cat:'suffix',name:'Triumphant',rank:2,value:12,band:[11,15],cond:'Holder\'s direct move faints the target; restores a percentage of max HP once per faint.'}
+    ],unique:null},
+  boss:{kind:'enemy',boss:true,dex:229,name:'Houndoom',sprite:'houndoom',level:80,types:['dark','fire'],base:{hp:75,atk:90,def:50,spa:110,spd:80,spe:95},hp:100,status:'',
+    rarity:'legendary',
+    slots:[
+      {id:'prefix:0',cat:'prefix',name:'Type Mastery',param:'fire',rank:4,value:47,band:[41,50],power:true,cond:'Move has the selected type (one of the Pokémon\'s current types). Rare; replaces Type Focus.'},
+      {id:'prefix:1',cat:'prefix',name:'Overwhelming Force',rank:3,value:22,band:[19,24],power:true,cond:'Every damaging move. Very rare.'},
+      {id:'prefix:2',cat:'prefix',name:'Executioner',rank:3,value:21,band:[19,24],cond:'Target HP is at most 50% before the move.'},
+      {id:'suffix:0',cat:'suffix',name:'Iron Resolve',rank:3,value:17,band:[15,19],power:true,cond:'Every incoming damaging move. Very rare.'},
+      {id:'suffix:1',cat:'suffix',name:'Resilient Hide',rank:2,value:12,band:[11,15],cond:'Incoming move is super effective against the holder by native type effectiveness.'}
+    ],
+    unique:{name:'Ashen Heart',good:'Burns inflicted by this Pokémon deal much more residual damage.',bad:'Its direct move damage is reduced.',note:'Exact values are provisional until burn attribution is proven in the simulator.'}},
+  wild:{kind:'wild',dex:94,name:'Gengar',sprite:'gengar',level:22,types:['ghost','poison'],base:{hp:60,atk:65,def:60,spa:130,spd:75,spe:110},hp:100,status:'',
+    rarity:'rare',pendingOnCatch:2,
+    slots:[
+      {id:'prefix:0',cat:'prefix',name:'Type Focus',param:'ghost',rank:1,value:6,band:[4,8],cond:'Move has the selected type.'},
+      {id:'prefix:1',cat:'prefix',name:'Special Force',rank:1,value:5,band:[3,6],cond:'Move is special.'},
+      {id:'suffix:0',cat:'suffix',name:'Healthy Guard',rank:1,value:4,band:[3,6],cond:'Holder HP is at least 80% before incoming move.'}
+    ],unique:null},
+  pvp:{kind:'pvp',dex:94,name:'Gengar',sprite:'gengar',level:48,types:['ghost','poison'],base:{hp:60,atk:65,def:60,spa:130,spd:75,spe:110},hp:71,status:'Burn'}
+};
+
+var state={scenario:'own',foe:'trial',scouted:{trial:false,boss:false,wild:false},open:null,reveal:false,closed:false,bag:2,msg:''};
+var $=function(id){return document.getElementById(id)};
+
+function magnifier(){return '<svg viewBox="0 0 8 8" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h1v3H5v1H2V4H1V1h1zm1 1v2h2V1zM5 5h1v1h1v1H6V6H5z"/></svg>'}
+document.querySelectorAll('.mag').forEach(function(b){b.innerHTML=magnifier()});
+
+/* Pixel Poke Ball. Top half takes the rarity colour. */
+function ball(color,cls){
+  var rows=[[4,7],[2,9],[1,10],[1,10],[0,11],[0,11],[0,11],[0,11],[1,10],[1,10],[2,9],[4,7]];
+  var out='<svg viewBox="0 0 12 12" class="'+(cls||'ballsvg')+'" aria-hidden="true">';
+  rows.forEach(function(r,y){
+    var fill=y<=4?color:(y>=7?'#f4f4f4':'#1b1d2a');
+    out+='<rect x="'+r[0]+'" y="'+y+'" width="'+(r[1]-r[0]+1)+'" height="1" fill="'+fill+'"/>';
+  });
+  out+='<rect x="0" y="5" width="12" height="2" fill="#1b1d2a"/><rect x="4" y="4" width="4" height="4" fill="#1b1d2a"/><rect x="5" y="5" width="2" height="2" fill="#f4f4f4"/>';
+  out+='<rect x="2" y="2" width="2" height="1" fill="#ffffff" opacity=".55"/></svg>';
+  return out;
+}
+function reduced(){return document.body.classList.contains('reduced')||window.matchMedia('(prefers-reduced-motion: reduce)').matches}
+
+function typeChips(types){return '<span class="types">'+types.map(function(t){return '<span class="type" style="background:'+(TYPE[t]?TYPE[t].c:'#555')+'">'+t[0].toUpperCase()+t.slice(1)+'</span>'}).join('')+'</span>'}
+function statColor(v){return v>=120?'#f2b138':v>=95?'#3fbf7f':v>=70?'#4fa3d9':'#8a97b3'}
+
+function nativePanel(s,known){
+  var rows=known
+    ? '<div class="field"><span>Level</span><b>'+s.level+'</b></div><div class="field"><span>Types</span>'+typeChips(s.types)+'</div>'
+    : '<div class="field"><span>Level</span><b class="locked">??</b></div><div class="field"><span>Types</span><b class="locked">???</b></div>';
+  var stats='<div class="stats" aria-label="Base stats">'+STAT_NAMES.map(function(p){
+    return known
+      ? '<div class="stat"><span>'+p[1]+'</span><div class="track"><i style="width:'+Math.min(100,Math.round(s.base[p[0]]/150*100))+'%;--c:'+statColor(s.base[p[0]])+'"></i></div><b>'+s.base[p[0]]+'</b></div>'
+      : '<div class="stat q"><span>'+p[1]+'</span><div class="track"></div><b class="locked">?</b></div>';
+  }).join('')+'</div>';
+  return '<section class="panel"><h3>Pokémon data <small>'+(known?'Base stats':'Not scouted')+'</small></h3><div class="body">'+rows+stats+'</div></section>';
+}
+
+function slotRow(slot,i){
+  var open=state.open===slot.id;
+  var pips='';for(var p=1;p<=5;p++)pips+='<i class="'+(p<=slot.rank?'on':'')+'"></i>';
+  var label=slot.name+(slot.param?' ('+slot.param+')':'');
+  return '<button class="row'+(slot.power?' strong':'')+'" data-cat="'+slot.cat+'" data-slot="'+slot.id+'" aria-expanded="'+open+'" style="--i:'+i+'">'+
+    '<span class="tag '+slot.cat+'">'+slot.cat+'</span>'+
+    '<span class="rname">'+label+(slot.power?'<span class="power">Powerhouse</span>':'')+'<small>Rank '+ROMAN[slot.rank]+'</small><span class="pips" aria-hidden="true">'+pips+'</span></span>'+
+    '<span class="val">'+slot.value+'%<small>'+slot.band[0]+'–'+slot.band[1]+'%</small></span>'+
+    (open?'<span class="detail">'+slot.cond+' Combat effect: inactive in this build.</span>':'')+
+  '</button>';
+}
+
+function placeholderRows(){
+  var out='<div class="scan">';
+  for(var i=0;i<3;i++)out+='<div class="row q" aria-hidden="true"><span class="tag">?</span><span class="rname">? ? ? ? ?</span><span class="val">??%</span></div>';
+  return out;
+}
+
+function scoutButton(key){
+  var src=SOURCE[key];
+  if(key==='wild'){
+    var none=state.bag<1;
+    return '<div class="actions"><button class="btn primary" id="scout"'+(none?' disabled':'')+'>'+(none?'No Scouter':'Use Scouter')+'</button><span class="note" style="margin:0">Scouters in bag: '+state.bag+(none?' · craft one to scout wild Pokémon':' · one use')+'</span></div>';
+  }
+  return '<div class="actions"><button class="btn primary" id="scout">Scout enemy</button><span class="note" style="margin:0">Granted by: '+src+'</span></div>';
+}
+
+function ascensionPanel(s,key){
+  var scouted=s.kind==='own'||state.scouted[key];
+  if(s.kind==='pvp'){
+    return '<section class="panel asc"><h3>Ascension <small>Inactive</small></h3><div class="body">'+placeholderRows().replace('class="scan"','class="scan" style="margin:0"')+'<p class="scan-note">Ascension effects are switched off in player battles. Rarity and modifiers are not shown.</p></div></div></section>';
+  }
+  if(scouted){
+    var r=RARITY[s.rarity];
+    var rows=s.slots.map(function(slot,i){return slotRow(slot,i)}).join('');
+    var uniq=s.unique?'<div class="unique" style="--i:'+s.slots.length+'"><span class="embers" aria-hidden="true"><i style="left:12%;animation-delay:0s"></i><i style="left:34%;animation-delay:.7s"></i><i style="left:58%;animation-delay:1.4s"></i><i style="left:80%;animation-delay:2.1s"></i></span><h4><span class="chip">Unique</span>'+s.unique.name+'</h4><p class="good">+ '+s.unique.good+'</p><p class="bad">− '+s.unique.bad+'</p><p class="fine">'+s.unique.note+'</p></div>':'';
+    var extra='';
+    if(s.kind==='own')extra='<p class="note"><span class="badge pulse">'+s.pending+' upgrades ready</span> Attunement '+s.attunement[0]+' / '+s.attunement[1]+'. Spend upgrades in the Affix Workshop.</p>';
+    else if(s.kind==='wild')extra='<p class="note"><b>If you catch it:</b> this is the rating it will have. It is fixed for this Pokémon. You would also start with '+s.pendingOnCatch+' upgrades ready.</p>';
+    else extra='<p class="note">Scouted: this enemy\'s rarity and modifiers are known for this encounter.</p>';
+    return '<section class="panel asc'+(state.reveal?' reveal':'')+'"><h3>Ascension <small>'+r.label+(s.unique?' · Unique':'')+(s.kind==='wild'?' (if caught)':'')+'</small></h3><div class="body">'+rows+uniq+extra+'</div></section>';
+  }
+  var title=s.kind==='wild'?'Unscouted':'Unscouted';
+  return '<section class="panel asc"><h3>Ascension <small>'+title+'</small></h3><div class="body">'+placeholderRows()+
+    '<p class="scan-note">'+(s.kind==='wild'?'This wild Pokémon\'s rarity and modifiers are hidden. Scout it to see what you would get if you catch it.':'Rarity and modifiers are hidden until you scout this enemy.')+' Placeholder rows do not reflect how many it has.</p></div>'+scoutButton(key).replace('class="actions"','class="actions" style="margin-top:8px"')+'</div></section>';
+}
+
+function render(){
+  var key=state.scenario,s=SCENARIOS[key],stage=$('stage');
+  if(state.closed){
+    stage.innerHTML='<div class="win"><div class="foot"><span>Inspector closed.</span><button class="btn" id="reopen">Reopen</button></div></div>';
+    return;
+  }
+  var isEnemy=s.kind==='enemy';
+  var scoutable=isEnemy||s.kind==='wild';
+  var scouted=s.kind==='own'||(scoutable&&state.scouted[key]);
+  var knownNative=s.kind==='own'||s.kind==='wild'||s.kind==='pvp'||scouted;
+  var r=scouted&&s.rarity?RARITY[s.rarity]:null;
+  var theme=TYPE[s.types[0]]||TYPE.dark;
+  var rarityChip=r
+    ? '<span class="rarity">'+ball(r.accent)+r.label+(s.unique?' · Unique':'')+(s.kind==='wild'?' (if caught)':'')+'</span>'
+    : '<span class="rarity unk">'+ball('#9aa0b2')+'Rarity ?</span>';
+  var ctx={own:'Your Pokémon',enemy:s.boss?'Raid boss':'Tower enemy',wild:'Wild Pokémon',pvp:'Opponent · PvP'}[s.kind];
+  var style='--sky1:'+theme.sky[0]+';--sky2:'+theme.sky[1]+';--mote:'+theme.mote+';'+(r?'--rarity:'+r.accent+';--rarity-panel:'+r.panel+';--rarity-soft:'+r.accent+'55':'');
+  var statusHtml=s.status?'<span class="badge">'+s.status+'</span>':'';
+  var motes='';for(var m=0;m<7;m++)motes+='<i style="left:'+(8+m*14)+'%;animation-delay:'+(m*0.45)+'s"></i>';
+  var stamp=scoutable&&state.scouted[key]?'<div class="stamp">Scouted · <b>'+SOURCE[key]+'</b></div>':'';
+  var ballClose='<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="4" y="0" width="4" height="1" fill="#1b1d2a"/><rect x="2" y="1" width="8" height="1" fill="#1b1d2a"/><rect x="1" y="2" width="10" height="2" fill="#1b1d2a"/><rect x="0" y="4" width="12" height="4" fill="#1b1d2a"/><rect x="1" y="8" width="10" height="2" fill="#1b1d2a"/><rect x="2" y="10" width="8" height="1" fill="#1b1d2a"/><rect x="4" y="11" width="4" height="1" fill="#1b1d2a"/>'+
+    '<rect x="4" y="1" width="4" height="1" fill="#e0463b"/><rect x="2" y="2" width="8" height="2" fill="#e0463b"/><rect x="1" y="4" width="10" height="1" fill="#e0463b"/><rect x="1" y="5" width="10" height="2" fill="#1b1d2a"/><rect x="1" y="7" width="10" height="1" fill="#f4f4f4"/><rect x="2" y="8" width="8" height="2" fill="#f4f4f4"/><rect x="4" y="10" width="4" height="1" fill="#f4f4f4"/><rect x="4" y="4" width="4" height="4" fill="#1b1d2a"/><rect x="5" y="5" width="2" height="2" fill="#f4f4f4"/><rect x="2" y="2" width="2" height="1" fill="#fff" opacity=".6"/></svg>';
+  stage.innerHTML=
+   '<div class="win" style="'+style+'">'+
+     '<div class="head'+(scouted?' scouted':'')+(state.reveal?' flash':'')+'"><div class="motes" aria-hidden="true">'+motes+'</div>'+
+       '<div class="stage"><div class="ground"></div><div class="sprite"><img src="assets/'+s.sprite+'.png" alt="'+s.name+'" width="144" height="96"></div><div class="lock" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div>'+
+       '<div class="who"><span class="dex">No. '+String(s.dex).padStart(3,'0')+'</span>'+
+         '<div class="plate"><span class="name">'+s.name+'</span><span class="lv">'+(knownNative?'Lv '+s.level:'Lv ??')+'</span>'+rarityChip+'</div>'+
+         '<div class="meta"><span>'+ctx+'</span>'+statusHtml+'</div>'+
+         '<div class="hpbar"><span>HP</span><span class="bar"><i style="width:'+s.hp+'%"></i></span><span>'+s.hp+'%</span></div></div>'+
+       '<button class="closeball" id="close" aria-label="Close inspector" title="Close (Esc)">'+ballClose+'</button>'+stamp+'</div>'+
+     '<div class="grid">'+nativePanel(s,knownNative)+ascensionPanel(s,key)+'</div>'+
+     '<div class="foot"><span>Sample data · combat effects are not active in this build</span><span>'+(scoutable&&state.scouted[key]?'<button class="btn link" id="forget">Reset scouting</button>':'')+'</span></div>'+
+   '</div><span class="sr" role="status" id="status">'+state.msg+'</span>';
+  state.reveal=false;state.msg='';
+}
+
+function openFoe(){state.scenario=state.foe;state.closed=false;state.open=null;$('scenario').value=state.scenario;render()}
+
+document.addEventListener('click',function(e){
+  var t=e.target.closest('button');
+  if(!t)return;
+  if(t.dataset.open==='own'){state.scenario='own';state.closed=false;state.open=null;$('scenario').value='own';render();return}
+  if(t.dataset.open==='foe'){openFoe();return}
+  if(t.dataset.slot){state.open=state.open===t.dataset.slot?null:t.dataset.slot;render();var again=document.querySelector('[data-slot="'+t.dataset.slot+'"]');if(again)again.focus();return}
+  if(t.id==='scout'){
+    var k=state.scenario;
+    if(k==='wild'){if(state.bag<1)return;state.bag-=1;$('bag').value=state.bag}
+    state.scouted[k]=true;state.reveal=!reduced();state.open=null;
+    state.msg='Scouted with '+SOURCE[k]+'. Rarity and modifiers revealed.'+(k==='wild'?' One Scouter used.':'');
+    render();var h=document.querySelector('.panel.asc .row');if(h)h.focus();return;
+  }
+  if(t.id==='forget'){state.scouted[state.scenario]=false;state.open=null;render();var sb=$('scout');if(sb)sb.focus();return}
+  if(t.id==='close'){state.closed=true;render();var rb=$('reopen');if(rb)rb.focus();return}
+  if(t.id==='reopen'){state.closed=false;render();return}
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!state.closed){state.closed=true;render();var rb=$('reopen');if(rb)rb.focus()}});
+
+$('scenario').addEventListener('change',function(){
+  state.scenario=this.value;state.closed=false;state.open=null;
+  if(state.scenario==='trial'||state.scenario==='boss'){state.foe=state.scenario;$('foe-name').textContent=SCENARIOS[state.foe].name}
+  render();
+});
+$('bag').addEventListener('change',function(){
+  var v=parseInt(this.value,10);state.bag=isNaN(v)?0:Math.max(0,Math.min(9,v));this.value=state.bag;render();
+});
+$('reduce').addEventListener('change',function(){
+  document.body.classList.toggle('reduced',this.checked);
+  try{localStorage.setItem('ascend-inspect-reduce',this.checked?'1':'0')}catch(e){}
+});
+try{if(localStorage.getItem('ascend-inspect-reduce')==='1'){$('reduce').checked=true;document.body.classList.add('reduced')}}catch(e){}
+render();
+})();
+</script>
+</body>
+</html>

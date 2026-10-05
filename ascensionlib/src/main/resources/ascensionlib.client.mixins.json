@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "com.ascensionlib.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["SummaryInspectMixin", "BattleOverlayInspectMixin", "BattleGuiInspectMixin"],
+  "injectors": {"defaultRequire": 1}
+}

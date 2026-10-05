@@ -1,0 +1,58 @@
+plugins {
+    id 'fabric-loom'
+    // Enables Loom's Kotlin metadata remapper for Cobblemon's reflective serializers.
+    id 'org.jetbrains.kotlin.jvm'
+}
+base { archivesName = 'AscensionLib' }
+loom {
+    // The scouting screen is the first client-only code (the shared library stays server-authoritative); split
+    // sources keep it from loading on a dedicated server.
+    splitEnvironmentSourceSets()
+    mods {
+        register('ascensionlib') {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+configurations { serverSimulatorRuntime }
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    exclusiveContent {
+        forRepository { maven { url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:1.21.1'
+    mappings loom.officialMojangMappings()
+    modImplementation 'net.fabricmc:fabric-loader:0.17.2'
+    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1'
+    modImplementation 'maven.modrinth:MdwFAVRL:gBW3vLC7'
+    compileOnly 'org.jetbrains.kotlin:kotlin-stdlib:2.2.20'
+    // Loom's dev-remapped dependency omits the upstream nested jars. Production Cobblemon
+    // supplies these; declare them explicitly only for the development runtime.
+    modRuntimeOnly 'net.fabricmc:fabric-language-kotlin:1.13.6+kotlin.2.2.20'
+    runtimeOnly 'org.graalvm.js:js:22.3.0'
+    // Minecraft declares ICU as client-only, so Loom removes it from runServer's classpath.
+    // The server-side simulator still needs Cobblemon's bundled version.
+    serverSimulatorRuntime 'com.ibm.icu:icu4j:71.1'
+    runtimeOnly 'org.mongodb:mongodb-driver-sync:4.10.2'
+    implementation project(':domain')
+    include project(':domain')
+    implementation project(':store')
+    include project(':store')
+    // Loom includes only the named artifact, so the pinned JDBC driver is nested explicitly.
+    include 'org.xerial:sqlite-jdbc:3.53.4.0'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+test { useJUnitPlatform() }
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) }; withSourcesJar() }
+tasks.named('runServer') { classpath += configurations.serverSimulatorRuntime }
+processResources {
+    def modVersion = project.version
+    inputs.property 'version', modVersion
+    filesMatching('fabric.mod.json') { expand version: modVersion }
+}

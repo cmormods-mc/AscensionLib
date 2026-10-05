@@ -1,0 +1,10 @@
+{
+  "schemaVersion":1,
+  "status":"provisional-requires-balance-approval",
+  "tiers":[
+    {"id":"trial_rank_1","rankCredits":1,"rarities":{"common":60,"uncommon":30,"rare":10}},
+    {"id":"trial_rank_2","rankCredits":4,"rarities":{"uncommon":30,"rare":50,"epic":20}},
+    {"id":"trial_rank_3","rankCredits":8,"rarities":{"rare":20,"epic":55,"legendary":25}},
+    {"id":"boss","rankCredits":10,"rarities":{"legendary":70,"mythical":30}}
+  ]
+}

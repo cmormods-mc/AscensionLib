@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "status": "prototype-defaults-and-balance-proposal",
+  "namespace": "cobbleascend",
+  "rarities": [
+    {"id":"common","weight":5500,"prefixSlots":1,"suffixSlots":0},
+    {"id":"uncommon","weight":2800,"prefixSlots":1,"suffixSlots":1},
+    {"id":"rare","weight":1200,"prefixSlots":2,"suffixSlots":1},
+    {"id":"epic","weight":400,"prefixSlots":2,"suffixSlots":2},
+    {"id":"legendary","weight":90,"prefixSlots":3,"suffixSlots":2},
+    {"id":"mythical","weight":10,"prefixSlots":3,"suffixSlots":3}
+  ],
+  "capsPercent": {"outgoingDamage":100,"incomingReduction":50,"healing":50},
+  "crafts": {
+    "refine":{"dust":12,"facets":0,"cores":0},
+    "reforge":{"dust":24,"facets":1,"cores":0}
+  },
+  "promotions": [
+    {"from":"common","to":"uncommon","dust":20,"facets":0,"cores":0,"attunement":3},
+    {"from":"uncommon","to":"rare","dust":50,"facets":2,"cores":0,"attunement":10},
+    {"from":"rare","to":"epic","dust":100,"facets":5,"cores":0,"attunement":25},
+    {"from":"epic","to":"legendary","dust":200,"facets":10,"cores":2,"attunement":50},
+    {"from":"legendary","to":"mythical","dust":400,"facets":20,"cores":5,"attunement":90}
+  ],
+  "research":{"dustPerSpecies":4,"speciesPerDay":5,"onboardingFacetAtSpecies":5},
+  "trialRewards":[
+    {"rank":1,"dust":6,"facets":0,"coreChance":0.0,"cycleMinutesAssumption":6},
+    {"rank":2,"dust":10,"facets":1,"coreChance":0.0,"cycleMinutesAssumption":8},
+    {"rank":3,"dust":16,"facets":2,"coreChance":0.25,"cycleMinutesAssumption":12}
+  ],
+  "attunementPerVictory":3,
+  "coreGuaranteedByEligibleWin":4,
+  "fullRewardWinsPerDay":20,
+  "overflowDustMultiplier":0.25
+}

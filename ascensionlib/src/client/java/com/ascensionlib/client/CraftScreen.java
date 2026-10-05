@@ -1,0 +1,475 @@
+package com.ascensionlib.client;
+
+import com.ascensionlib.craft.CraftPayloads;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+
+/**
+ * Upgrade, refine and reforge: one Pokemon's modifiers in the same white quartz style as the inspector, laid out for choosing.
+ * Left, the Pokemon's affixes to pick from; right, what the chosen action does to the chosen affix (the current roll and the next
+ * range, a refine's band, or a reforge's pool), its cost, and a Review button that opens a plain confirmation. The screen only previews:
+ * the server computes every range and cost, and a confirmation is a request the server may refuse (stale, unaffordable, not yours).
+ * Closing, cancelling or "Decide later" costs nothing. Buttons lock while a request is in flight, and a duplicate confirmation cannot
+ * double-charge because each carries one operation id the server commits once.
+ */
+final class CraftScreen extends Screen {
+    private enum Mode { UPGRADE, REFINE, REFORGE, PROMOTE }
+    private enum Phase { BROWSE, REVIEW, WAITING }
+    private static final int W = 400, H = 236, ROW_H = 20, LEFT_W = 176;
+    private static final int REVIEW_W = 58;
+    private static final String[] ROMAN = {"", "I", "II", "III", "IV", "V"};
+
+    private final Screen parent;
+    private CraftPayloads.View view;
+    private Mode mode = Mode.UPGRADE;
+    private Phase phase = Phase.BROWSE;
+    private String selectedSlot = "";
+    private String pendingOperation = "";
+    private long waitingSince;
+    private String bannerText = "";
+    private boolean bannerOk;
+    private CardArt art;
+    private String artKey = "";
+    private int left, top, pw, ph;
+
+    CraftScreen(Screen parent, CraftPayloads.View view) {
+        super(Component.translatable("screen.ascensionlib.craft"));
+        this.parent = parent;
+        this.view = view;
+        if (!view.message().isEmpty()) { bannerText = view.message(); bannerOk = false; }
+        this.mode = view.pending() > 0 ? Mode.UPGRADE : Mode.REFINE;
+        if (!view.slots().isEmpty()) selectedSlot = view.slots().get(0).slotId();
+    }
+
+    String pokemonId() { return view.pokemonId(); }
+
+    void accept(CraftPayloads.View next) {
+        view = next;
+        if (view.slots().stream().noneMatch(s -> s.slotId().equals(selectedSlot))) selectedSlot = view.slots().isEmpty() ? "" : view.slots().get(0).slotId();
+        if (!next.message().isEmpty() && bannerText.isEmpty()) { bannerText = next.message(); bannerOk = false; }
+        rebuildWidgets();
+    }
+
+    void done(CraftPayloads.Done result) {
+        if (!result.operationId().equals(pendingOperation)) return;
+        pendingOperation = "";
+        phase = Phase.BROWSE;
+        bannerOk = result.ok();
+        if (result.ok()) {
+            String was = ROMAN[Math.max(1, Math.min(5, result.oldRank()))] + " +" + result.oldValue() + "%";
+            String now = ROMAN[Math.max(1, Math.min(5, result.newRank()))] + " +" + result.newValue() + "%";
+            bannerText = switch (mode) {
+                case UPGRADE -> result.newName() + " → " + now;
+                case REFINE -> "Refined: +" + result.oldValue() + "% → +" + result.newValue() + "%";
+                case REFORGE -> "Now " + result.newName() + " +" + result.newValue() + "%";
+                case PROMOTE -> "Promoted to " + rarityName(result.newName()) + ": a new modifier slot opened";
+            };
+            if (result.replayed()) bannerText += " (already done)";
+            if (AscensionClientSettings.sounds && minecraft != null)
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_LOOM_TAKE_RESULT, 1.0f, 0.6f));
+        } else bannerText = result.message();
+        rebuildWidgets();
+    }
+
+    private CraftPayloads.SlotView slot() {
+        for (var s : view.slots()) if (s.slotId().equals(selectedSlot)) return s;
+        return null;
+    }
+
+    private String blockFor(CraftPayloads.SlotView s) {
+        return switch (mode) {
+            case UPGRADE -> s.upgradeBlock();
+            case REFINE -> s.refineBlock();
+            case REFORGE -> s.reforgeBlock();
+            case PROMOTE -> view.promotion().block();
+        };
+    }
+
+    private static String rarityName(String id) {
+        return id.isEmpty() ? "" : id.equals("mythical") ? "Mythic" : Character.toUpperCase(id.charAt(0)) + id.substring(1);
+    }
+
+    private CardArt art() {
+        String key = view.speciesId() + "|" + String.join(",", view.aspects());
+        if (art == null || !key.equals(artKey)) { art = new CardArt(view.speciesId(), view.aspects()); artKey = key; }
+        return art;
+    }
+
+    // ---- widgets ------------------------------------------------------------------------------------------------------------
+
+    @Override protected void init() {
+        pw = Math.min(W, width - 8);
+        ph = Math.min(H, height - 8);
+        left = (width - pw) / 2;
+        top = (height - ph) / 2;
+        int x = left + 8;
+        if (phase == Phase.BROWSE) {
+            String[] names = {"Upgrade", "Refine", "Reforge", "Promote"};
+            for (int i = 0; i < 4; i++) {
+                Mode m = Mode.values()[i];
+                addRenderableWidget(new TabButton(x + i * 66, top + 8 + 36 + 3, 64, 16, names[i], m == mode, () -> { mode = m; bannerText = ""; rebuildWidgets(); }));
+            }
+            int rowY = top + 8 + 36 + 3 + 16 + 17 + 2;
+            for (var s : view.slots()) {
+                boolean selected = s.slotId().equals(selectedSlot);
+                addRenderableWidget(new RowButton(x + 2, rowY, LEFT_W - 4, ROW_H - 1, s, selected, mode == Mode.PROMOTE ? "" : blockFor(s), () -> { selectedSlot = s.slotId(); rebuildWidgets(); }));
+                rowY += ROW_H;
+            }
+            int fy = top + ph - 8 - 19;
+            addRenderableWidget(new PixelButton(left + pw - 8 - 86, fy, 86, 18, Component.literal("Decide later"), b -> onClose()));
+            var current = slot();
+            if (current != null || mode == Mode.PROMOTE) {
+                int rx = x + LEFT_W + 6, rw = left + pw - 8 - rx, panelBottom = top + ph - 8 - 24;
+                var review = new PixelButton(rx + rw - 6 - REVIEW_W, panelBottom - 2 - 17, REVIEW_W, 16,
+                        Component.literal("Review"), b -> { phase = Phase.REVIEW; rebuildWidgets(); }).primary();
+                review.active = mode == Mode.PROMOTE ? view.promotion().block().isEmpty() && !view.promotion().toRarity().isEmpty()
+                        : blockFor(current).isEmpty();
+                addRenderableWidget(review);
+            }
+        } else if (phase == Phase.REVIEW) {
+            int mx = left + pw / 2, my = top + ph / 2;
+            addRenderableWidget(new PixelButton(mx - 118, my + 28, 112, 18, Component.literal("Confirm " + mode.name().toLowerCase(Locale.ROOT)), b -> confirm()).primary());
+            addRenderableWidget(new PixelButton(mx + 6, my + 28, 112, 18, Component.literal("Cancel"), b -> { phase = Phase.BROWSE; rebuildWidgets(); }));
+        }
+    }
+
+    private void confirm() {
+        var current = slot();
+        boolean promoting = mode == Mode.PROMOTE;
+        if (phase != Phase.REVIEW) return;
+        if (promoting ? !view.promotion().block().isEmpty() || view.promotion().toRarity().isEmpty() : current == null || !blockFor(current).isEmpty()) return;
+        if (!ClientPlayNetworking.canSend(CraftPayloads.Confirm.TYPE)) { bannerText = "This server cannot do that."; bannerOk = false; phase = Phase.BROWSE; rebuildWidgets(); return; }
+        pendingOperation = UUID.randomUUID().toString();
+        phase = Phase.WAITING;
+        waitingSince = System.currentTimeMillis();
+        ClientPlayNetworking.send(new CraftPayloads.Confirm(pendingOperation, view.pokemonId(), mode.name().toLowerCase(Locale.ROOT), promoting ? "" : current.slotId(),
+                view.profileRevision(), view.walletRevision()));
+        rebuildWidgets();
+    }
+
+    @Override public void tick() {
+        if (phase == Phase.WAITING && System.currentTimeMillis() - waitingSince > 8000) {
+            phase = Phase.BROWSE;
+            pendingOperation = "";
+            bannerText = "No answer from the server. Check your materials and try again.";
+            bannerOk = false;
+            rebuildWidgets();
+        }
+    }
+
+    @Override public boolean isPauseScreen() { return false; }
+
+    @Override public boolean keyPressed(int key, int scan, int mods) {
+        if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE && phase == Phase.REVIEW) { phase = Phase.BROWSE; rebuildWidgets(); return true; }
+        return super.keyPressed(key, scan, mods);
+    }
+
+    @Override public void onClose() {
+        if (phase == Phase.WAITING) return;       // the answer is on its way; do not abandon a request in flight
+        minecraft.setScreen(parent);
+        if (parent instanceof AscendInspectScreen inspect) inspect.refreshOwned();
+    }
+
+    // ---- drawing ------------------------------------------------------------------------------------------------------------
+
+    @Override public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        g.fill(0, 0, width, height, 0xB0140D09);
+        var style = PixelArt.style(view.rarityId());
+        PixelArt.qpanel(g, left, top, pw, ph);
+        PixelArt.ring(g, left + 4, top + 4, pw - 8, ph - 8, style.accent(), 2);
+        PixelArt.ring(g, left + 6, top + 6, pw - 12, ph - 12, 0xFF1B120D, 1);
+        int x = left + 8, y = top + 8, innerW = pw - 16;
+
+        // ---- header: the Pokemon, its rarity, how many upgrades wait --------------------------------------------------------
+        PixelArt.qpanel(g, x, y, innerW, 36);
+        g.fill(x + 4, y + 3, x + 4 + 60, y + 3 + 30, PixelArt.Q_EDGE);
+        g.fill(x + 5, y + 4, x + 3 + 60, y + 2 + 30, PixelArt.Q_ROW);
+        art().draw(g, font, x + 5, y + 4, 58, 28, mouseX, mouseY, 0f, "?", 1);
+        g.drawString(font, font.plainSubstrByWidth(view.name(), innerW - 160), x + 72, y + 8, PixelArt.Q_INK, false);
+        g.drawString(font, "Lv " + view.level(), x + 72, y + 21, PixelArt.Q_MUTED, false);
+        String grade = (view.rarityId().equals("mythical") ? "MYTHIC" : view.rarityId().toUpperCase(Locale.ROOT)) + (view.uniqueName().isEmpty() ? "" : " · UNIQUE");
+        int gx = x + 72 + font.width("Lv " + view.level()) + 8, gw = font.width(grade) + 8;
+        g.fill(gx, y + 19, gx + gw, y + 31, 0xFF1B120D);
+        g.fill(gx + 1, y + 20, gx + gw - 1, y + 30, style.panel());
+        g.drawString(font, grade, gx + 4, y + 21, style.accent(), false);
+        String pending = String.valueOf(view.pending());
+        g.pose().pushPose();
+        g.pose().translate(x + innerW - 10 - font.width(pending) * 2, y + 6, 0);
+        g.pose().scale(2f, 2f, 1f);
+        g.drawString(font, pending, 0, 0, view.pending() > 0 ? PixelArt.Q_INK : PixelArt.Q_MUTED, false);
+        g.pose().popPose();
+        String upgrades = view.pending() == 1 ? "upgrade available" : "upgrades available";
+        g.drawString(font, upgrades, x + innerW - 10 - font.width(upgrades), y + 24, PixelArt.Q_MUTED, false);
+
+        // ---- tab row: line and the result banner -----------------------------------------------------------------------------
+        int tabY = y + 36 + 3;
+        g.fill(x, tabY + 16, x + innerW, tabY + 17, PixelArt.Q_EDGE);
+        if (!bannerText.isEmpty()) {
+            int bx = x + 4 * 66 + 4, bw = innerW - 4 * 66 - 4;
+            g.fill(bx, tabY + 1, bx + bw, tabY + 15, bannerOk ? 0xFFDDEBD0 : 0xFFF2D8D2);
+            g.fill(bx, tabY + 1, bx + 2, tabY + 15, bannerOk ? 0xFF6F9A52 : 0xFFB5482E);
+            g.drawString(font, font.plainSubstrByWidth(bannerText, bw - 10), bx + 6, tabY + 4, PixelArt.Q_INK, false);
+        }
+
+        // ---- left: the affixes -----------------------------------------------------------------------------------------------
+        int panelTop = tabY + 17, panelBottom = top + ph - 8 - 24;
+        PixelArt.qpanel(g, x, panelTop, LEFT_W, panelBottom - panelTop);
+        g.fill(x + 2, panelTop + 2, x + LEFT_W - 2, panelTop + 16, PixelArt.Q_HEAD);
+        g.drawString(font, "Your affixes", x + 6, panelTop + 5, PixelArt.Q_INK, false);
+        g.drawString(font, "Rank / roll", x + LEFT_W - 6 - font.width("Rank / roll"), panelTop + 5, PixelArt.Q_MUTED, false);
+        if (view.slots().isEmpty()) g.drawString(font, "No affixes to change.", x + 8, panelTop + 24, PixelArt.Q_MUTED, false);
+
+        // ---- right: the chosen action on the chosen affix -----------------------------------------------------------------------
+        int rx = x + LEFT_W + 6, rw = left + pw - 8 - rx, t = panelTop;
+        PixelArt.qpanel(g, rx, t, rw, panelBottom - t);
+        var s = slot();
+        if (mode == Mode.PROMOTE) {
+            drawPromote(g, rx, t, rw, panelBottom);
+        } else if (s == null) {
+            g.drawString(font, "Choose an affix on the left.", rx + 8, t + 10, PixelArt.Q_MUTED, false);
+        } else {
+            boolean prefix = s.category().equals("prefix");
+            String kind = mode.name() + " " + s.category().toUpperCase(Locale.ROOT);
+            g.drawString(font, kind, rx + 8, t + 5, PixelArt.Q_MUTED, false);
+            g.drawString(font, font.plainSubstrByWidth(s.name(), rw - 16), rx + 8, t + 16, PixelArt.Q_INK, false);
+            String effect = s.condition().isEmpty() ? (prefix ? "An offensive modifier." : "A defensive or recovery modifier.") : s.condition();
+            var lines = font.split(Component.literal(effect), rw - 16);
+            for (int i = 0; i < Math.min(2, lines.size()); i++) g.drawString(font, lines.get(i), rx + 8, t + 27 + i * 9, PixelArt.Q_MUTED, false);
+            int boxY = t + 46, boxW = (rw - 12 - 18) / 2, boxH = 34;
+            String curLabel = "Current · " + ROMAN[Math.max(1, Math.min(5, s.rank()))];
+            String curBig = "+" + s.value() + "%";
+            String curSmall = "Range " + s.bandMin() + "–" + s.bandMax() + "%";
+            String nextLabel, nextBig, nextSmall;
+            switch (mode) {
+                case UPGRADE -> {
+                    boolean top = s.nextMin() < 0;
+                    nextLabel = top ? "Top rank" : "Next · " + ROMAN[s.rank() + 1];
+                    nextBig = top ? "—" : s.nextMin() + "–" + s.nextMax() + "%";
+                    nextSmall = top ? "Cannot rise further" : "New roll range";
+                }
+                case REFINE -> {
+                    nextLabel = "Reroll";
+                    nextBig = s.bandMin() + "–" + s.bandMax() + "%";
+                    nextSmall = "Same rank, new value";
+                }
+                case PROMOTE -> throw new IllegalStateException("Promote has its own panel");
+                default -> {
+                    curBig = font.plainSubstrByWidth(s.name(), boxW - 8);
+                    curSmall = "+" + s.value() + "% · rank " + ROMAN[Math.max(1, Math.min(5, s.rank()))];
+                    nextLabel = "New affix";
+                    nextBig = "?";
+                    nextSmall = s.reforgePool() + " eligible";
+                }
+            }
+            valueBox(g, rx + 6, boxY, boxW, boxH, curLabel, curBig, curSmall, false, mode == Mode.REFORGE);
+            g.drawString(font, "→", rx + 6 + boxW + 5, boxY + 15, PixelArt.Q_MUTED, false);
+            valueBox(g, rx + 6 + boxW + 18, boxY, boxW, boxH, nextLabel, nextBig, nextSmall, true, false);
+            // Rank bar: filled to the current rank, the next rank lighter.
+            var style2 = PixelArt.style(view.rarityId());
+            int barY = boxY + boxH + 5, segW = (rw - 12 - 4 * 3) / 5;
+            for (int i = 0; i < 5; i++) {
+                int sx = rx + 6 + i * (segW + 3);
+                g.fill(sx, barY, sx + segW, barY + 5, PixelArt.Q_EDGE);
+                boolean filled = i < s.rank();
+                boolean next = mode == Mode.UPGRADE && i == s.rank() && s.nextMin() >= 0;
+                g.fill(sx + 1, barY + 1, sx + segW - 1, barY + 4, filled ? style2.panel() : next ? 0xFFA9B7D4 : PixelArt.Q_WELL);
+                if (filled) g.fill(sx + 1, barY + 1, sx + segW - 1, barY + 2, style2.accent());
+            }
+            String what = switch (mode) {
+                case UPGRADE -> "Keeps this affix, rolls in the next range. No failure chance.";
+                case REFINE -> "Rerolls only the value in this rank's range. May go down.";
+                default -> "Swaps this affix for another. Rank stays; value rolls anew.";
+            };
+            var explain = font.split(Component.literal(what), rw - 16);
+            for (int i = 0; i < Math.min(2, explain.size()); i++) g.drawString(font, explain.get(i), rx + 8, barY + 10 + i * 9, PixelArt.Q_MUTED, false);
+            // Bottom row: the cost on the left, the Review button (a widget) on the right; the reason replaces the cost when it cannot be done.
+            int costY = panelBottom - 2 - 19;
+            g.fill(rx + 6, costY - 3, rx + rw - 6, costY - 2, PixelArt.Q_LINE);
+            String block = blockFor(s);
+            int costW = rw - 12 - REVIEW_W - 8;
+            g.drawString(font, "Cost", rx + 8, costY + 1, PixelArt.Q_MUTED, false);
+            if (block.isEmpty()) g.drawString(font, font.plainSubstrByWidth(shortCost(), costW), rx + 8, costY + 10, PixelArt.Q_INK, false);
+            else g.drawString(font, font.plainSubstrByWidth(block, costW), rx + 8, costY + 10, 0xFF8A2E22, false);
+        }
+
+        // ---- footer: progress and wallet ---------------------------------------------------------------------------------------
+        int fy = top + ph - 8 - 20;
+        String next = view.nextMilestone() > 0 ? "Next upgrade at Lv. " + view.nextMilestone() : "Every level milestone reached";
+        g.drawString(font, next, x + 2, fy + 6, PixelArt.Q_INK, false);
+        String wallet = view.dust() + " Dust · " + view.facets() + " Facets · " + view.cores() + " Cores";
+        g.drawString(font, font.plainSubstrByWidth(wallet, innerW - 86 - font.width(next) - 24), x + 2 + font.width(next) + 14, fy + 6, PixelArt.Q_MUTED, false);
+
+        if (phase != Phase.BROWSE) review(g);
+    }
+
+    private String costText() {
+        return switch (mode) {
+            case UPGRADE -> "1 pending upgrade (you have " + view.pending() + ")";
+            case REFINE -> price(view.refine());
+            case REFORGE -> price(view.reforge());
+            case PROMOTE -> price(view.promotion().price());
+        };
+    }
+
+    private String shortCost() {
+        return switch (mode) {
+            case UPGRADE -> "1 upgrade";
+            case REFINE -> shortPrice(view.refine());
+            case REFORGE -> shortPrice(view.reforge());
+            case PROMOTE -> shortPrice(view.promotion().price());
+        };
+    }
+
+    /** Promotion: the rarity step, the attunement progress toward it, and the cost row, in the same panel style as the other actions. */
+    private void drawPromote(GuiGraphics g, int rx, int t, int rw, int panelBottom) {
+        var p = view.promotion();
+        g.drawString(font, "PROMOTE", rx + 8, t + 5, PixelArt.Q_MUTED, false);
+        if (p.toRarity().isEmpty()) {
+            g.drawString(font, "Already the highest rarity.", rx + 8, t + 16, PixelArt.Q_INK, false);
+            return;
+        }
+        g.drawString(font, font.plainSubstrByWidth(rarityName(view.rarityId()) + " → " + rarityName(p.toRarity()), rw - 16), rx + 8, t + 16,
+                PixelArt.Q_INK, false);
+        int boxY = t + 30, boxW = (rw - 12 - 18) / 2, boxH = 34;
+        valueBox(g, rx + 6, boxY, boxW, boxH, "Now", rarityName(view.rarityId()), "keeps all modifiers", false, true);
+        g.drawString(font, "→", rx + 6 + boxW + 5, boxY + 15, PixelArt.Q_MUTED, false);
+        valueBox(g, rx + 6 + boxW + 18, boxY, boxW, boxH, "Promote to", rarityName(p.toRarity()), "+1 modifier slot", true, true);
+        int barY = boxY + boxH + 18;
+        g.drawString(font, "Attunement " + p.attunement() + " / " + p.attunementNeeded(), rx + 8, barY - 11, PixelArt.Q_INK, false);
+        int barW = rw - 16;
+        g.fill(rx + 8, barY, rx + 8 + barW, barY + 6, PixelArt.Q_EDGE);
+        g.fill(rx + 9, barY + 1, rx + 7 + barW, barY + 5, PixelArt.Q_WELL);
+        int filled = p.attunementNeeded() <= 0 ? barW - 2 : (int) Math.min(barW - 2L, (long) (barW - 2) * p.attunement() / p.attunementNeeded());
+        if (filled > 0) g.fill(rx + 9, barY + 1, rx + 9 + filled, barY + 5, PixelArt.style(view.rarityId()).panel());
+        var explain = font.split(Component.literal("Attunement grows when this Pokémon is in your party for a Tower boss clear."), rw - 16);
+        for (int i = 0; i < Math.min(2, explain.size()); i++) g.drawString(font, explain.get(i), rx + 8, barY + 10 + i * 9, PixelArt.Q_MUTED, false);
+        int costY = panelBottom - 2 - 19;
+        g.fill(rx + 6, costY - 3, rx + rw - 6, costY - 2, PixelArt.Q_LINE);
+        int costW = rw - 12 - REVIEW_W - 8;
+        g.drawString(font, "Cost", rx + 8, costY + 1, PixelArt.Q_MUTED, false);
+        if (p.block().isEmpty()) g.drawString(font, font.plainSubstrByWidth(shortCost(), costW), rx + 8, costY + 10, PixelArt.Q_INK, false);
+        else g.drawString(font, font.plainSubstrByWidth(p.block(), costW), rx + 8, costY + 10, 0xFF8A2E22, false);
+    }
+
+    private static String shortPrice(CraftPayloads.Price p) {
+        StringBuilder text = new StringBuilder();
+        if (p.dust() > 0) text.append(p.dust()).append(" Dust");
+        if (p.facets() > 0) text.append(text.length() > 0 ? " + " : "").append(p.facets()).append(p.facets() == 1 ? " Facet" : " Facets");
+        if (p.cores() > 0) text.append(text.length() > 0 ? " + " : "").append(p.cores()).append(p.cores() == 1 ? " Core" : " Cores");
+        return text.length() == 0 ? "Free" : text.toString();
+    }
+
+    private String price(CraftPayloads.Price p) {
+        StringBuilder text = new StringBuilder();
+        if (p.dust() > 0) text.append(p.dust()).append(" Dust (have ").append(view.dust()).append(')');
+        if (p.facets() > 0) text.append(text.length() > 0 ? " + " : "").append(p.facets()).append(p.facets() == 1 ? " Facet" : " Facets").append(" (have ").append(view.facets()).append(')');
+        if (p.cores() > 0) text.append(text.length() > 0 ? " + " : "").append(p.cores()).append(p.cores() == 1 ? " Core" : " Cores").append(" (have ").append(view.cores()).append(')');
+        return text.length() == 0 ? "Free" : text.toString();
+    }
+
+    private void valueBox(GuiGraphics g, int x, int y, int w, int h, String label, String big, String small, boolean next, boolean smallBig) {
+        g.fill(x, y, x + w, y + h, next ? 0xFFC3D2E8 : PixelArt.Q_HEAD);
+        g.fill(x + 1, y + 1, x + w - 1, y + h - 1, next ? 0xFFDCE6F4 : PixelArt.Q_PANEL);
+        g.drawString(font, font.plainSubstrByWidth(label, w - 8), x + (w - Math.min(font.width(label), w - 8)) / 2, y + 2, PixelArt.Q_MUTED, false);
+        if (smallBig) {
+            g.drawString(font, big, x + (w - font.width(big)) / 2, y + 13, PixelArt.Q_INK, false);
+        } else {
+            g.pose().pushPose();
+            float scale = font.width(big) * 2 <= w - 6 ? 2f : 1f;
+            g.pose().translate(x + (w - font.width(big) * scale) / 2, y + (scale == 2f ? 10 : 13), 0);
+            g.pose().scale(scale, scale, 1f);
+            g.drawString(font, big, 0, 0, PixelArt.Q_INK, false);
+            g.pose().popPose();
+        }
+        g.drawString(font, font.plainSubstrByWidth(small, w - 6), x + (w - Math.min(font.width(small), w - 6)) / 2, y + h - 9, PixelArt.Q_MUTED, false);
+    }
+
+    /** The confirmation (or the wait for the answer) over a dimmed screen. */
+    private void review(GuiGraphics g) {
+        var s = slot();
+        g.fill(0, 0, width, height, 0xB0140D09);
+        int mx = left + pw / 2, my = top + ph / 2, bw = 270, bh = 120, bx = mx - bw / 2, by = my - 52;
+        PixelArt.qpanel(g, bx, by, bw, bh);
+        PixelArt.ring(g, bx + 3, by + 3, bw - 6, bh - 6, PixelArt.style(view.rarityId()).accent(), 1);
+        if (s == null && mode != Mode.PROMOTE) return;
+        String title = phase == Phase.WAITING ? "Working…" : "Confirm " + mode.name().toLowerCase(Locale.ROOT);
+        g.drawString(font, title, bx + 10, by + 9, PixelArt.Q_INK, false);
+        g.fill(bx + 8, by + 21, bx + bw - 8, by + 22, PixelArt.Q_LINE);
+        String change = switch (mode) {
+            case UPGRADE -> s.name() + " " + ROMAN[s.rank()] + " +" + s.value() + "%  →  " + ROMAN[Math.min(5, s.rank() + 1)] + ", rolls " + s.nextMin() + "–" + s.nextMax() + "%";
+            case REFINE -> s.name() + " +" + s.value() + "%  →  a new value in " + s.bandMin() + "–" + s.bandMax() + "%";
+            case PROMOTE -> rarityName(view.rarityId()) + "  →  " + rarityName(view.promotion().toRarity()) + ", and one new rank I modifier";
+            default -> s.name() + " +" + s.value() + "%  →  another affix (" + s.reforgePool() + " eligible), rank " + ROMAN[s.rank()];
+        };
+        int ly = by + 28;
+        for (var line : font.split(Component.literal(change), bw - 20)) { g.drawString(font, line, bx + 10, ly, PixelArt.Q_INK, false); ly += 10; }
+        g.drawString(font, "Cost: " + costText(), bx + 10, ly + 2, PixelArt.Q_INK, false);
+        String note = switch (mode) {
+            case UPGRADE -> "No failure chance. This spends one pending upgrade.";
+            case REFINE -> "The result can be lower than now. It cannot be undone.";
+            case PROMOTE -> "No failure chance. Existing modifiers are kept. It cannot be undone.";
+            default -> "The result is random and cannot be undone.";
+        };
+        g.drawString(font, font.plainSubstrByWidth(note, bw - 20), bx + 10, ly + 14, PixelArt.Q_MUTED, false);
+        if (phase == Phase.WAITING) g.drawString(font, "Waiting for the server…", bx + 10, by + bh - 16, PixelArt.Q_MUTED, false);
+    }
+
+    // ---- widgets ------------------------------------------------------------------------------------------------------------
+
+    private static final class TabButton extends Button {
+        private final String label;
+        private final boolean selected;
+        TabButton(int x, int y, int w, int h, String label, boolean selected, Runnable action) {
+            super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
+            this.label = label;
+            this.selected = selected;
+        }
+        @Override protected void renderWidget(GuiGraphics g, int mx, int my, float dt) {
+            int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+            boolean hover = active && isHoveredOrFocused();
+            g.fill(x, y, x + w, y + h + (selected ? 1 : 0), PixelArt.Q_EDGE);
+            g.fill(x + 1, y + 1, x + w - 1, y + h - 1 + (selected ? 1 : 0), selected ? PixelArt.Q_ROW : hover ? PixelArt.Q_PANEL : PixelArt.Q_HEAD);
+            if (selected) g.fill(x + 1, y + 1, x + w - 1, y + 3, PixelArt.BURGUNDY);
+            var font = net.minecraft.client.Minecraft.getInstance().font;
+            g.drawString(font, label, x + (w - font.width(label)) / 2, y + 5, selected ? PixelArt.Q_INK : PixelArt.Q_MUTED, false);
+        }
+    }
+
+    private final class RowButton extends Button {
+        private final CraftPayloads.SlotView slot;
+        private final boolean selected;
+        private final String block;
+        RowButton(int x, int y, int w, int h, CraftPayloads.SlotView slot, boolean selected, String block, Runnable action) {
+            super(x, y, w, h, Component.literal(slot.name()), b -> action.run(), DEFAULT_NARRATION);
+            this.slot = slot;
+            this.selected = selected;
+            this.block = block;
+        }
+        @Override protected void renderWidget(GuiGraphics g, int mx, int my, float dt) {
+            int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+            boolean prefix = slot.category().equals("prefix");
+            boolean hover = active && isHoveredOrFocused();
+            g.fill(x, y, x + w, y + h, selected ? 0xFFFFFFFF : hover ? PixelArt.Q_ROW : PixelArt.Q_PANEL);
+            g.fill(x, y + h, x + w, y + h + 1, PixelArt.Q_LINE);
+            if (selected) PixelArt.ring(g, x, y, w, h, PixelArt.style(view.rarityId()).accent(), 1);
+            int tint = prefix ? 0xFFC9694F : 0xFF6F9A52;
+            g.fill(x + 3, y + 4, x + 14, y + 15, 0xFF1B120D);
+            g.fill(x + 4, y + 5, x + 13, y + 14, tint);
+            PixelArt.icon(g, prefix ? PixelArt.ICON_SWORD : PixelArt.ICON_SHIELD, x + 5, y + 6, 0xFFFFFFFF);
+            int dim = block.isEmpty() ? PixelArt.Q_INK : PixelArt.Q_MUTED;
+            var font = net.minecraft.client.Minecraft.getInstance().font;
+            String value = "+" + slot.value() + "%";
+            g.drawString(font, font.plainSubstrByWidth(slot.name(), w - 24 - font.width(value) - 8), x + 19, y + 2, dim, false);
+            g.drawString(font, slot.category() + " · " + ROMAN[Math.max(1, Math.min(5, slot.rank()))], x + 19, y + 10, PixelArt.Q_MUTED, false);
+            g.drawString(font, value, x + w - 5 - font.width(value), y + 6, selected ? 0xFF7A2E22 : dim, false);
+        }
+    }
+}

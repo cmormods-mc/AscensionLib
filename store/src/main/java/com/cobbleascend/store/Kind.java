@@ -1,0 +1,8 @@
+package com.cobbleascend.store;
+
+/** Every kind of committed operation the store records. */
+public enum Kind {
+    ACQUIRE, MIGRATE, GRANT, SPEND, ASSEMBLE_CATALYST,
+    OBSERVE_LEVEL, UPGRADE, REFORGE, REFINE, PROMOTE, INSTALL_UNIQUE, REPLACE_UNIQUE,
+    AWARD_ATTUNEMENT
+}
