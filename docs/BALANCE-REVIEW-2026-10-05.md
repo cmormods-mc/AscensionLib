@@ -27,7 +27,7 @@ the Tower is the only core source (Trials give none). Attunement is not the limi
 5. **Refine value spreads** are small for most affixes (3-6%), Restorative 5-15% (mean 11 attempts to the max): worth a second look only if
    players find Refine pointless.
 
-## Proposed changes (each needs your yes)
+## Proposed changes (A and B approved by the owner 2026-10-05; A applied; C and D stand as written)
 
 | # | Change | Why |
 |---|---|---|

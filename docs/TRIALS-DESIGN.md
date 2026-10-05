@@ -1,7 +1,7 @@
 # Trials: design proposal (2026-10-05, draft for owner decisions)
 
 Status: **option A built, simple first (2026-10-05)**, not run live. Owner chose A (Towers trial runs) and "simple first": rank payouts
-(`TrialRewardBands`, no Cores or Fragments), +3 attunement, all ranks open, no daily budget, no Core pity. Budget, pity and unlock
+(`TrialRewardBands`, no Cores or Fragments; rank 3 pays 1 facet after the 2026-10-05 balance review), +3 attunement, all ranks open, no daily budget, no Core pity. Budget, pity and unlock
 counters (items 4-5 of the proposal) are deferred until a live test shows farming. Contract: `AscensionRewards.settleTrial`; caller:
 CobbleTowers `TowerEncounters.payAscensionLib`. Original proposal text follows.
 

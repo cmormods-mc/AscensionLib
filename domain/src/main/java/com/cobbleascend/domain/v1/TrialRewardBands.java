@@ -8,16 +8,16 @@ import java.util.Map;
  * (1-3) is the difficulty of the floors it covers. Flat per player, victory only, no chances and no Scouters, Cores, Unique
  * Fragments or Catalysts in this first version: Cores stay a Tower boss reward until Core pity and a daily budget exist.
  *
- * <p>The amounts are the three-rank table of {@code ECONOMY.md}. There is no entry gate and no daily budget yet, so a farmed
- * rank-3 Trial pays 16 dust and 2 facets per clear; if a live test shows that out-earning the Towers, shrink these before adding
- * the budget.
+ * <p>The amounts are the three-rank table of {@code ECONOMY.md} with rank 3 cut from 2 facets to 1 (owner-approved 2026-10-05,
+ * docs/BALANCE-REVIEW-2026-10-05.md): with no entry gate and no daily budget, 2 facets per clear would beat a keyed Tower run's 1.5.
+ * If a live test still shows trials out-earning the Towers, shrink further or add the budget.
  */
 public final class TrialRewardBands {
     public static final int MIN_RANK = 1;
     public static final int MAX_RANK = 3;
 
     private static final int[] DUST = {6, 10, 16};
-    private static final int[] FACETS = {0, 1, 2};
+    private static final int[] FACETS = {0, 1, 1};
 
     private TrialRewardBands() {}
 
