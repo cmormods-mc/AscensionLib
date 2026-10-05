@@ -31,6 +31,11 @@ class ContractSignaturesTest {
                 UUID.class, String.class, String.class, Map.class);
     }
 
+    @Test void trialContractMatchesWhatTowersLooksUp() throws Exception {
+        assertContract(AscensionRewards.class, "settleTrial", Map.class,
+                UUID.class, String.class, int.class, Collection.class);
+    }
+
     @Test void raidAttunementContractMatchesWhatRaidsLooksUp() throws Exception {
         assertContract(AscensionRewards.class, "settleRaidAttunement", int.class,
                 String.class, String.class, Collection.class);

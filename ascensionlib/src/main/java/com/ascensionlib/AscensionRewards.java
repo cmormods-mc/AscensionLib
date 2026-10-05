@@ -49,6 +49,26 @@ public final class AscensionRewards {
     }
 
     /**
+     * Pays a won CobbleTowers Trial (a floor-limited run) from {@code TrialRewardBands}: flat per player, victory only, reward kind
+     * {@code trial_rank_N}, once per (encounter, player), and +3 attunement to each paid player's party. No entry gate or daily
+     * budget yet. Same statuses as {@link #settle}.
+     *
+     * @param encounterId the encounter that ends the trial (its final floor's boss; never reused)
+     * @param rank        1-3; {@code TrialRewardBands.rankForFloorLimit} maps a trial's floor limit to it
+     */
+    public static Map<UUID, String> settleTrial(UUID encounterId, String outcome, int rank, java.util.Collection<UUID> players) {
+        var amounts = new LinkedHashMap<String, Long>();
+        com.cobbleascend.domain.v1.TrialRewardBands.payout(rank).forEach((material, amount) -> amounts.put(material.id(), amount));
+        var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
+        for (var player : players) payouts.put(player, amounts);
+        var result = settle(encounterId, outcome, "trial_rank_" + rank, payouts);
+        var paid = new java.util.ArrayList<UUID>();
+        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        awardAttunement("trial:" + encounterId, paid);
+        return result;
+    }
+
+    /**
      * Gives each participant's party attunement for a won raid (a Pokemon's progress toward promotion), without paying any material:
      * Raids keeps its own rewards. Only {@code VICTORY} counts; call it for the players who earned the victory. Once per
      * (encounter, Pokemon), so a repeated call changes nothing more. Players who are offline miss it.
