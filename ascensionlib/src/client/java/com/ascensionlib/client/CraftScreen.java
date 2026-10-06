@@ -21,10 +21,11 @@ import net.minecraft.sounds.SoundEvents;
  * double-charge because each carries one operation id the server commits once.
  */
 final class CraftScreen extends Screen {
-    private enum Mode { UPGRADE, REFINE, REFORGE, PROMOTE }
+    private enum Mode { UPGRADE, REFINE, REFORGE, PROMOTE, UNIQUE }
     private enum Phase { BROWSE, REVIEW, WAITING }
     private static final int W = 400, H = 236, ROW_H = 20, LEFT_W = 176;
     private static final int REVIEW_W = 58;
+    private static final int TABS = 5, TAB_W = 56;
     private static final String[] ROMAN = {"", "I", "II", "III", "IV", "V"};
 
     private final Screen parent;
@@ -32,6 +33,7 @@ final class CraftScreen extends Screen {
     private Mode mode = Mode.UPGRADE;
     private Phase phase = Phase.BROWSE;
     private String selectedSlot = "";
+    private String selectedUnique = "";
     private String pendingOperation = "";
     private long waitingSince;
     private String bannerText = "";
@@ -47,12 +49,14 @@ final class CraftScreen extends Screen {
         if (!view.message().isEmpty()) { bannerText = view.message(); bannerOk = false; }
         this.mode = view.pending() > 0 ? Mode.UPGRADE : Mode.REFINE;
         if (!view.slots().isEmpty()) selectedSlot = view.slots().get(0).slotId();
+        selectedUnique = validUnique("");
     }
 
     String pokemonId() { return view.pokemonId(); }
 
     void accept(CraftPayloads.View next) {
         view = next;
+        selectedUnique = validUnique(selectedUnique);
         if (view.slots().stream().noneMatch(s -> s.slotId().equals(selectedSlot))) selectedSlot = view.slots().isEmpty() ? "" : view.slots().get(0).slotId();
         if (!next.message().isEmpty() && bannerText.isEmpty()) { bannerText = next.message(); bannerOk = false; }
         rebuildWidgets();
@@ -71,6 +75,7 @@ final class CraftScreen extends Screen {
                 case REFINE -> "Refined: +" + result.oldValue() + "% → +" + result.newValue() + "%";
                 case REFORGE -> "Now " + result.newName() + " +" + result.newValue() + "%";
                 case PROMOTE -> "Promoted to " + rarityName(result.newName()) + ": a new modifier slot opened";
+                case UNIQUE -> result.newName().equals("Unique Catalyst") ? "Assembled a Unique Catalyst" : "Unique set: " + result.newName();
             };
             if (result.replayed()) bannerText += " (already done)";
             if (AscensionClientSettings.sounds && minecraft != null)
@@ -90,7 +95,25 @@ final class CraftScreen extends Screen {
             case REFINE -> s.refineBlock();
             case REFORGE -> s.reforgeBlock();
             case PROMOTE -> view.promotion().block();
+            case UNIQUE -> view.unique().block();
         };
+    }
+
+    /** The selected Unique if the server still offers it, else the one held, else the first offered. */
+    private String validUnique(String wanted) {
+        var options = view.unique().options();
+        if (options.stream().anyMatch(o -> o.id().equals(wanted))) return wanted;
+        for (var o : options) if (o.current()) return o.id();
+        return options.isEmpty() ? "" : options.get(0).id();
+    }
+
+    private CraftPayloads.UniqueOption uniqueOption() {
+        for (var o : view.unique().options()) if (o.id().equals(selectedUnique)) return o;
+        return null;
+    }
+
+    private boolean uniqueReady() {
+        return !selectedUnique.isEmpty() && view.unique().block().isEmpty() && !selectedUnique.equals(view.unique().currentId());
     }
 
     private static String rarityName(String id) {
@@ -112,13 +135,20 @@ final class CraftScreen extends Screen {
         top = (height - ph) / 2;
         int x = left + 8;
         if (phase == Phase.BROWSE) {
-            String[] names = {"Upgrade", "Refine", "Reforge", "Promote"};
-            for (int i = 0; i < 4; i++) {
+            String[] names = {"Upgrade", "Refine", "Reforge", "Promote", "Unique"};
+            for (int i = 0; i < TABS; i++) {
                 Mode m = Mode.values()[i];
-                addRenderableWidget(new TabButton(x + i * 66, top + 8 + 36 + 3, 64, 16, names[i], m == mode, () -> { mode = m; bannerText = ""; rebuildWidgets(); }));
+                addRenderableWidget(new TabButton(x + i * TAB_W, top + 8 + 36 + 3, TAB_W - 2, 16, names[i], m == mode, () -> { mode = m; bannerText = ""; rebuildWidgets(); }));
             }
             int rowY = top + 8 + 36 + 3 + 16 + 17 + 2;
-            for (var s : view.slots()) {
+            if (mode == Mode.UNIQUE) {
+                for (var option : view.unique().options()) {
+                    addRenderableWidget(new UniqueRow(x + 2, rowY, LEFT_W - 4, ROW_H - 1, option, option.id().equals(selectedUnique),
+                            () -> { selectedUnique = option.id(); rebuildWidgets(); }));
+                    rowY += ROW_H;
+                }
+            }
+            for (var s : mode == Mode.UNIQUE ? java.util.List.<CraftPayloads.SlotView>of() : view.slots()) {
                 boolean selected = s.slotId().equals(selectedSlot);
                 addRenderableWidget(new RowButton(x + 2, rowY, LEFT_W - 4, ROW_H - 1, s, selected, mode == Mode.PROMOTE ? "" : blockFor(s), () -> { selectedSlot = s.slotId(); rebuildWidgets(); }));
                 rowY += ROW_H;
@@ -126,13 +156,19 @@ final class CraftScreen extends Screen {
             int fy = top + ph - 8 - 19;
             addRenderableWidget(new PixelButton(left + pw - 8 - 86, fy, 86, 18, Component.literal("Decide later"), b -> onClose()));
             var current = slot();
-            if (current != null || mode == Mode.PROMOTE) {
+            if (current != null || mode == Mode.PROMOTE || mode == Mode.UNIQUE) {
                 int rx = x + LEFT_W + 6, rw = left + pw - 8 - rx, panelBottom = top + ph - 8 - 24;
                 var review = new PixelButton(rx + rw - 6 - REVIEW_W, panelBottom - 2 - 17, REVIEW_W, 16,
                         Component.literal("Review"), b -> { phase = Phase.REVIEW; rebuildWidgets(); }).primary();
                 review.active = mode == Mode.PROMOTE ? view.promotion().block().isEmpty() && !view.promotion().toRarity().isEmpty()
-                        : blockFor(current).isEmpty();
+                        : mode == Mode.UNIQUE ? uniqueReady() : blockFor(current).isEmpty();
                 addRenderableWidget(review);
+                if (mode == Mode.UNIQUE) {
+                    var assemble = new PixelButton(rx + rw - 6 - 96, top + 8 + 36 + 3 + 16 + 17 + 100, 96, 14,
+                            Component.literal("Assemble Catalyst"), b -> assemble());
+                    assemble.active = view.unique().fragments() >= view.unique().fragmentsNeeded();
+                    addRenderableWidget(assemble);
+                }
             }
         } else if (phase == Phase.REVIEW) {
             int mx = left + pw / 2, my = top + ph / 2;
@@ -143,15 +179,27 @@ final class CraftScreen extends Screen {
 
     private void confirm() {
         var current = slot();
-        boolean promoting = mode == Mode.PROMOTE;
+        boolean promoting = mode == Mode.PROMOTE, uniqueMode = mode == Mode.UNIQUE;
         if (phase != Phase.REVIEW) return;
-        if (promoting ? !view.promotion().block().isEmpty() || view.promotion().toRarity().isEmpty() : current == null || !blockFor(current).isEmpty()) return;
+        if (promoting ? !view.promotion().block().isEmpty() || view.promotion().toRarity().isEmpty()
+                : uniqueMode ? !uniqueReady() : current == null || !blockFor(current).isEmpty()) return;
         if (!ClientPlayNetworking.canSend(CraftPayloads.Confirm.TYPE)) { bannerText = "This server cannot do that."; bannerOk = false; phase = Phase.BROWSE; rebuildWidgets(); return; }
         pendingOperation = UUID.randomUUID().toString();
         phase = Phase.WAITING;
         waitingSince = System.currentTimeMillis();
-        ClientPlayNetworking.send(new CraftPayloads.Confirm(pendingOperation, view.pokemonId(), mode.name().toLowerCase(Locale.ROOT), promoting ? "" : current.slotId(),
+        ClientPlayNetworking.send(new CraftPayloads.Confirm(pendingOperation, view.pokemonId(), mode.name().toLowerCase(Locale.ROOT), promoting ? "" : uniqueMode ? selectedUnique : current.slotId(),
                 view.profileRevision(), view.walletRevision()));
+        rebuildWidgets();
+    }
+
+    /** Turns Unique Fragments into a Catalyst: one click, no review (it only converts materials). The server decides. */
+    private void assemble() {
+        if (phase != Phase.BROWSE || mode != Mode.UNIQUE || view.unique().fragments() < view.unique().fragmentsNeeded()) return;
+        if (!ClientPlayNetworking.canSend(CraftPayloads.Confirm.TYPE)) { bannerText = "This server cannot do that."; bannerOk = false; rebuildWidgets(); return; }
+        pendingOperation = UUID.randomUUID().toString();
+        phase = Phase.WAITING;
+        waitingSince = System.currentTimeMillis();
+        ClientPlayNetworking.send(new CraftPayloads.Confirm(pendingOperation, view.pokemonId(), "assemble", "", view.profileRevision(), view.walletRevision()));
         rebuildWidgets();
     }
 
@@ -213,7 +261,7 @@ final class CraftScreen extends Screen {
         int tabY = y + 36 + 3;
         g.fill(x, tabY + 16, x + innerW, tabY + 17, PixelArt.Q_EDGE);
         if (!bannerText.isEmpty()) {
-            int bx = x + 4 * 66 + 4, bw = innerW - 4 * 66 - 4;
+            int bx = x + TABS * TAB_W + 4, bw = innerW - TABS * TAB_W - 4;
             g.fill(bx, tabY + 1, bx + bw, tabY + 15, bannerOk ? 0xFFDDEBD0 : 0xFFF2D8D2);
             g.fill(bx, tabY + 1, bx + 2, tabY + 15, bannerOk ? 0xFF6F9A52 : 0xFFB5482E);
             g.drawString(font, font.plainSubstrByWidth(bannerText, bw - 10), bx + 6, tabY + 4, PixelArt.Q_INK, false);
@@ -223,9 +271,11 @@ final class CraftScreen extends Screen {
         int panelTop = tabY + 17, panelBottom = top + ph - 8 - 24;
         PixelArt.qpanel(g, x, panelTop, LEFT_W, panelBottom - panelTop);
         g.fill(x + 2, panelTop + 2, x + LEFT_W - 2, panelTop + 16, PixelArt.Q_HEAD);
-        g.drawString(font, "Your affixes", x + 6, panelTop + 5, PixelArt.Q_INK, false);
-        g.drawString(font, "Rank / roll", x + LEFT_W - 6 - font.width("Rank / roll"), panelTop + 5, PixelArt.Q_MUTED, false);
-        if (view.slots().isEmpty()) g.drawString(font, "No affixes to change.", x + 8, panelTop + 24, PixelArt.Q_MUTED, false);
+        boolean uniqueTab = mode == Mode.UNIQUE;
+        g.drawString(font, uniqueTab ? "Unique powers" : "Your affixes", x + 6, panelTop + 5, PixelArt.Q_INK, false);
+        String rightHead = uniqueTab ? "Held" : "Rank / roll";
+        g.drawString(font, rightHead, x + LEFT_W - 6 - font.width(rightHead), panelTop + 5, PixelArt.Q_MUTED, false);
+        if (!uniqueTab && view.slots().isEmpty()) g.drawString(font, "No affixes to change.", x + 8, panelTop + 24, PixelArt.Q_MUTED, false);
 
         // ---- right: the chosen action on the chosen affix -----------------------------------------------------------------------
         int rx = x + LEFT_W + 6, rw = left + pw - 8 - rx, t = panelTop;
@@ -233,6 +283,8 @@ final class CraftScreen extends Screen {
         var s = slot();
         if (mode == Mode.PROMOTE) {
             drawPromote(g, rx, t, rw, panelBottom);
+        } else if (mode == Mode.UNIQUE) {
+            drawUnique(g, rx, t, rw, panelBottom);
         } else if (s == null) {
             g.drawString(font, "Choose an affix on the left.", rx + 8, t + 10, PixelArt.Q_MUTED, false);
         } else {
@@ -260,7 +312,7 @@ final class CraftScreen extends Screen {
                     nextBig = s.bandMin() + "–" + s.bandMax() + "%";
                     nextSmall = "Same rank, new value";
                 }
-                case PROMOTE -> throw new IllegalStateException("Promote has its own panel");
+                case PROMOTE, UNIQUE -> throw new IllegalStateException("This tab has its own panel");
                 default -> {
                     curBig = font.plainSubstrByWidth(s.name(), boxW - 8);
                     curSmall = "+" + s.value() + "% · rank " + ROMAN[Math.max(1, Math.min(5, s.rank()))];
@@ -310,12 +362,40 @@ final class CraftScreen extends Screen {
         if (phase != Phase.BROWSE) review(g);
     }
 
+    /** The Unique tab's right panel: the chosen power, what it gives and what it costs, the Catalyst balance and the cost row. */
+    private void drawUnique(GuiGraphics g, int rx, int t, int rw, int panelBottom) {
+        g.drawString(font, "UNIQUE POWER", rx + 8, t + 5, PixelArt.Q_MUTED, false);
+        var o = uniqueOption();
+        if (o == null) {
+            g.drawString(font, "No Unique powers are on offer.", rx + 8, t + 16, PixelArt.Q_MUTED, false);
+            return;
+        }
+        g.drawString(font, font.plainSubstrByWidth(o.name() + (o.current() ? " (held)" : ""), rw - 16), rx + 8, t + 16, PixelArt.Q_INK, false);
+        g.drawString(font, "Benefit", rx + 8, t + 30, PixelArt.Q_MUTED, false);
+        int y = t + 40;
+        for (var line : font.split(Component.literal(o.benefit()), rw - 16)) { if (y > t + 62) break; g.drawString(font, line, rx + 8, y, PixelArt.Q_INK, false); y += 9; }
+        g.drawString(font, "Drawback", rx + 8, t + 66, PixelArt.Q_MUTED, false);
+        y = t + 76;
+        for (var line : font.split(Component.literal(o.drawback()), rw - 16)) { if (y > t + 98) break; g.drawString(font, line, rx + 8, y, 0xFF8A2E22, false); y += 9; }
+        var u = view.unique();
+        String balance = "Catalysts " + u.catalysts() + " · Fragments " + u.fragments() + "/" + u.fragmentsNeeded();
+        g.drawString(font, font.plainSubstrByWidth(balance, rw - 16 - 100), rx + 8, t + 103, PixelArt.Q_MUTED, false);
+        int costY = panelBottom - 2 - 19;
+        g.fill(rx + 6, costY - 3, rx + rw - 6, costY - 2, PixelArt.Q_LINE);
+        int costW = rw - 12 - REVIEW_W - 8;
+        g.drawString(font, "Cost", rx + 8, costY + 1, PixelArt.Q_MUTED, false);
+        String reason = !u.block().isEmpty() ? u.block() : o.current() ? "Already held" : "";
+        if (reason.isEmpty()) g.drawString(font, font.plainSubstrByWidth(shortCost(), costW), rx + 8, costY + 10, PixelArt.Q_INK, false);
+        else g.drawString(font, font.plainSubstrByWidth(reason, costW), rx + 8, costY + 10, 0xFF8A2E22, false);
+    }
+
     private String costText() {
         return switch (mode) {
             case UPGRADE -> "1 pending upgrade (you have " + view.pending() + ")";
             case REFINE -> price(view.refine());
             case REFORGE -> price(view.reforge());
             case PROMOTE -> price(view.promotion().price());
+            case UNIQUE -> "1 Unique Catalyst (you have " + view.unique().catalysts() + ")";
         };
     }
 
@@ -325,6 +405,7 @@ final class CraftScreen extends Screen {
             case REFINE -> shortPrice(view.refine());
             case REFORGE -> shortPrice(view.reforge());
             case PROMOTE -> shortPrice(view.promotion().price());
+            case UNIQUE -> "1 Catalyst";
         };
     }
 
@@ -399,7 +480,7 @@ final class CraftScreen extends Screen {
         int mx = left + pw / 2, my = top + ph / 2, bw = 270, bh = 120, bx = mx - bw / 2, by = my - 52;
         PixelArt.qpanel(g, bx, by, bw, bh);
         PixelArt.ring(g, bx + 3, by + 3, bw - 6, bh - 6, PixelArt.style(view.rarityId()).accent(), 1);
-        if (s == null && mode != Mode.PROMOTE) return;
+        if (s == null && mode != Mode.PROMOTE && mode != Mode.UNIQUE) return;
         String title = phase == Phase.WAITING ? "Working…" : "Confirm " + mode.name().toLowerCase(Locale.ROOT);
         g.drawString(font, title, bx + 10, by + 9, PixelArt.Q_INK, false);
         g.fill(bx + 8, by + 21, bx + bw - 8, by + 22, PixelArt.Q_LINE);
@@ -407,6 +488,7 @@ final class CraftScreen extends Screen {
             case UPGRADE -> s.name() + " " + ROMAN[s.rank()] + " +" + s.value() + "%  →  " + ROMAN[Math.min(5, s.rank() + 1)] + ", rolls " + s.nextMin() + "–" + s.nextMax() + "%";
             case REFINE -> s.name() + " +" + s.value() + "%  →  a new value in " + s.bandMin() + "–" + s.bandMax() + "%";
             case PROMOTE -> rarityName(view.rarityId()) + "  →  " + rarityName(view.promotion().toRarity()) + ", and one new rank I modifier";
+            case UNIQUE -> { var o = uniqueOption(); yield o == null ? "" : (view.unique().currentId().isEmpty() ? "Install " : "Replace with ") + o.name() + ". Drawback: " + o.drawback(); }
             default -> s.name() + " +" + s.value() + "%  →  another affix (" + s.reforgePool() + " eligible), rank " + ROMAN[s.rank()];
         };
         int ly = by + 28;
@@ -416,6 +498,7 @@ final class CraftScreen extends Screen {
             case UPGRADE -> "No failure chance. This spends one pending upgrade.";
             case REFINE -> "The result can be lower than now. It cannot be undone.";
             case PROMOTE -> "No failure chance. Existing modifiers are kept. It cannot be undone.";
+            case UNIQUE -> "Uses one Catalyst. A Unique already set is lost. It cannot be undone.";
             default -> "The result is random and cannot be undone.";
         };
         g.drawString(font, font.plainSubstrByWidth(note, bw - 20), bx + 10, ly + 14, PixelArt.Q_MUTED, false);
@@ -440,6 +523,30 @@ final class CraftScreen extends Screen {
             if (selected) g.fill(x + 1, y + 1, x + w - 1, y + 3, PixelArt.BURGUNDY);
             var font = net.minecraft.client.Minecraft.getInstance().font;
             g.drawString(font, label, x + (w - font.width(label)) / 2, y + 5, selected ? PixelArt.Q_INK : PixelArt.Q_MUTED, false);
+        }
+    }
+
+    private final class UniqueRow extends Button {
+        private final CraftPayloads.UniqueOption option;
+        private final boolean selected;
+        UniqueRow(int x, int y, int w, int h, CraftPayloads.UniqueOption option, boolean selected, Runnable action) {
+            super(x, y, w, h, Component.literal(option.name()), b -> action.run(), DEFAULT_NARRATION);
+            this.option = option;
+            this.selected = selected;
+        }
+        @Override protected void renderWidget(GuiGraphics g, int mx, int my, float dt) {
+            int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+            boolean hover = active && isHoveredOrFocused();
+            g.fill(x, y, x + w, y + h, selected ? 0xFFFFFFFF : hover ? PixelArt.Q_ROW : PixelArt.Q_PANEL);
+            g.fill(x, y + h, x + w, y + h + 1, PixelArt.Q_LINE);
+            if (selected) PixelArt.ring(g, x, y, w, h, PixelArt.style(view.rarityId()).accent(), 1);
+            g.fill(x + 3, y + 4, x + 14, y + 15, 0xFF1B120D);
+            g.fill(x + 4, y + 5, x + 13, y + 14, PixelArt.ECHO);
+            PixelArt.icon(g, PixelArt.ICON_STAR, x + 5, y + 6, 0xFFFFFFFF);
+            var font = net.minecraft.client.Minecraft.getInstance().font;
+            String held = option.current() ? "held" : "";
+            g.drawString(font, font.plainSubstrByWidth(option.name(), w - 24 - font.width(held) - 8), x + 19, y + 6, PixelArt.Q_INK, false);
+            if (!held.isEmpty()) g.drawString(font, held, x + w - 5 - font.width(held), y + 6, 0xFF7A2E22, false);
         }
     }
 

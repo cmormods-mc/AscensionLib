@@ -111,6 +111,15 @@ public final class CraftNet {
             promotion = new CraftPayloads.Promotion(step.to().id(), new CraftPayloads.Price(step.cost().dust(), step.cost().facets(),
                     step.cost().cores()), profile.attunement(), step.attunement(), block);
         }
+        var held = profile.unique() == null ? "" : profile.unique().uniqueId();
+        var uniqueOptions = new ArrayList<CraftPayloads.UniqueOption>();
+        for (var definition : rules.uniques())
+            uniqueOptions.add(new CraftPayloads.UniqueOption(definition.id(), definition.name(), definition.benefit(), definition.drawback(),
+                    definition.id().equals(held)));
+        long catalysts = wallet.balance(MaterialId.UNIQUE_CATALYST);
+        var uniqueState = new CraftPayloads.UniqueState(held, catalysts, wallet.balance(MaterialId.UNIQUE_FRAGMENT),
+                com.cobbleascend.store.StoreConfig.defaults().catalystFragments(), uniqueOptions,
+                catalysts < 1 ? "Needs 1 Unique Catalyst" : "");
         int nextMilestone = 0;
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
         return new CraftPayloads.View(pokemon.getUuid().toString(), pokemon.getDisplayName(false).getString(),
@@ -119,7 +128,7 @@ public final class CraftNet {
                 profile.pendingCredits(), nextMilestone, profile.revision(), wallet.revision(), wallet.balance(MaterialId.RESONANCE_DUST),
                 wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE),
                 new CraftPayloads.Price(refineCost.dust(), refineCost.facets(), refineCost.cores()),
-                new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, slots, message, open);
+                new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, slots, message, open);
     }
 
     static String describe(com.cobbleascend.domain.Cost cost) {
@@ -140,6 +149,7 @@ public final class CraftNet {
         var pokemon = found.get();
         var before = service.canonical(pokemon);
         if (before.isEmpty()) { fail(player, request, "That Pokémon has no ascension profile."); return; }
+        if (request.kind().equals("assemble")) { assemble(player, service, pokemon, request, operation); return; }
         CraftRequest craft;
         switch (request.kind()) {
             case "upgrade" -> craft = CraftRequest.upgrade(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
@@ -148,12 +158,24 @@ public final class CraftNet {
                     request.walletRevision());
             case "reforge" -> craft = CraftRequest.reforge(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), service.typesFor(pokemon),
                     request.profileRevision(), request.walletRevision());
+            case "unique" -> craft = before.get().unique() == null
+                    ? CraftRequest.installUnique(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(), request.walletRevision())
+                    : CraftRequest.replaceUnique(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(), request.walletRevision());
             case "promote" -> craft = CraftRequest.promote(operation, player.getUUID(), pokemon.getUuid(), service.typesFor(pokemon),
                     request.profileRevision(), request.walletRevision());
             default -> { fail(player, request, "Unknown action."); return; }
         }
         try {
             var outcome = service.craft(pokemon, craft);
+            if (craft.kind() == Kind.INSTALL_UNIQUE || craft.kind() == Kind.REPLACE_UNIQUE) {
+                var was = before.get().unique() == null ? "" : uniqueName(service, before.get().unique().uniqueId());
+                var now = uniqueName(service, outcome.profile().unique().uniqueId());
+                LOG.info("{} committed on Pokemon {} -> {} by {} (operation {}{})", craft.kind().name().toLowerCase(java.util.Locale.ROOT), pokemon.getUuid(),
+                        outcome.profile().unique().uniqueId(), player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
+                ServerPlayNetworking.send(player, new CraftPayloads.Done(request.operationId(), true, "", request.slotId(), was, 0, 0, now, 0, 0, outcome.replayed()));
+                sendView(player, pokemon, false, "");
+                return;
+            }
             if (craft.kind() == com.cobbleascend.store.Kind.PROMOTE) {
                 LOG.info("promote committed on Pokemon {} {} -> {} by {} (operation {}{})", pokemon.getUuid(), before.get().rarity().id(),
                         outcome.profile().rarity().id(), player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
@@ -184,11 +206,35 @@ public final class CraftNet {
                 case INSUFFICIENT_FUNDS -> "You do not have enough materials.";
                 case NO_ELIGIBLE_AFFIX -> "No other affix can take that slot.";
                 case INSUFFICIENT_ATTUNEMENT -> "Not enough attunement to promote yet.";
+                case UNIQUE_PRESENT, NO_UNIQUE, SAME_UNIQUE, UNKNOWN_UNIQUE -> "That Unique cannot be set on this Pokémon: " + exception.getMessage();
                 case MAX_RARITY -> "Already at the highest rarity.";
                 default -> "The change is not allowed: " + exception.getMessage();
             });
         } catch (RuntimeException exception) {
             LOG.error("Craft {} failed for {}", request.kind(), pokemon.getUuid(), exception);
+            fail(player, request, "Something went wrong; nothing was spent.");
+        }
+    }
+
+    private static String uniqueName(ProfileService service, String id) {
+        return service.rules().unique(id).map(u -> u.name()).orElse(id);
+    }
+
+    /** Turns the player's Fragments into one Catalyst. Needs no Pokemon change; the view is refreshed so the new balance shows. */
+    private static void assemble(ServerPlayer player, ProfileService service, Pokemon pokemon, CraftPayloads.Confirm request, UUID operation) {
+        try {
+            var outcome = service.store().assembleCatalyst(operation, player.getUUID(), request.walletRevision());
+            LOG.info("assemble committed by {} (operation {}{})", player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
+            ServerPlayNetworking.send(player, new CraftPayloads.Done(request.operationId(), true, "", "", "", 0, 0, "Unique Catalyst", 0, 0, outcome.replayed()));
+            sendView(player, pokemon, false, "");
+        } catch (StoreException exception) {
+            fail(player, request, exception.code() == StoreException.Code.STALE_WALLET
+                    ? "Your materials changed. Review it again." : "The Catalyst could not be assembled: " + exception.getMessage());
+        } catch (CraftException exception) {
+            fail(player, request, exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS
+                    ? "You do not have enough Unique Fragments." : "The Catalyst could not be assembled: " + exception.getMessage());
+        } catch (RuntimeException exception) {
+            LOG.error("Catalyst assembly failed for {}", player.getGameProfile().getName(), exception);
             fail(player, request, "Something went wrong; nothing was spent.");
         }
     }

@@ -26,7 +26,7 @@ public final class CraftPayloads {
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    /** Client to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge} or {@code promote} (which needs no slot). */
+    /** Client to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge}, {@code promote} (no slot), {@code unique} (slotId is the Unique's id; installs or replaces) or {@code assemble} (a Catalyst from Fragments). */
     public record Confirm(String operationId, String pokemonId, String kind, String slotId, long profileRevision, long walletRevision)
             implements CustomPacketPayload {
         public static final Type<Confirm> TYPE = new Type<>(id("craft_confirm"));
@@ -76,13 +76,22 @@ public final class CraftPayloads {
      */
     public record Promotion(String toRarity, Price price, int attunement, int attunementNeeded, String block) {}
 
+    /** One Unique power a Catalyst can install: its text and whether the Pokemon holds it now. */
+    public record UniqueOption(String id, String name, String benefit, String drawback, boolean current) {}
+
+    /**
+     * The Unique tab: what the Pokemon holds ({@code currentId}, empty for none), the player's Catalysts and Fragments, the Fragments one
+     * Catalyst takes, the powers on offer and the reason an install or replace is blocked (empty when it can be done).
+     */
+    public record UniqueState(String currentId, long catalysts, long fragments, int fragmentsNeeded, List<UniqueOption> options, String block) {}
+
     /**
      * Server to client: the screen's data. {@code open} asks the client to open the screen (a command did); otherwise it only
      * refreshes one that is already open. {@code message} is a one-line notice (an error from the last action, or empty).
      */
     public record View(String pokemonId, String name, String speciesId, List<String> aspects, int level, String rarityId, String uniqueName,
                        int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores,
-                       Price refine, Price reforge, Promotion promotion, List<SlotView> slots, String message, boolean open) implements CustomPacketPayload {
+                       Price refine, Price reforge, Promotion promotion, UniqueState unique, List<SlotView> slots, String message, boolean open) implements CustomPacketPayload {
         public static final Type<View> TYPE = new Type<>(id("craft_view"));
         public static final StreamCodec<RegistryFriendlyByteBuf, View> CODEC = StreamCodec.of((buf, v) -> {
             buf.writeUtf(v.pokemonId(), 36);
@@ -113,6 +122,20 @@ public final class CraftPayloads {
             buf.writeVarInt(promotion.attunement());
             buf.writeVarInt(promotion.attunementNeeded());
             buf.writeUtf(promotion.block(), 128);
+            var unique = v.unique();
+            buf.writeUtf(unique.currentId(), 64);
+            buf.writeVarLong(unique.catalysts());
+            buf.writeVarLong(unique.fragments());
+            buf.writeVarInt(unique.fragmentsNeeded());
+            buf.writeUtf(unique.block(), 128);
+            buf.writeVarInt(unique.options().size());
+            for (var option : unique.options()) {
+                buf.writeUtf(option.id(), 64);
+                buf.writeUtf(option.name(), 64);
+                buf.writeUtf(option.benefit(), 256);
+                buf.writeUtf(option.drawback(), 256);
+                buf.writeBoolean(option.current());
+            }
             buf.writeVarInt(v.slots().size());
             for (SlotView slot : v.slots()) SlotView.write(buf, slot);
             buf.writeUtf(v.message(), 256);
@@ -131,11 +154,20 @@ public final class CraftPayloads {
             Price reforge = new Price(buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
             Promotion promotion = new Promotion(buf.readUtf(16), new Price(buf.readVarInt(), buf.readVarInt(), buf.readVarInt()),
                     buf.readVarInt(), buf.readVarInt(), buf.readUtf(128));
+            String currentUnique = buf.readUtf(64);
+            long catalysts = buf.readVarLong(), fragments = buf.readVarLong();
+            int fragmentsNeeded = buf.readVarInt();
+            String uniqueBlock = buf.readUtf(128);
+            int optionCount = Math.min(16, buf.readVarInt());
+            List<UniqueOption> options = new ArrayList<>();
+            for (int i = 0; i < optionCount; i++)
+                options.add(new UniqueOption(buf.readUtf(64), buf.readUtf(64), buf.readUtf(256), buf.readUtf(256), buf.readBoolean()));
+            UniqueState uniqueState = new UniqueState(currentUnique, catalysts, fragments, fragmentsNeeded, options, uniqueBlock);
             int slotCount = Math.min(8, buf.readVarInt());
             List<SlotView> slots = new ArrayList<>();
             for (int i = 0; i < slotCount; i++) slots.add(SlotView.read(buf));
             return new View(pokemonId, name, species, aspects, level, rarity, unique, pending, next, profileRevision, walletRevision, dust,
-                    facets, cores, refine, reforge, promotion, slots, buf.readUtf(256), buf.readBoolean());
+                    facets, cores, refine, reforge, promotion, uniqueState, slots, buf.readUtf(256), buf.readBoolean());
         });
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
