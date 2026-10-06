@@ -41,7 +41,7 @@ public final class Rules {
         }
         this.affixes = Collections.unmodifiableMap(affixMap);
         this.caps = Map.copyOf(caps);
-        if (!this.caps.keySet().equals(Set.of("outgoingDamage", "incomingReduction", "healing"))
+        if (!this.caps.keySet().equals(Set.of("outgoingDamage", "incomingReduction", "healing", "residual"))
                 || this.caps.values().stream().anyMatch(cap -> cap < 0 || cap > 100)
                 || this.caps.get("incomingReduction") > 90)
             throw new IllegalArgumentException("Invalid combat channel caps");

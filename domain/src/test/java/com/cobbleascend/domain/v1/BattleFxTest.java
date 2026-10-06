@@ -49,6 +49,7 @@ class BattleFxTest {
         assertEquals(100, json.getAsJsonObject("caps").get("out").getAsInt());
         assertEquals(50, json.getAsJsonObject("caps").get("inc").getAsInt());
         assertEquals(50, json.getAsJsonObject("caps").get("heal").getAsInt());
+        assertEquals(100, json.getAsJsonObject("caps").get("res").getAsInt());
         assertEquals(1, json.getAsJsonObject("mons").size(), "a Pokemon with no effects is left out");
         var first = json.getAsJsonObject("mons").getAsJsonArray(id).get(0).getAsJsonObject();
         assertEquals("type_focus", first.get("i").getAsString());

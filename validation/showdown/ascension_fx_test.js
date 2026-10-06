@@ -56,7 +56,7 @@ function pack(species, uuid, ability, moves, level, health = '', item = 'none') 
     'Hardy', '', '', '', '', String(level), ''].join('|');
 }
 
-async function battle({fx: payload, teams, moves, turns = 1, towerFx} = {}) {
+async function battle({fx: payload, teams, moves, turns = 1, towerFx, seed = [1, 2, 3, 4]} = {}) {
   const stream = new BS.BattleStream();
   const lines = [];
   
@@ -64,13 +64,14 @@ async function battle({fx: payload, teams, moves, turns = 1, towerFx} = {}) {
   const format = {mod: 'gen9', gameType: 'singles', gen: 9, ruleset: [], effectType: 'Format'};
   if (payload !== undefined) format.ascensionFx = compact(payload);
   if (towerFx !== undefined) format.towerFx = towerFx;
-  stream.write('>start ' + JSON.stringify({format, seed: [1, 2, 3, 4]}));
+  stream.write('>start ' + JSON.stringify({format, seed}));
   stream.write('>player p1 ' + JSON.stringify({name: 'A', team: teams[0]}));
   stream.write('>player p2 ' + JSON.stringify({name: 'B', team: teams[1]}));
   await sleep(200);
   for (let turn = 0; turn < turns && !stream.battle.ended; turn++) {
-    stream.write('>p1 ' + moves[0]);
-    stream.write('>p2 ' + moves[1]);
+    const [first, second] = typeof moves === 'function' ? moves(turn) : moves;
+    stream.write('>p1 ' + first);
+    stream.write('>p2 ' + second);
     await sleep(200);
   }
   return {lines, battle: stream.battle};
@@ -265,6 +266,108 @@ test('11. it composes with the CobbleTowers tower-fx.js module, which wraps the 
   assert.ok(lost(both, 1) > lost(towerOnly, 1) && lost(both, 1) > lost(ascensionOnly, 1), 'both multipliers apply together');
   const ratio = lost(both, 1) / lost(plain, 1);
   assert.ok(Math.abs(ratio - 1.32) < 0.05, 'about 1.1 x 1.2, got ' + ratio);
+});
+
+// ---- status damage: Smoldering, Venomous, Rending (docs/STATUS-AFFIX-DESIGN.md) ----
+// A sturdy, harmless target (Magikarp only splashes) so the only damage is the status residual.
+const MAGIKARP = (item = 'none') => pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '', item);
+const INFLICTOR = (moves, item = 'none') => pack('Charizard', U2, 'blaze', moves, 50, '', item);
+const statusRun = (move, fxList, extra = {}) => battle(Object.assign({
+  teams: [MAGIKARP(), INFLICTOR([move, 'splash'])], moves: ['move 1', 'move 1'], turns: 4,
+  fx: fxList ? {v: 1, mons: {[U2]: fxList}} : undefined,
+}, extra));
+
+test('12. smoldering: boosts burn damage on a target the holder burned', async () => {
+  const plain = await statusRun('willowisp');
+  const boosted = await statusRun('willowisp', [{id: 'smoldering', pct: 50}]);
+  assert.strictEqual(mon(plain, 0).status, 'brn', 'the burn landed in the baseline');
+  assert.ok(lost(plain, 0) > 0);
+  assert.ok(lost(boosted, 0) > lost(plain, 0), `boosted ${lost(boosted, 0)} vs native ${lost(plain, 0)}`);
+});
+
+test('12b. smoldering: no boost on a burn the holder did not cause, nor on poison', async () => {
+  const selfBurn = await battle({teams: [MAGIKARP('flameorb'), INFLICTOR(['splash'])], moves: ['move 1', 'move 1'], turns: 4,
+    fx: {v: 1, mons: {[U1]: [{id: 'smoldering', pct: 50}]}}});
+  const selfBurnPlain = await battle({teams: [MAGIKARP('flameorb'), INFLICTOR(['splash'])], moves: ['move 1', 'move 1'], turns: 4});
+  assert.ok(lost(selfBurnPlain, 0) > 0, 'Flame Orb burned the holder');
+  assert.strictEqual(lost(selfBurn, 0), lost(selfBurnPlain, 0), 'a self-inflicted burn stays native');
+  const poison = await statusRun('poisongas', [{id: 'smoldering', pct: 50}]);
+  const poisonPlain = await statusRun('poisongas');
+  assert.strictEqual(lost(poison, 0), lost(poisonPlain, 0), 'smoldering does not touch poison');
+});
+
+test('13. venomous: boosts regular poison, not toxic', async () => {
+  const plain = await statusRun('poisongas');
+  const boosted = await statusRun('poisongas', [{id: 'venomous', pct: 50}]);
+  assert.strictEqual(mon(plain, 0).status, 'psn', 'the poison landed in the baseline');
+  assert.ok(lost(boosted, 0) > lost(plain, 0), `boosted ${lost(boosted, 0)} vs native ${lost(plain, 0)}`);
+  const toxicPlain = await statusRun('toxic');
+  const toxic = await statusRun('toxic', [{id: 'venomous', pct: 50}]);
+  assert.strictEqual(lost(toxic, 0), lost(toxicPlain, 0), 'toxic stays native');
+});
+
+test('13b. potency pauses while the inflictor is benched, and the native status stays', async () => {
+  const team2 = [pack('Charizard', U2, 'blaze', ['willowisp', 'splash'], 50), pack('Blastoise', '33333333-3333-3333-3333-333333333333', 'torrent', ['splash'], 50)].join(']');
+  const fxList = [{id: 'smoldering', pct: 90}];
+  const run = (moves, list) => battle({teams: [MAGIKARP(), team2], turns: 4, moves,
+    fx: list ? {v: 1, mons: {[U2]: list}} : undefined});
+  const leaves = turn => (turn === 0 ? ['move 1', 'move 1'] : ['move 1', 'switch 2']);
+  const stays = () => ['move 1', 'move 1'];
+  const plain = await run(leaves);
+  const benched = await run(leaves, fxList);
+  const staying = await run(stays, fxList);
+  assert.strictEqual(mon(benched, 0).status, 'brn', 'the burn stays after the inflictor leaves');
+  assert.ok(lost(benched, 0) >= lost(plain, 0), 'the one tick while the inflictor was out may be boosted');
+  assert.ok(lost(benched, 0) < lost(staying, 0), `benched ${lost(benched, 0)} must be below staying ${lost(staying, 0)}`);
+});
+
+const bleedTicks = (lines, maxhp) => {
+  // Direct move damage and bleed ticks are both plain -damage lines; a tick is a damage line that follows another one in a turn. The
+  // log carries every hit twice (exact HP, then percent), so only the exact view (denominator = max HP) is read.
+  const out = [];
+  let prev = null;
+  for (const line of lines) {
+    if (line.startsWith('|turn|')) prev = null;
+    const m = /^\|-damage\|p1a: [^|]+\|(\d+)\/(\d+)\s*$/.exec(line);
+    if (m && Number(m[2]) === maxhp) { if (prev !== null) out.push(prev - Number(m[1])); prev = Number(m[1]); }
+  }
+  return out;
+};
+
+test('14. rending: a damaging hit can start a bleed that ticks 1/12 max HP and stacks to three', async () => {
+  let bled = 0, sawStack = false;
+  const seen = [];
+  for (let s = 1; s <= 40 && !(bled && sawStack); s++) {
+    const b = await battle({teams: [MAGIKARP(), INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 6, seed: [s, 2, 3, 4],
+      fx: {v: 1, mons: {[U2]: [{id: 'rending', pct: 10}]}}});
+    const text = b.lines.join('\n');
+    if (text.includes('Magikarp is bleeding!')) bled++;
+    const ticks = bleedTicks(b.lines, mon(b, 0).maxhp);
+    if (ticks.length && seen.length < 4) seen.push({seed: s, ticks});
+    const max = mon(b, 0).maxhp;
+    const single = Math.trunc(max / 12 * 1.1);
+    if (ticks.length) assert.ok(ticks.every(t => t === single || t === Math.trunc(max / 12 * 2 * 1.1) || t === Math.trunc(max / 12 * 3 * 1.1)),
+      `ticks ${JSON.stringify(ticks)} are 1, 2 or 3 stacks of ${single}`);
+    if (ticks.some(t => t === Math.trunc(max / 12 * 2 * 1.1) || t === Math.trunc(max / 12 * 3 * 1.1))) sawStack = true;
+  }
+  assert.ok(bled > 0, 'a bleed started in at least one of 40 seeds');
+  assert.ok(sawStack, 'a deeper bleed (2+ stacks) ticked harder than a single stack; seen: ' + JSON.stringify(seen));
+});
+
+test('14b. rending: never starts a bleed without the affix', async () => {
+  for (let s = 1; s <= 20; s++) {
+    const b = await battle({teams: [MAGIKARP(), INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 4, seed: [s, 2, 3, 4]});
+    assert.ok(!b.lines.join('\n').includes('is bleeding!'), 'no bleed without rending');
+  }
+});
+
+test('14c. rending: at most one application per move use', async () => {
+  for (let s = 1; s <= 40; s++) {
+    const b = await battle({teams: [MAGIKARP(), INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 1, seed: [s, 2, 3, 4],
+      fx: {v: 1, mons: {[U2]: [{id: 'rending', pct: 10}]}}});
+    const starts = b.lines.filter(l => l.includes('is bleeding!')).length;
+    assert.ok(starts <= 1, 'at most one application per move use');
+  }
 });
 
 (async () => {

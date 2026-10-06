@@ -1,15 +1,15 @@
 {
   "artifact": "L:\\Codex\\CobbleAscend\\ascensionlib\\build\\libs\\AscensionLib-0.1.0-prototype.jar",
-  "sha256": "56fef83025b04b2030a55890e5d506d9bc3ed610e13078533614a14f65084592",
+  "sha256": "9a625a06d015273086186d236c68ae359912de900524b8f311d5e5bc1b40d5a1",
   "tests": {
     "domain": {
-      "tests": 103,
+      "tests": 120,
       "failures": 0,
       "errors": 0,
       "skipped": 0
     },
     "store": {
-      "tests": 51,
+      "tests": 52,
       "failures": 0,
       "errors": 0,
       "skipped": 0

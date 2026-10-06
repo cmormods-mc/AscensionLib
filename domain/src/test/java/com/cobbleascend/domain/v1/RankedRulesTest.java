@@ -43,7 +43,7 @@ class RankedRulesTest {
     }
 
     @Test void defaultCatalogDefinesFiveIncreasingBandsPerAffixAndMatchesSchemaZeroRankOne() {
-        assertEquals(24, rules.affixes().size());
+        assertEquals(27, rules.affixes().size());
         for (var affix : rules.affixes()) {
             assertEquals(5, affix.bands().size());
             assertEquals(new RankBand(affix.base().min(), affix.base().max()), affix.band(1),
@@ -76,6 +76,7 @@ class RankedRulesTest {
         assertEquals(100, rules.base().cap("outgoingDamage"));
         assertEquals(50, rules.base().cap("incomingReduction"));
         assertEquals(50, rules.base().cap("healing"));
+        assertEquals(100, rules.base().cap("residual"));
         for (var affix : rules.affixes()) {
             assertTrue(affix.band(5).max() <= rules.base().cap(affix.base().channel()),
                     affix.id() + " rank V would be clipped by its own channel cap");

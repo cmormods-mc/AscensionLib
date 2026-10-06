@@ -65,6 +65,9 @@ Refine draws uniformly including the current value. The table describes numerica
 | Triumphant | 5–10% | 6 | 17 |
 | Physical Bulwark | 3–6% | 4 | 11 |
 | Special Bulwark | 3–6% | 4 | 11 |
+| Smoldering | 10–20% | 11 | 32 |
+| Venomous | 10–20% | 11 | 32 |
+| Rending | 10–20% | 11 | 32 |
 
 ## Damage envelope
 

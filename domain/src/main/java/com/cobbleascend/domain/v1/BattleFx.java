@@ -14,7 +14,7 @@ import java.util.Map;
  * a Pokemon holds. Pure and deterministic, so a battle's payload is a function of its snapshots.
  *
  * <p>The payload is compact on purpose (it travels as one format field, limited to 8192 characters):
- * <pre>{"v":1,"caps":{"out":100,"inc":50,"heal":50},"mons":{"&lt;uuid&gt;":[{"i":"type_focus","p":8,"t":"Water"}]}}</pre>
+ * <pre>{"v":1,"caps":{"out":100,"inc":50,"heal":50,"res":100},"mons":{"&lt;uuid&gt;":[{"i":"type_focus","p":8,"t":"Water"}]}}</pre>
  * Uniques are not sent: their effects are not implemented, so a Pokemon with one acts on its ordinary slots only.
  */
 public final class BattleFx {
@@ -66,6 +66,7 @@ public final class BattleFx {
         caps.addProperty("out", rules.cap("outgoingDamage"));
         caps.addProperty("inc", rules.cap("incomingReduction"));
         caps.addProperty("heal", rules.cap("healing"));
+        caps.addProperty("res", rules.cap("residual"));
         var root = new JsonObject();
         root.addProperty("v", 1);
         root.add("caps", caps);

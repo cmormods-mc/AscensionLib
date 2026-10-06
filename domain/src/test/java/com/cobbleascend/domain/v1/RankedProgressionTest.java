@@ -225,10 +225,10 @@ class RankedProgressionTest {
         int draws = 100_000;
         for (int n = 0; n < draws; n++) counts.merge(progression.reforge(profile, "prefix:0", types, random)
                 .profile().slot("prefix:0").orElseThrow().affixId(), 1, Integer::sum);
-        // Prefix weights total 761: type_mastery 8, overwhelming_force 3, standard templates 100 each.
-        assertEquals(draws * 8.0 / 761, counts.get("type_mastery"), draws * 0.003);
-        assertEquals(draws * 3.0 / 761, counts.get("overwhelming_force"), draws * 0.002);
-        assertEquals(draws * 100.0 / 761, counts.get("type_focus"), draws * 0.01);
+        // Prefix weights total 881: type_mastery 8, overwhelming_force 3, the three status affixes 40 each, standard templates 100 each.
+        assertEquals(draws * 8.0 / 881, counts.get("type_mastery"), draws * 0.003);
+        assertEquals(draws * 3.0 / 881, counts.get("overwhelming_force"), draws * 0.002);
+        assertEquals(draws * 100.0 / 881, counts.get("type_focus"), draws * 0.01);
         assertTrue(counts.get("overwhelming_force") < counts.get("type_mastery"));
         assertTrue(counts.get("type_mastery") * 5 < counts.get("physical_force"));
     }

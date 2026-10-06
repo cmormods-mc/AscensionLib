@@ -28,7 +28,7 @@ const MAX_MONS = 32;
 const MAX_EFFECTS = 8;
 const HP_HIGH = 0.8;
 const HP_LOW = 0.35;
-const DEFAULT_CAPS = {out: 100, inc: 50, heal: 50};
+const DEFAULT_CAPS = {out: 100, inc: 50, heal: 50, res: 100};
 
 const hpFraction = mon => (mon.maxhp > 0 ? mon.hp / mon.maxhp : 1);
 
@@ -64,7 +64,18 @@ const INCOMING = {
 
 const HEALING = {restorative: true, triumphant: true};
 
-const HANDLED = new Set([...Object.keys(OUTGOING), ...Object.keys(INCOMING), ...Object.keys(HEALING)]);
+// Status damage (docs/STATUS-AFFIX-DESIGN.md). The potency affixes boost the native residual of the status the holder inflicted;
+// Showdown already records the inflictor in pokemon.statusState.source, so no ledger is needed. Rending is the library's own
+// bleed: a chance on each direct damaging hit, ticked here once a turn.
+const POTENCY = {smoldering: 'brn', venomous: 'psn'};
+const RENDING = 'rending';
+const RENDING_CHANCE = 30;      // percent per damaging move that deals damage
+const BLEED_DIVISOR = 12;       // each stack bleeds 1/12 of max HP a turn
+const BLEED_STACKS = 3;
+const BLEED_TURNS = 3;          // refreshed by every new application
+
+const HANDLED = new Set([...Object.keys(OUTGOING), ...Object.keys(INCOMING), ...Object.keys(HEALING),
+  ...Object.keys(POTENCY), RENDING]);
 
 function clamp(value, low, high, fallback) {
   const n = Number(value);
@@ -101,6 +112,7 @@ function parse(battle, payload) {
     out: clamp(payload.caps && payload.caps.out, 0, 100, DEFAULT_CAPS.out),
     inc: clamp(payload.caps && payload.caps.inc, 0, 90, DEFAULT_CAPS.inc),
     heal: clamp(payload.caps && payload.caps.heal, 0, 100, DEFAULT_CAPS.heal),
+    res: clamp(payload.caps && payload.caps.res, 0, 100, DEFAULT_CAPS.res),
   };
   const byUuid = new Map();
   let seen = 0;
@@ -210,7 +222,96 @@ function apply(battle, payload) {
       return result;
     };
   }
+  applyStatusDamage(battle, byUuid, caps, of);
   return byUuid.size;
+}
+
+/** Smoldering / Venomous (potency of the holder's own burn / poison) and Rending (the library's bleed). */
+function applyStatusDamage(battle, byUuid, caps, of) {
+  const holds = ids => [...byUuid.values()].some(list => list.some(fx => ids.includes(fx.i)));
+
+  // ---- potency: scale a native burn / regular-poison residual once, only when the holder inflicted it ----
+  if (holds(Object.keys(POTENCY)) && typeof battle.damage === 'function') {
+    const rawDamage = battle.damage;
+    battle.damage = function (damage, target, source, effect, instafaint) {
+      let scaled = damage;
+      try {
+        const victim = target || (this.event && this.event.target);
+        const cause = effect || (this.event && this.effect);
+        if (typeof damage === 'number' && damage > 0 && victim && cause && cause.effectType === 'Status' && (cause.id === 'brn' || cause.id === 'psn')) {
+          const inflictor = victim.statusState && victim.statusState.source;
+          // An unknown, self-inflicted (Flame Orb) or allied source, a fainted or benched inflictor: native damage only.
+          if (inflictor && inflictor !== victim && inflictor.hp > 0 && inflictor.isActive && inflictor.side !== victim.side) {
+            const percents = of(inflictor, POTENCY).filter(fx => POTENCY[fx.i] === cause.id).map(fx => fx.p);
+            if (percents.length) scaled = damage * grow(percents, caps.res);
+          }
+        }
+      } catch (err) {
+        scaled = damage;
+      }
+      return rawDamage.call(this, scaled, target, source, effect, instafaint);
+    };
+  }
+
+  // ---- rending: a chance on a direct hit to start or deepen a bleed ----
+  if (!holds([RENDING])) return;
+  const bleeds = new Map();           // afflicted Pokemon -> {stacks, turns, percent}
+  const rolled = new Set();           // one roll per move use and target, however many hits it lands
+  const rawSpread = battle.spreadDamage;
+  if (typeof rawSpread === 'function') {
+    battle.spreadDamage = function (damage, targetArray, source, effect, instafaint) {
+      const result = rawSpread.apply(this, arguments);
+      try {
+        if (source && effect && typeof effect === 'object' && effect.effectType === 'Move' && Array.isArray(targetArray)) {
+          const percents = of(source, {[RENDING]: 1}).map(fx => fx.p);
+          for (const [i, target] of targetArray.entries()) {
+            if (!percents.length || !target || target === source || target.side === source.side || !(target.hp > 0)) continue;
+            if (!(typeof result[i] === 'number' && result[i] > 0)) continue;
+            const key = `${this.turn}:${source.uuid}:${source.activeMoveActions}:${target.uuid}`;
+            if (rolled.has(key)) continue;
+            rolled.add(key);
+            if (this.random(100) >= RENDING_CHANCE) continue;
+            const state = bleeds.get(target) || {stacks: 0, turns: 0, percent: 0};
+            state.stacks = Math.min(BLEED_STACKS, state.stacks + 1);
+            state.turns = BLEED_TURNS;
+            state.percent = Math.max(state.percent, ...percents);
+            bleeds.set(target, state);
+            note(this, `${target.name} is bleeding!`);
+          }
+        }
+      } catch (err) { /* fail open: the hit already happened */ }
+      return result;
+    };
+  }
+
+  const rawResidual = battle.residualEvent;
+  if (typeof rawResidual === 'function') {
+    battle.residualEvent = function (eventid) {
+      const result = rawResidual.apply(this, arguments);
+      if (eventid !== 'Residual') return result;
+      for (const [mon, state] of [...bleeds]) {
+        try {
+          if (!(mon.hp > 0) || !mon.isActive) {
+            // A fainted or switched-out Pokemon loses its bleed, as a native volatile would.
+            bleeds.delete(mon);
+            continue;
+          }
+          const bleed = {id: 'ascensionbleed', name: 'Bleed', fullname: 'bleed', effectType: 'Status'};
+          let amount = Math.max(1, Math.trunc(mon.baseMaxhp / BLEED_DIVISOR * state.stacks * grow([state.percent], caps.res)));
+          // Magic Guard and other native damage rules get their say; a plain -damage line is used because the client
+          // misreads a [from] it does not know.
+          const allowed = this.runEvent('Damage', mon, null, bleed, amount, true);
+          if (allowed || allowed === 0) {
+            amount = Math.max(1, Math.trunc(allowed));
+            const dealt = mon.damage(amount, null, bleed);
+            if (dealt) this.add('-damage', mon, mon.getHealth);
+          }
+          if (--state.turns <= 0) bleeds.delete(mon);
+        } catch (err) { bleeds.delete(mon); }
+      }
+      return result;
+    };
+  }
 }
 
 function install(sim) {

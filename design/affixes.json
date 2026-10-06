@@ -27,6 +27,9 @@
     {"id":"resilient_hide","name":"Resilient Hide","slot":"suffix","family":"effectiveness_defense","channel":"incomingReduction","min":5,"max":10,"weight":30,"condition":"Incoming move is super effective against the holder by native type effectiveness","phase":"release"},
     {"id":"triumphant","name":"Triumphant","slot":"suffix","family":"kill_recovery","channel":"healing","min":5,"max":10,"weight":40,"condition":"Holder's direct move faints the target; restores a percentage of the holder's maximum HP once per faint; no recursive triggers; excludes items, abilities, residual and ally healing","phase":"release"},
     {"id":"physical_bulwark","name":"Physical Bulwark","slot":"suffix","family":"category_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Incoming move is physical","phase":"release"},
-    {"id":"special_bulwark","name":"Special Bulwark","slot":"suffix","family":"category_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Incoming move is special","phase":"release"}
+    {"id":"special_bulwark","name":"Special Bulwark","slot":"suffix","family":"category_defense","channel":"incomingReduction","min":3,"max":6,"weight":100,"condition":"Incoming move is special","phase":"release"},
+    {"id":"smoldering","name":"Smoldering","slot":"prefix","family":"burn_potency","channel":"residual","min":10,"max":20,"weight":40,"condition":"Burn damage on a target this Pokemon burned; no second burn is applied","phase":"release"},
+    {"id":"venomous","name":"Venomous","slot":"prefix","family":"poison_potency","channel":"residual","min":10,"max":20,"weight":40,"condition":"Regular poison damage on a target this Pokemon poisoned; toxic is excluded","phase":"release"},
+    {"id":"rending","name":"Rending","slot":"prefix","family":"bleed_potency","channel":"residual","min":10,"max":20,"weight":40,"condition":"30% chance on a damaging hit to cause bleeding (1/12 max HP a turn per stack, up to 3 stacks, 3 turns); the percent boosts the bleed","phase":"release"}
   ]
 }
