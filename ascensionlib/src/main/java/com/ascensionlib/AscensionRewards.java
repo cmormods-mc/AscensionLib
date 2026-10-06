@@ -84,6 +84,24 @@ public final class AscensionRewards {
         return awardAttunement("raid:" + encounterId, players);
     }
 
+    /**
+     * The quantity of an item reward after the 777 Unique: +20% while any Pokemon in the player's party holds it, otherwise
+     * {@code count} unchanged. A fraction of an item is settled by a roll seeded by {@code key}, so a retried or repeated grant of the
+     * same reward gives the same amount. For item rewards only (never materials, currency or cards). Call it when the reward is
+     * handed over, with the player online; offline, disabled or without 777 it returns {@code count}.
+     *
+     * @param key identifies the reward (source, item, claim), so the rounding is stable
+     */
+    public static int scaleItemQuantity(UUID player, int count, String key) {
+        if (count < 1) return count;
+        var service = AscensionApi.service().orElse(null);
+        var server = AscensionApi.server();
+        if (service == null || server == null) return count;
+        var online = server.getPlayerList().getPlayer(player);
+        if (online == null || !service.partyHoldsUnique(online, "triple_seven")) return count;
+        return com.cobbleascend.domain.v1.ItemQuantityBonus.scale(count, player + "|" + key);
+    }
+
     /** Attunement a Pokemon earns per qualifying victory (ECONOMY.md: 3). */
     static final int VICTORY_ATTUNEMENT = 3;
 

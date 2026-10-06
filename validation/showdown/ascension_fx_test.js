@@ -442,6 +442,46 @@ test('18. stormcaller: weather-type moves are boosted in that weather, and weake
   assert.ok(Math.abs(dryRatio - 0.85) < 0.03, 'about -15% with no weather, got ' + dryRatio);
 });
 
+// A bulky target, so the bleed outlives three hits.
+const SOAK = pack('Blastoise', U1, 'torrent', ['splash'], 100);
+test('19. rupture: every physical move bleeds, stacks weaken 100/80/60, a special move does not', async () => {
+  const near = (t, share, max) => Math.abs(t - max / 12 * share) < 1.01;   // float shares: allow the engine's truncation
+  let deepest = 0;
+  for (let s = 1; s <= 10; s++) {
+    const b = await battle({teams: [SOAK, INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 5, seed: [s, 2, 3, 4], fx: on(U2, 'rupture')});
+    assert.ok(b.lines.join('\n').includes('is bleeding!'), `seed ${s}: a physical hit always bleeds`);
+    const max = mon(b, 0).maxhp, ticks = bleedTicks(b.lines, max);
+    assert.ok(ticks.length > 0 && ticks.every(t => [1, 1.8, 2.4].some(share => near(t, share, max))), `ticks ${JSON.stringify(ticks)} are 1, 1.8 or 2.4 shares of ${Math.trunc(max / 12)}`);
+    deepest = Math.max(deepest, ticks.filter(t => near(t, 2.4, max)).length);
+  }
+  assert.ok(deepest > 0, 'a third stack ticked');
+  const special = await battle({teams: [MAGIKARP(), INFLICTOR(['flamethrower'])], moves: ['move 1', 'move 1'], turns: 2, fx: on(U2, 'rupture')});
+  assert.ok(!special.lines.join('\n').includes('is bleeding!'), 'flamethrower is special');
+});
+
+test('20. titans_heart: super-effective hits add 10% of max HP, other hits do not, and no healing lands', async () => {
+  const big = [BLASTOISE(), pack('Charizard', U2, 'blaze', ['splash'], 100)];
+  const plain = await battle({teams: big, moves: ['move 1', 'move 1']});
+  const boosted = await battle({teams: big, moves: ['move 1', 'move 1'], fx: on(U1, 'titans_heart')});
+  assert.strictEqual(lost(boosted, 1) - lost(plain, 1), Math.floor(mon(boosted, 0).maxhp * 0.10), 'hydropump is super effective on Charizard');
+  const resisted = [BLASTOISE(), pack('Magikarp', U2, 'swiftswim', ['splash'], 100)];
+  const resistedPlain = await battle({teams: resisted, moves: ['move 1', 'move 1']});
+  const resistedBoosted = await battle({teams: resisted, moves: ['move 1', 'move 1'], fx: on(U1, 'titans_heart')});
+  assert.strictEqual(lost(resistedBoosted, 1), lost(resistedPlain, 1), 'water on water is not super effective');
+  const hurt = [pack('Blastoise', U1, 'torrent', ['recover'], 50, '20'), pack('Charizard', U2, 'blaze', ['splash'], 50)];
+  const healed = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 2, fx: on(U1, 'titans_heart')});
+  assert.strictEqual(mon(healed, 0).hp, 20, 'Recover heals nothing');
+});
+
+test('21. triple_seven: moves hurt the holder 25% more', async () => {
+  const plain = await battle({teams: TEAMS(), moves: ['move 1', 'move 1']});
+  const weak = await battle({teams: TEAMS(), moves: ['move 1', 'move 1'], fx: on(U1, 'triple_seven')});
+  const ratio = lost(weak, 0) / lost(plain, 0);
+  assert.ok(Math.abs(ratio - 1.25) < 0.03, 'about 1.25x, got ' + ratio);
+  const bystander = await battle({teams: TEAMS(), moves: ['move 1', 'move 1'], fx: on(U2, 'triple_seven')});
+  assert.strictEqual(lost(bystander, 0), lost(plain, 0), 'only the holder is weakened');
+});
+
 (async () => {
   baseline = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});          // before the module is installed
   fx.install({Battle});

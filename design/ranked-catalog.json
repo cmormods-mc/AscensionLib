@@ -36,6 +36,9 @@
     {"id":"ashen_heart","name":"Ashen Heart","benefit":"Burns you inflict deal 50% more damage.","drawback":"Your direct move damage is reduced by 15%."},
     {"id":"last_breath","name":"Last Breath","benefit":"Once per battle, survive a lethal hit from an opposing move with 1 HP.","drawback":"All healing you receive is halved."},
     {"id":"creeping_venom","name":"Creeping Venom","benefit":"Regular poison you inflict deals 20% more for each turn it has already lasted, up to 80%.","drawback":"You take 20% more damage from Psychic moves."},
-    {"id":"stormcaller","name":"Stormcaller","benefit":"While a weather is active, your moves of the weather's type deal 30% more damage.","drawback":"With no weather active, your direct move damage is reduced by 15%."}
+    {"id":"stormcaller","name":"Stormcaller","benefit":"While a weather is active, your moves of the weather's type deal 30% more damage.","drawback":"With no weather active, your direct move damage is reduced by 15%."},
+    {"id":"rupture","name":"Rupture","benefit":"Your physical moves always cause bleeding.","drawback":"Bleed you inflict is weaker per stack: 100%, 80%, 60%."},
+    {"id":"titans_heart","name":"Titan's Heart","benefit":"Your super-effective moves deal extra damage equal to 10% of your maximum HP.","drawback":"You cannot be healed in battle."},
+    {"id":"triple_seven","name":"777","benefit":"Item rewards you earn are 20% larger while it is in your party.","drawback":"You take 25% more damage from moves (about 20% less effective HP)."}
   ]
 }

@@ -76,7 +76,7 @@ const BLEED_TURNS = 3;          // refreshed by every new application
 
 // Uniques (docs/UNIQUES-DESIGN.md): one fixed power each, sent as an effect whose percent is only an "on" flag. A benefit joins its
 // channel (so it is capped with the rest); a drawback is a fixed multiplier applied after the caps and never removed by them.
-const UNIQUES = {ashen_heart: 1, last_breath: 1, creeping_venom: 1, stormcaller: 1};
+const UNIQUES = {ashen_heart: 1, last_breath: 1, creeping_venom: 1, stormcaller: 1, rupture: 1, titans_heart: 1, triple_seven: 1};
 const ASHEN_BURN = 50;          // +50% burn damage you inflict (residual channel)
 const ASHEN_PENALTY = 0.85;     // your direct move damage
 const VENOM_STEP = 20;          // +20% per turn the poison has lasted ...
@@ -85,6 +85,9 @@ const VENOM_PSYCHIC = 1.2;      // drawback: Psychic moves hurt you 20% more
 const STORM_BONUS = 30;         // +30% for moves of the active weather's type (outgoing channel)
 const STORM_PENALTY = 0.85;     // drawback: direct damage with no weather active
 const BREATH_HEAL = 0.5;        // drawback: healing you receive
+const RUPTURE_WEIGHTS = [1, 0.8, 0.6];   // drawback: stack n of a bleed you inflict deals this share of a normal stack
+const TITAN_FRACTION = 0.10;    // extra damage on a super-effective move: this share of the holder's max HP
+const SEVEN_PENALTY = 1.25;     // drawback of 777: damage taken from moves, equal to about 20% less effective HP
 const WEATHER_TYPE = {
   raindance: 'Water', primordialsea: 'Water', sunnyday: 'Fire', desolateland: 'Fire',
   sandstorm: 'Rock', snow: 'Ice', snowscape: 'Ice', hail: 'Ice',
@@ -162,6 +165,7 @@ function apply(battle, payload) {
     return state.get(mon);
   };
   const of = (mon, table) => (byUuid.get(mon.uuid) || []).filter(fx => Object.prototype.hasOwnProperty.call(table, fx.i));
+  const titanUsed = new Set();   // titans_heart pays once per move use, however many targets or hits
   const has = (mon, id) => !!mon && (byUuid.get(mon.uuid) || []).some(fx => fx.i === id);
   /** The weather in force (Cloud Nine and Air Lock suppress it), or ''. */
   const weatherNow = () => {
@@ -190,7 +194,12 @@ function apply(battle, payload) {
         // Unique drawbacks: fixed, after the caps.
         if (has(pokemon, 'ashen_heart')) scaled = Math.max(1, battle.modify(scaled, Math.round(ASHEN_PENALTY * 1000), 1000));
         if (has(pokemon, 'stormcaller') && !weather) scaled = Math.max(1, battle.modify(scaled, Math.round(STORM_PENALTY * 1000), 1000));
+        if (has(pokemon, 'titans_heart') && hit.typeMod > 0) {
+          const key = `${battle.turn}:${pokemon.uuid}:${pokemon.activeMoveActions}`;
+          if (!titanUsed.has(key)) { titanUsed.add(key); scaled += Math.floor(pokemon.maxhp * TITAN_FRACTION); }
+        }
         if (has(target, 'creeping_venom') && move.type === 'Psychic') scaled = battle.modify(scaled, Math.round(VENOM_PSYCHIC * 1000), 1000);
+        if (has(target, 'triple_seven')) scaled = battle.modify(scaled, Math.round(SEVEN_PENALTY * 1000), 1000);
         return scaled;
       } catch (err) {
         return damage;
@@ -239,7 +248,7 @@ function apply(battle, payload) {
       const result = originalFaint.apply(this, arguments);
       for (const [holder, heals] of killers) {
         try {
-          if (holder.hp > 0 && !holder.fainted) {
+          if (holder.hp > 0 && !holder.fainted && !has(holder, 'titans_heart')) {
             const percent = Math.min(caps.heal, heals.reduce((a, b) => a + b, 0));
             // Last Breath halves every heal the holder receives, this one too (it bypasses holder.heal on purpose).
             const scale = has(holder, 'last_breath') ? BREATH_HEAL : 1;
@@ -294,6 +303,14 @@ function applyStatusDamage(battle, byUuid, caps, of, has) {
     };
   }
 
+  // ---- titan's heart: the holder cannot be healed in battle (every heal, whatever its source, does nothing) ----
+  for (const side of battle.sides) {
+    if (!side) continue;
+    for (const holder of side.pokemon) {
+      if (has(holder, 'titans_heart')) holder.heal = function () { return 0; };
+    }
+  }
+
   // ---- last breath: once per battle, an opposing move that would faint the holder leaves it at 1 HP; healing it receives is halved ----
   for (const side of battle.sides) {
     if (!side) continue;
@@ -329,7 +346,7 @@ function applyStatusDamage(battle, byUuid, caps, of, has) {
   }
 
   // ---- rending: a chance on a direct hit to start or deepen a bleed ----
-  if (!holds([RENDING])) return;
+  if (!holds([RENDING, 'rupture'])) return;
   const bleeds = new Map();           // afflicted Pokemon -> {stacks, turns, percent}
   const rolled = new Set();           // one roll per move use and target, however many hits it lands
   const rawSpread = battle.spreadDamage;
@@ -339,19 +356,23 @@ function applyStatusDamage(battle, byUuid, caps, of, has) {
       try {
         if (source && effect && typeof effect === 'object' && effect.effectType === 'Move' && Array.isArray(targetArray)) {
           const percents = of(source, {[RENDING]: 1}).map(fx => fx.p);
+          // Rupture: every physical move bleeds, no roll. Rending rolls for whatever Rupture does not cover.
+          const ruptures = has(source, 'rupture') && effect.category === 'Physical';
           for (const [i, target] of targetArray.entries()) {
-            if (!percents.length || !target || target === source || target.side === source.side || !(target.hp > 0)) continue;
+            if (!(percents.length || ruptures) || !target || target === source || target.side === source.side || !(target.hp > 0)) continue;
             if (!(typeof result[i] === 'number' && result[i] > 0)) continue;
             const key = `${this.turn}:${source.uuid}:${source.activeMoveActions}:${target.uuid}`;
             if (rolled.has(key)) continue;
             rolled.add(key);
-            if (this.random(100) >= RENDING_CHANCE) continue;
-            const state = bleeds.get(target) || {stacks: 0, turns: 0, percent: 0};
+            if (!ruptures && this.random(100) >= RENDING_CHANCE) continue;
+            const state = bleeds.get(target) || {stacks: 0, turns: 0, percent: 0, rupture: false};
+            const before = state.stacks;
             state.stacks = Math.min(BLEED_STACKS, state.stacks + 1);
             state.turns = BLEED_TURNS;
             state.percent = Math.max(state.percent, ...percents);
+            state.rupture = has(source, 'rupture');   // the latest inflictor decides whether the Rupture drawback applies
             bleeds.set(target, state);
-            note(this, `${target.name} is bleeding!`);
+            if (state.stacks > before) note(this, `${target.name} is bleeding!`);
           }
         }
       } catch (err) { /* fail open: the hit already happened */ }
@@ -372,7 +393,9 @@ function applyStatusDamage(battle, byUuid, caps, of, has) {
             continue;
           }
           const bleed = {id: 'ascensionbleed', name: 'Bleed', fullname: 'bleed', effectType: 'Status'};
-          let amount = Math.max(1, Math.trunc(mon.baseMaxhp / BLEED_DIVISOR * state.stacks * grow([state.percent], caps.res)));
+          const weights = state.rupture ? RUPTURE_WEIGHTS : [1, 1, 1];
+          const share = weights.slice(0, state.stacks).reduce((a, b) => a + b, 0);
+          let amount = Math.max(1, Math.trunc(mon.baseMaxhp / BLEED_DIVISOR * share * grow([state.percent], caps.res)));
           // Magic Guard and other native damage rules get their say; a plain -damage line is used because the client
           // misreads a [from] it does not know.
           const allowed = this.runEvent('Damage', mon, null, bleed, amount, true);
