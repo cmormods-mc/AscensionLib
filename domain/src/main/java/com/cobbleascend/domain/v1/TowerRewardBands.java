@@ -8,7 +8,7 @@ import java.util.UUID;
 /**
  * What a CobbleTowers boss victory pays (decided 2026-10-05, numbers provisional). Everyone in the run gets the same
  * band (flat per player); only the chance rolls differ per player. Dust pays on every floor, facets, cores and
- * Unique Fragments only on boss floors.
+ * Unique Fragments only on boss floors (a boss always pays at least one fragment).
  *
  * <p>A payout covers one segment: the non-boss floors cleared since the previous boss plus the boss itself, so a
  * run that fails before a boss pays nothing. Rolls are seeded by (encounter, player, boss floor), so a repeated
@@ -19,13 +19,13 @@ import java.util.UUID;
  */
 public record TowerRewardBands(double floorDust, double floorGrowth, int firstBossDust, int milestoneBossFloor,
                                int milestoneBossDust, int firstBossFacetPercent, int bossFacetPercent,
-                               int bossCorePermille, int bossFragmentPercent) {
-    public static final TowerRewardBands DEFAULTS = new TowerRewardBands(1.6, 1.08, 5, 10, 12, 50, 100, 75, 5);
+                               int bossCorePermille, int bossFragmentBonusPercent) {
+    public static final TowerRewardBands DEFAULTS = new TowerRewardBands(1.6, 1.08, 5, 10, 12, 50, 100, 75, 43);
 
     public TowerRewardBands {
         if (floorDust < 0 || floorGrowth < 1 || firstBossDust < 0 || milestoneBossFloor < 1 || milestoneBossDust < 0)
             throw new IllegalArgumentException("Dust amounts must be nonnegative, growth at least 1, floor at least 1");
-        if (!percent(firstBossFacetPercent) || !percent(bossFacetPercent) || !percent(bossFragmentPercent)
+        if (!percent(firstBossFacetPercent) || !percent(bossFacetPercent) || !percent(bossFragmentBonusPercent)
                 || bossCorePermille < 0 || bossCorePermille > 1000)
             throw new IllegalArgumentException("Chances must be 0-100 percent (cores 0-1000 permille)");
     }
@@ -50,7 +50,9 @@ public record TowerRewardBands(double floorDust, double floorGrowth, int firstBo
         boolean first = bossFloor < milestoneBossFloor;
         if (random.nextInt(100) < (first ? firstBossFacetPercent : bossFacetPercent)) result.put(MaterialId.FACET, 1L);
         if (random.nextInt(1000) < bossCorePermille) result.put(MaterialId.ASCENSION_CORE, 1L);
-        if (random.nextInt(100) < bossFragmentPercent) result.put(MaterialId.UNIQUE_FRAGMENT, 1L);
+        // Every boss pays one Unique Fragment and sometimes a second: 1.43 on average, so a run to floor 10 (two bosses) pays
+        // 2.86 and a 100-fragment Catalyst arrives about every 35 such runs (owner ruling, 2026-10-05).
+        result.put(MaterialId.UNIQUE_FRAGMENT, random.nextInt(100) < bossFragmentBonusPercent ? 2L : 1L);
         return java.util.Collections.unmodifiableMap(result);
     }
 

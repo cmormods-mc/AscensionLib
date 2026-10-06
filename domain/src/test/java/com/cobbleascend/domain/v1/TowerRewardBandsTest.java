@@ -40,12 +40,13 @@ class TowerRewardBandsTest {
             var milestone = BANDS.payout(id, player, 6, 10);
             if (milestone.containsKey(MaterialId.FACET)) facetsMilestone++;
             if (milestone.containsKey(MaterialId.ASCENSION_CORE)) cores++;
-            if (milestone.containsKey(MaterialId.UNIQUE_FRAGMENT)) fragments++;
+            fragments += milestone.get(MaterialId.UNIQUE_FRAGMENT);
         }
         assertEquals(0.50, facetsFirst / (double) n, 0.01);
         assertEquals(1.00, facetsMilestone / (double) n, 0.0);
         assertEquals(0.075, cores / (double) n, 0.005);
-        assertEquals(0.05, fragments / (double) n, 0.004);
+        assertEquals(1.43, fragments / (double) n, 0.01);
+        assertEquals(35.0, 100 / (2 * 1.43), 0.1, "a Catalyst about every 35 runs to floor 10");
     }
 
     @Test void playersInOneEncounterGetTheSameDustButIndependentRolls() {
