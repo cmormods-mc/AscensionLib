@@ -1,7 +1,7 @@
 # Unique powers: design and tuning (2026-10-05)
 
 Owner decisions: build all four first-batch Uniques; every Unique has a fixed drawback; any Pokemon may hold any Unique (no type or move
-gate); Ashen Heart is +50% burn / -15% direct damage. The other three were specified by Claude from the spec's "later candidates" list and
+gate); Ashen Heart is +50% burn / -15% direct damage. The other three were proposed from the spec's "later candidates" list and
 are **provisional until a balance pass**.
 
 A Unique is one fixed power with no rank, installed with a Catalyst (`installUnique`, replaced with another Catalyst: `replaceUnique`).

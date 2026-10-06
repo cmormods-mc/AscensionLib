@@ -2,7 +2,7 @@
 // Tests ascension-fx.js (docs/BATTLE-ADAPTER-DESIGN.md) against the REAL Showdown simulator Cobblemon unbundles, with no
 // Minecraft server.
 //
-//   node validation/showdown/ascension_fx_test.js --showdown-dir L:/claude-cobbleraids-work/testserver-full/showdown
+//   node validation/showdown/ascension_fx_test.js --showdown-dir <path to an unbundled Showdown directory>
 //       [--tower-fx L:/CobbleTowers/src/main/resources/assets/cobbletowers/showdown/tower-fx.js]
 //
 // Showdown is plain CommonJS, so the module is installed into it and driven through BattleStream with the same `>start` /
