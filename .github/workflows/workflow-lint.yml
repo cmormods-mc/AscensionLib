@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Pinned release of rhysd/actionlint: syntax, expressions, action inputs, shell scripts and permissions.
       - name: Lint the workflows
