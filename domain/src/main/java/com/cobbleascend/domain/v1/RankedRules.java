@@ -66,8 +66,10 @@ public final class RankedRules {
         var uniques = new ArrayList<UniqueDefinition>();
         for (var element : Json.array(catalog.get("uniques"))) {
             var unique = Json.object(element);
-            Json.keys(unique, Set.of("id", "name"), Set.of());
-            uniques.add(new UniqueDefinition(Json.string(unique.get("id")), Json.string(unique.get("name")), version));
+            Json.keys(unique, Set.of("id", "name"), Set.of("benefit", "drawback"));
+            uniques.add(new UniqueDefinition(Json.string(unique.get("id")), Json.string(unique.get("name")),
+                    unique.has("benefit") ? Json.string(unique.get("benefit")) : "",
+                    unique.has("drawback") ? Json.string(unique.get("drawback")) : "", version));
         }
         return new RankedRules(base, version, bands, uniques);
     }

@@ -15,7 +15,7 @@ import java.util.Map;
  *
  * <p>The payload is compact on purpose (it travels as one format field, limited to 8192 characters):
  * <pre>{"v":1,"caps":{"out":100,"inc":50,"heal":50,"res":100},"mons":{"&lt;uuid&gt;":[{"i":"type_focus","p":8,"t":"Water"}]}}</pre>
- * Uniques are not sent: their effects are not implemented, so a Pokemon with one acts on its ordinary slots only.
+ * A Unique is sent as one more effect whose percent is a plain "on" flag (1): its tuning is fixed inside the module.
  */
 public final class BattleFx {
     /** What fits in one format field, with room to spare for the field's own quoting. */
@@ -25,13 +25,14 @@ public final class BattleFx {
 
     private BattleFx() {}
 
-    /** The ordinary slots of a snapshot as effects, in slot order. */
+    /** The ordinary slots of a snapshot as effects, in slot order, then its Unique if it has one. */
     public static List<Effect> effectsOf(CombatSnapshot snapshot) {
         var effects = new ArrayList<Effect>();
         for (var slot : snapshot.slots()) {
             if (slot.rolledValue() <= 0) continue;
             effects.add(new Effect(slot.affixId(), slot.rolledValue(), showdownType(slot.type())));
         }
+        if (snapshot.uniqueId() != null) effects.add(new Effect(snapshot.uniqueId(), 1, null));
         return effects;
     }
 

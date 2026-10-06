@@ -27,6 +27,26 @@ class BattleFxTest {
         }
     }
 
+    @Test void aUniqueIsSentAsOneMoreFlaggedEffect() {
+        var plain = enemy("unique-0");
+        var withUnique = new CombatSnapshot(plain.source(), plain.subjectId(), plain.rarity(), plain.catalogVersion(), plain.slots(), "ashen_heart");
+        var effects = BattleFx.effectsOf(withUnique);
+        assertEquals(plain.slots().size() + 1, effects.size());
+        var last = effects.get(effects.size() - 1);
+        assertEquals("ashen_heart", last.affixId());
+        assertEquals(1, last.percent());
+        assertNull(last.type());
+        assertEquals(plain.slots().size(), BattleFx.effectsOf(plain).size(), "no Unique, no extra effect");
+    }
+
+    @Test void everyCatalogUniqueHasTextAndADrawback() {
+        assertEquals(4, rules.uniques().size());
+        for (var unique : rules.uniques()) {
+            assertFalse(unique.benefit().isBlank(), unique.id() + " needs benefit text");
+            assertFalse(unique.drawback().isBlank(), unique.id() + " needs a drawback");
+        }
+    }
+
     @Test void aTypedSlotCarriesTheCapitalisedShowdownType() {
         for (int i = 0; i < 400; i++) {
             var snapshot = enemy("typed-" + i);

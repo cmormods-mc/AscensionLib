@@ -74,8 +74,24 @@ const BLEED_DIVISOR = 12;       // each stack bleeds 1/12 of max HP a turn
 const BLEED_STACKS = 3;
 const BLEED_TURNS = 3;          // refreshed by every new application
 
+// Uniques (docs/UNIQUES-DESIGN.md): one fixed power each, sent as an effect whose percent is only an "on" flag. A benefit joins its
+// channel (so it is capped with the rest); a drawback is a fixed multiplier applied after the caps and never removed by them.
+const UNIQUES = {ashen_heart: 1, last_breath: 1, creeping_venom: 1, stormcaller: 1};
+const ASHEN_BURN = 50;          // +50% burn damage you inflict (residual channel)
+const ASHEN_PENALTY = 0.85;     // your direct move damage
+const VENOM_STEP = 20;          // +20% per turn the poison has lasted ...
+const VENOM_MAX = 80;           // ... up to +80%
+const VENOM_PSYCHIC = 1.2;      // drawback: Psychic moves hurt you 20% more
+const STORM_BONUS = 30;         // +30% for moves of the active weather's type (outgoing channel)
+const STORM_PENALTY = 0.85;     // drawback: direct damage with no weather active
+const BREATH_HEAL = 0.5;        // drawback: healing you receive
+const WEATHER_TYPE = {
+  raindance: 'Water', primordialsea: 'Water', sunnyday: 'Fire', desolateland: 'Fire',
+  sandstorm: 'Rock', snow: 'Ice', snowscape: 'Ice', hail: 'Ice',
+};
+
 const HANDLED = new Set([...Object.keys(OUTGOING), ...Object.keys(INCOMING), ...Object.keys(HEALING),
-  ...Object.keys(POTENCY), RENDING]);
+  ...Object.keys(POTENCY), RENDING, ...Object.keys(UNIQUES)]);
 
 function clamp(value, low, high, fallback) {
   const n = Number(value);
@@ -146,6 +162,11 @@ function apply(battle, payload) {
     return state.get(mon);
   };
   const of = (mon, table) => (byUuid.get(mon.uuid) || []).filter(fx => Object.prototype.hasOwnProperty.call(table, fx.i));
+  const has = (mon, id) => !!mon && (byUuid.get(mon.uuid) || []).some(fx => fx.i === id);
+  /** The weather in force (Cloud Nine and Air Lock suppress it), or ''. */
+  const weatherNow = () => {
+    try { return String(battle.field.effectiveWeather ? battle.field.effectiveWeather() : battle.field.weather || ''); } catch (err) { return ''; }
+  };
 
   // ---- damage dealt and taken ----
   const actions = battle.actions;
@@ -161,9 +182,15 @@ function apply(battle, payload) {
         const holder = stateOf(target);
         const inc = of(target, INCOMING).filter(fx => INCOMING[fx.i](fx, target, pokemon, move, hit, holder)).map(fx => fx.p);
         if (byUuid.has(target.uuid)) holder.hitTaken = true;   // opening_guard: only the first damaging hit of the battle
+        const weather = weatherNow();
+        if (has(pokemon, 'stormcaller') && WEATHER_TYPE[weather] === move.type) out.push(STORM_BONUS);
         let scaled = damage;
         if (out.length) scaled = battle.modify(scaled, Math.round(grow(out, caps.out) * 1000), 1000);
         if (inc.length) scaled = Math.max(1, battle.modify(scaled, Math.round(shrink(inc, caps.inc) * 1000), 1000));
+        // Unique drawbacks: fixed, after the caps.
+        if (has(pokemon, 'ashen_heart')) scaled = Math.max(1, battle.modify(scaled, Math.round(ASHEN_PENALTY * 1000), 1000));
+        if (has(pokemon, 'stormcaller') && !weather) scaled = Math.max(1, battle.modify(scaled, Math.round(STORM_PENALTY * 1000), 1000));
+        if (has(target, 'creeping_venom') && move.type === 'Psychic') scaled = battle.modify(scaled, Math.round(VENOM_PSYCHIC * 1000), 1000);
         return scaled;
       } catch (err) {
         return damage;
@@ -214,25 +241,28 @@ function apply(battle, payload) {
         try {
           if (holder.hp > 0 && !holder.fainted) {
             const percent = Math.min(caps.heal, heals.reduce((a, b) => a + b, 0));
+            // Last Breath halves every heal the holder receives, this one too (it bypasses holder.heal on purpose).
+            const scale = has(holder, 'last_breath') ? BREATH_HEAL : 1;
             // Healed directly with a plain -heal line: a `[from]` the client does not know would be misread.
-            if (rawHeal.call(holder, Math.floor(holder.maxhp * percent / 100))) battle.add('-heal', holder, holder.getHealth);
+            if (rawHeal.call(holder, Math.max(1, Math.floor(holder.maxhp * percent / 100 * scale)))) battle.add('-heal', holder, holder.getHealth);
           }
         } catch (err) { /* fail open */ }
       }
       return result;
     };
   }
-  applyStatusDamage(battle, byUuid, caps, of);
+  applyStatusDamage(battle, byUuid, caps, of, has);
   return byUuid.size;
 }
 
 /** Smoldering / Venomous (potency of the holder's own burn / poison) and Rending (the library's bleed). */
-function applyStatusDamage(battle, byUuid, caps, of) {
+function applyStatusDamage(battle, byUuid, caps, of, has) {
   const holds = ids => [...byUuid.values()].some(list => list.some(fx => ids.includes(fx.i)));
 
   // ---- potency: scale a native burn / regular-poison residual once, only when the holder inflicted it ----
-  if (holds(Object.keys(POTENCY)) && typeof battle.damage === 'function') {
+  if (holds([...Object.keys(POTENCY), 'ashen_heart', 'creeping_venom']) && typeof battle.damage === 'function') {
     const rawDamage = battle.damage;
+    const venomTicks = new Map();   // victim -> {state, ticks}: how long this poison has lasted, reset when it is cured or replaced
     battle.damage = function (damage, target, source, effect, instafaint) {
       let scaled = damage;
       try {
@@ -243,6 +273,17 @@ function applyStatusDamage(battle, byUuid, caps, of) {
           // An unknown, self-inflicted (Flame Orb) or allied source, a fainted or benched inflictor: native damage only.
           if (inflictor && inflictor !== victim && inflictor.hp > 0 && inflictor.isActive && inflictor.side !== victim.side) {
             const percents = of(inflictor, POTENCY).filter(fx => POTENCY[fx.i] === cause.id).map(fx => fx.p);
+            if (cause.id === 'brn' && has(inflictor, 'ashen_heart')) percents.push(ASHEN_BURN);
+            if (cause.id === 'psn' && has(inflictor, 'creeping_venom')) {
+              let entry = venomTicks.get(victim);
+              if (!entry || entry.state !== victim.statusState) {
+                entry = {state: victim.statusState, ticks: 0};
+                venomTicks.set(victim, entry);
+              }
+              const ramp = Math.min(VENOM_MAX, entry.ticks * VENOM_STEP);
+              entry.ticks++;
+              if (ramp > 0) percents.push(ramp);
+            }
             if (percents.length) scaled = damage * grow(percents, caps.res);
           }
         }
@@ -251,6 +292,40 @@ function applyStatusDamage(battle, byUuid, caps, of) {
       }
       return rawDamage.call(this, scaled, target, source, effect, instafaint);
     };
+  }
+
+  // ---- last breath: once per battle, an opposing move that would faint the holder leaves it at 1 HP; healing it receives is halved ----
+  for (const side of battle.sides) {
+    if (!side) continue;
+    for (const holder of side.pokemon) {
+      if (!has(holder, 'last_breath')) continue;
+      const state = {used: false};
+      const innerDamage = holder.damage;
+      holder.damage = function (d, source, effect) {
+        let amount = d;
+        try {
+          if (!state.used && this.hp > 0 && typeof d === 'number' && d >= this.hp && source && source !== this && source.side !== this.side &&
+              effect && typeof effect === 'object' && effect.effectType === 'Move') {
+            state.used = true;
+            amount = this.hp - 1;
+            note(battle, `${this.name} hung on with Last Breath!`);
+          }
+        } catch (err) {
+          amount = d;
+        }
+        return innerDamage.call(this, amount, source, effect);
+      };
+      const innerHeal = holder.heal;
+      holder.heal = function (d, source, effect) {
+        let amount = d;
+        try {
+          if (typeof d === 'number' && d > 0) amount = Math.max(1, Math.floor(d * BREATH_HEAL));
+        } catch (err) {
+          amount = d;
+        }
+        return innerHeal.call(this, amount, source, effect);
+      };
+    }
   }
 
   // ---- rending: a chance on a direct hit to start or deepen a bleed ----

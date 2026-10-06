@@ -33,6 +33,9 @@
     "rending": [[10, 20], [21, 30], [31, 40], [41, 50], [51, 60]]
   },
   "uniques":[
-    {"id":"ashen_heart","name":"Ashen Heart"}
+    {"id":"ashen_heart","name":"Ashen Heart","benefit":"Burns you inflict deal 50% more damage.","drawback":"Your direct move damage is reduced by 15%."},
+    {"id":"last_breath","name":"Last Breath","benefit":"Once per battle, survive a lethal hit from an opposing move with 1 HP.","drawback":"All healing you receive is halved."},
+    {"id":"creeping_venom","name":"Creeping Venom","benefit":"Regular poison you inflict deals 20% more for each turn it has already lasted, up to 80%.","drawback":"You take 20% more damage from Psychic moves."},
+    {"id":"stormcaller","name":"Stormcaller","benefit":"While a weather is active, your moves of the weather's type deal 30% more damage.","drawback":"With no weather active, your direct move damage is reduced by 15%."}
   ]
 }

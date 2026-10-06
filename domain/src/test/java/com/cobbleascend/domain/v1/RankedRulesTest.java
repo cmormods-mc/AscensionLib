@@ -52,7 +52,7 @@ class RankedRulesTest {
         }
         assertEquals(bands(4, 8, 9, 12, 13, 16, 17, 20, 21, 24), rules.affix("type_focus").bands(),
                 "Fire Focus matches the specification example");
-        assertEquals(List.of("ashen_heart"), rules.uniques().stream().map(UniqueDefinition::id).toList());
+        assertEquals(List.of("ashen_heart", "last_breath", "creeping_venom", "stormcaller"), rules.uniques().stream().map(UniqueDefinition::id).toList());
         assertEquals(1, rules.catalogVersion());
     }
 

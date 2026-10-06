@@ -370,6 +370,78 @@ test('14c. rending: at most one application per move use', async () => {
   }
 });
 
+// ---- Uniques (docs/UNIQUES-DESIGN.md): each has a benefit and a fixed drawback ----
+const on = (uuid, ...ids) => ({v: 1, mons: {[uuid]: ids.map(id => ({id, pct: 1}))}});
+
+test('15. ashen_heart: burns you inflict hit harder, your direct damage is reduced', async () => {
+  const plain = await statusRun('willowisp');
+  const boosted = await statusRun('willowisp', [{id: 'ashen_heart', pct: 1}]);
+  assert.strictEqual(mon(plain, 0).status, 'brn');
+  assert.ok(lost(boosted, 0) > lost(plain, 0), `burn ${lost(boosted, 0)} vs ${lost(plain, 0)}`);
+  const hit = await battle({teams: [BLASTOISE(), CHARIZARD()], moves: ['move 4', 'move 1'], fx: on(U2, 'ashen_heart')});
+  const hitPlain = await battle({teams: [BLASTOISE(), CHARIZARD()], moves: ['move 4', 'move 1']});
+  const ratio = lost(hit, 1) === 0 ? 1 : lost(hit, 0) / lost(hitPlain, 0);
+  assert.ok(lost(hit, 0) < lost(hitPlain, 0), 'flamethrower is weaker with Ashen Heart');
+  assert.ok(Math.abs(lost(hit, 0) / lost(hitPlain, 0) - 0.85) < 0.03, 'about 0.85, got ' + lost(hit, 0) / lost(hitPlain, 0));
+});
+
+test('15b. ashen_heart and smoldering share the residual channel and its cap', async () => {
+  const both = await statusRun('willowisp', [{id: 'ashen_heart', pct: 1}, {id: 'smoldering', pct: 100}], {});
+  const capped = await battle({teams: [MAGIKARP(), INFLICTOR(['willowisp', 'splash'])], moves: ['move 1', 'move 1'], turns: 4,
+    fx: {v: 1, caps: {res: 20}, mons: {[U2]: [{id: 'ashen_heart', pct: 1}, {id: 'smoldering', pct: 100}]}}});
+  assert.ok(lost(capped, 0) < lost(both, 0), 'a lower residual cap limits the combined boost');
+});
+
+test('16. last_breath: survives one lethal opposing hit at 1 HP, then faints on the next', async () => {
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['flamethrower', 'splash'])];
+  const plain = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1});
+  assert.strictEqual(mon(plain, 0).hp, 0, 'it faints without the Unique');
+  const held = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: on(U1, 'last_breath')});
+  assert.strictEqual(mon(held, 0).hp, 1, 'it hangs on at 1 HP');
+  const second = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 2, fx: on(U1, 'last_breath')});
+  assert.strictEqual(mon(second, 0).hp, 0, 'only once per battle');
+  assert.ok(second.lines.join('\n').includes('hung on with Last Breath'));
+});
+
+test('16b. last_breath: healing is halved, and a hit that does not faint is untouched', async () => {
+  const hurt = [pack('Blastoise', U1, 'torrent', ['recover'], 50, '20'), pack('Charizard', U2, 'blaze', ['splash'], 50)];
+  const plain = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 1});
+  const halved = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 1, fx: on(U1, 'last_breath')});
+  const healedPlain = mon(plain, 0).hp - 20, healedHalved = mon(halved, 0).hp - 20;
+  assert.ok(healedPlain > 0 && healedHalved > 0);
+  assert.ok(Math.abs(healedHalved / healedPlain - 0.5) < 0.05, `about half, ${healedHalved} vs ${healedPlain}`);
+  const light = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: on(U2, 'last_breath')});
+  assert.strictEqual(lost(light, 1), lost(baseline, 1), 'damage dealt is unchanged');
+});
+
+test('17. creeping_venom: poison ramps with its age, toxic stays native, Psychic hurts the holder more', async () => {
+  const plain = await statusRun('poisongas', undefined, {turns: 6});
+  const ramp = await statusRun('poisongas', [{id: 'creeping_venom', pct: 1}], {turns: 6});
+  assert.strictEqual(mon(plain, 0).status, 'psn');
+  assert.ok(lost(ramp, 0) > lost(plain, 0), `ramped ${lost(ramp, 0)} vs native ${lost(plain, 0)}`);
+  const toxicPlain = await statusRun('toxic', undefined, {turns: 6});
+  const toxic = await statusRun('toxic', [{id: 'creeping_venom', pct: 1}], {turns: 6});
+  assert.strictEqual(lost(toxic, 0), lost(toxicPlain, 0), 'toxic is excluded');
+  const psychic = [BLASTOISE(), pack('Charizard', U2, 'blaze', ['psychic'], 50)];
+  const hurt = await battle({teams: psychic, moves: ['move 4', 'move 1'], fx: on(U1, 'creeping_venom')});
+  const hurtPlain = await battle({teams: psychic, moves: ['move 4', 'move 1']});
+  const factor = lost(hurt, 0) / lost(hurtPlain, 0);
+  assert.ok(Math.abs(factor - 1.2) < 0.04, 'about 1.2x, got ' + factor);
+});
+
+test('18. stormcaller: weather-type moves are boosted in that weather, and weaker with no weather', async () => {
+  const teams = [pack('Blastoise', U1, 'torrent', ['raindance', 'hydropump', 'splash'], 50), pack('Charizard', U2, 'blaze', ['splash'], 100)];
+  const sequence = turn => (turn === 0 ? ['move 1', 'move 1'] : ['move 2', 'move 1']);
+  const plain = await battle({teams, moves: sequence, turns: 2});
+  const boosted = await battle({teams, moves: sequence, turns: 2, fx: on(U1, 'stormcaller')});
+  const ratio = lost(boosted, 1) / lost(plain, 1);
+  assert.ok(Math.abs(ratio - 1.3) < 0.05, 'about +30% in rain, got ' + ratio);
+  const dry = await battle({teams, moves: ['move 2', 'move 1'], turns: 1, fx: on(U1, 'stormcaller')});
+  const dryPlain = await battle({teams, moves: ['move 2', 'move 1'], turns: 1});
+  const dryRatio = lost(dry, 1) / lost(dryPlain, 1);
+  assert.ok(Math.abs(dryRatio - 0.85) < 0.03, 'about -15% with no weather, got ' + dryRatio);
+});
+
 (async () => {
   baseline = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});          // before the module is installed
   fx.install({Battle});
