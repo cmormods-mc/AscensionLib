@@ -129,4 +129,14 @@ class TranscendentPowersTest {
         }
         assertEquals(7 * 6 * 4, built);
     }
+
+    @Test void everyEffectDescribesItselfWithTheNumbersAtTheBenefitShare() {
+        assertEquals("heals 4% of its max HP", new PulseOp("heal", java.util.Map.of("pct", 4)).describe(100));
+        assertEquals("heals 2% of its max HP", new PulseOp("heal", java.util.Map.of("pct", 4)).describe(50));
+        assertEquals("15% chance to inflict a burn", new PulseOp("status", java.util.Map.of("status", "brn", "chance", 30)).describe(50));
+        assertEquals("lowers the foe's Speed by 1", new PulseOp("foeStage", java.util.Map.of("stat", "spe", "delta", -1)).describe(100));
+        var all = Transcendence.shared();
+        for (var twist : all.motifTwists().values())
+            for (var op : twist.effects()) assertFalse(op.describe(80).isBlank() || op.describe(80).equals(op.op()), op.op());
+    }
 }

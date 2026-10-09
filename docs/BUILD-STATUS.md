@@ -11,6 +11,14 @@ The remaining 18 signatures are implemented in the simulator (`ascension-fx.js`,
 - Harness tests 45 to 62 added; 79 of 79 pass against the real unbundled simulator. No Java changed (the resolver already named all 21 signatures); item-reward bonuses (#6, #11, #15, #18, #20, #21) are still Java-side to do.
 - Not verified: any live battle with these signatures, and the 21 x 25 signature-by-twist matrix test.
 
+## Fusion screen, channel and matrix test — 2026-10-09
+
+- **Channel** (`fusion/FusionPayloads`, `FusionNet`): Open (host) -> Candidates (donors the player owns that are Epic or better, hold a Unique and are not fused, each with the reason it cannot be used); Preview (host, donor) -> Detail (the Transcendent as server-written text: name, "fused from", harmony and shares, core, clutch, drawback, twist, rider, types, price and balances, and the three revisions); Confirm -> Result. Rate limited; both Pokemon must be the player's, outside battle, not lent. `/ascend fuse [slot]` opens it, and a Fuse button appears on the upgrade screen of a Mythic Pokemon.
+- **Screen** (`FusionScreen`, `FusionClient`): donor list on the left, the described result on the right (scrollable), a second step that says the donor is consumed for good, and a timeout so a lost answer cannot freeze it. The server sends all text; the client decides nothing.
+- `PulseOp.describe(benefit)` turns each of the 16 effects into a sentence with the numbers the holder actually gets. The inspect and upgrade screens now show a Transcendent's name with "(fused from A + B)" in place of the Unique name (`ProfileService.uniqueLabel`).
+- Harness test 63 runs all 21 signatures with all 25 motif twists (525 battles, about five minutes, only with `--matrix`): every payload applies, no battle stalls, damage stays under a ceiling. 80 of 80 pass.
+- **Not seen live:** the screen layout, button positions, the donor removal and the Transcendent in a real battle. Nothing about the layout has been looked at on a real client.
+
 ## Fusion in the store and service — 2026-10-09
 
 - **Decision:** a Transcendent is a separate canonical record, not a new profile schema. `ProfileV1` and its codec are unchanged (so every existing hash, replay and projection stays valid). The store is schema 2: one added `fusions` table (host, donor, both species, both Uniques, operation, time); a schema-1 store is upgraded in place on open and a test proves its rows survive.

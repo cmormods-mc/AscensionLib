@@ -250,6 +250,6 @@ Each is one or two effects from the same sixteen-effect vocabulary as the motif 
 
 ## Still to build
 
-1. A profile that can hold a Transcendent (schema 2), the fusion craft kind in the store, eligibility and cost checks, the fusion screen and the hover (name, "Fused from", core, clutch, drawback and twist with their numbers after harmony, rider, types, harmony).
-2. The Java-side item-reward bonus of the 777 signatures (#6, #11, #15, #18, #20, #21), scaled by the benefit share.
-3. A matrix test of 21 signatures x 25 twists inside the damage caps, once all 21 exist.
+1. A live test of everything fusion: the screen, donor removal, a Transcendent in a real battle, the loot scaling.
+2. A hover on the Unique line of the inspect screen with the full text (today the name carries "(fused from A + B)" and the detail is on the fusion screen).
+3. Client display of resonance and themes, and icons or text for the 7 mechanic affixes.

@@ -164,6 +164,9 @@ final class CraftScreen extends Screen {
             }
             int fy = top + ph - 8 - 19;
             addRenderableWidget(new PixelButton(left + pw - 8 - 86, fy, 86, 18, Component.literal("Decide later"), b -> onClose()));
+            // Only a Mythic Pokemon can be a fusion host; the server explains anything else that is missing.
+            if (view.rarityId().equals("mythical"))
+                addRenderableWidget(new PixelButton(left + pw - 8 - 86 - 4 - 56, fy, 56, 18, Component.literal("Fuse"), b -> FusionClient.open(this, view.pokemonId())));
             var current = slot();
             if (current != null || mode == Mode.PROMOTE || mode == Mode.UNIQUE) {
                 int rx = x + LEFT_W + 6, rw = x + mainW - rx, panelBottom = top + ph - 8 - 24;

@@ -1110,6 +1110,27 @@ test('62. wager_of_blood: physical hits bleed and cost HP, a KO restores HP', as
   assert.strictEqual(mon(ko, 0).hp, 100 - Math.floor(max * 0.02) + Math.floor(max * 0.10), 'a KO restores 10% of max HP');
 });
 
+// ---- every signature with every motif twist (525 battles, a few minutes): node ascension_fx_test.js --matrix ----
+test('63. matrix: every signature with every motif twist runs, applies and stays inside the damage caps', async () => {
+  if (!args.includes('--matrix')) return;
+  const book = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'design', 'transcendents.json'), 'utf8'));
+  const twists = Object.entries(book.twists);
+  assert.strictEqual(twists.length, 25, 'twenty-five motif twists');
+  assert.strictEqual(Object.keys(UNIQUE_PAIRS).length, 21, 'twenty-one signatures');
+  const plain = await duel(BL(['surf', 'thunderbolt']), SN(), TWO, undefined);
+  const ceiling = lost(plain, 1) * 3 + mon(plain, 1).maxhp * 0.5;
+  for (const sg of Object.keys(UNIQUE_PAIRS)) {
+    for (const [motif, twist] of twists) {
+      const b = await duel(BL(['surf', 'thunderbolt']), SN(), TWO, FULL(sg, 100, 100, twist.effects));
+      const where = sg + ' + ' + motif;
+      assert.ok(!b.lines.some(l => l.includes('could not be applied')), where + ': the payload was applied');
+      assert.ok(b.lines.some(l => l.startsWith('|turn|2')) || b.battle.ended, where + ': the battle advanced');
+      assert.ok(lost(b, 1) <= ceiling, `${where}: the foe lost ${lost(b, 1)} HP, over the ${ceiling} ceiling`);
+      assert.ok(mon(b, 0).hp >= 0 && mon(b, 1).hp >= 0, where + ': HP stays in range');
+    }
+  }
+});
+
 (async () => {
   baseline = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});          // before the module is installed
   fx.install({Battle});

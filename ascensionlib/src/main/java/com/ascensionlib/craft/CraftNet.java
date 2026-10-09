@@ -150,7 +150,7 @@ public final class CraftNet {
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
         return new CraftPayloads.View(pokemon.getUuid().toString(), pokemon.getDisplayName(false).getString(),
                 pokemon.getSpecies().getResourceIdentifier().toString(), new ArrayList<>(pokemon.getAspects()), pokemon.getLevel(),
-                profile.rarity().id(), profile.unique() == null ? "" : rules.unique(profile.unique().uniqueId()).map(u -> u.name()).orElse("Unknown Unique"),
+                profile.rarity().id(), service.uniqueLabel(profile),
                 profile.pendingCredits(), nextMilestone, profile.revision(), wallet.revision(), wallet.balance(MaterialId.RESONANCE_DUST),
                 wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE), wallet.balance(MaterialId.SCOUTER),
                 new CraftPayloads.Price(refineCost.dust(), refineCost.facets(), refineCost.cores()),

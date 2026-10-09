@@ -22,7 +22,7 @@ public final class CaptureRevealNet {
         return new ScoutPayloads.Detail(p.getLevel(),
                 StreamSupport.stream(p.getTypes().spliterator(), false).map(type -> type.getName()).toList(),
                 ScoutEncounters.baseStats(p.getSpecies()), value.rarity().id(),
-                value.unique() == null ? "" : service.rules().unique(value.unique().uniqueId()).map(u -> u.name()).orElse("Unknown Unique"),
+                service.uniqueLabel(value),
                 value.ordinarySlots().stream().map(slot -> slotOf(service, slot)).toList());
     }
 

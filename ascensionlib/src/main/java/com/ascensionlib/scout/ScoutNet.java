@@ -13,6 +13,7 @@ public final class ScoutNet {
         OwnedInspectNet.register();
         CaptureRevealNet.register();
         com.ascensionlib.craft.CraftNet.register();
+        com.ascensionlib.fusion.FusionNet.register();
         PayloadTypeRegistry.playS2C().register(ScoutPayloads.State.TYPE, ScoutPayloads.State.CODEC);
         PayloadTypeRegistry.playC2S().register(ScoutPayloads.Request.TYPE, ScoutPayloads.Request.CODEC);
         PayloadTypeRegistry.playC2S().register(ScoutPayloads.Use.TYPE, ScoutPayloads.Use.CODEC);

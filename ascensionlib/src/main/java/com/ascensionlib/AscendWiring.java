@@ -177,6 +177,11 @@ final class AscendWiring {
                         .executes(ctx -> craft(ctx.getSource(), 1))
                         .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
                                 .executes(ctx -> craft(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
+                // /ascend fuse [slot]: open the fusion screen with a party Pokemon as the host (slot 1 by default).
+                .then(Commands.literal("fuse")
+                        .executes(ctx -> fuse(ctx.getSource(), 1))
+                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                .executes(ctx -> fuse(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
                 .then(Commands.literal("scout")
                         .executes(ctx -> scoutList(ctx.getSource()))
                         .then(Commands.literal("use")
@@ -337,6 +342,22 @@ final class AscendWiring {
             source.sendFailure(Component.literal("That Pokemon has no ascension profile, or your client does not have the upgrade screen."));
             return 0;
         }
+        return 1;
+    }
+
+    private int fuse(CommandSourceStack source, int slot) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var player = source.getPlayerOrException();
+        var pokemon = Cobblemon.INSTANCE.getStorage().getParty(player).get(slot - 1);
+        if (pokemon == null) {
+            source.sendFailure(Component.literal("That party slot is empty."));
+            return 0;
+        }
+        if (!net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player, com.ascensionlib.fusion.FusionPayloads.Candidates.TYPE)) {
+            source.sendFailure(Component.literal("Your client does not have the fusion screen."));
+            return 0;
+        }
+        com.ascensionlib.fusion.FusionNet.openFor(player, pokemon);
         return 1;
     }
 

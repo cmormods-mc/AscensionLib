@@ -101,7 +101,7 @@ public final class CraftPayloads {
             for (String aspect : v.aspects()) buf.writeUtf(aspect, 64);
             buf.writeVarInt(v.level());
             buf.writeUtf(v.rarityId(), 16);
-            buf.writeUtf(v.uniqueName(), 128);
+            buf.writeUtf(v.uniqueName(), 256);
             buf.writeVarInt(v.pending());
             buf.writeVarInt(v.nextMilestone());
             buf.writeVarLong(v.profileRevision());
@@ -147,7 +147,7 @@ public final class CraftPayloads {
             List<String> aspects = new ArrayList<>();
             for (int i = 0; i < aspectCount; i++) aspects.add(buf.readUtf(64));
             int level = buf.readVarInt();
-            String rarity = buf.readUtf(16), unique = buf.readUtf(128);
+            String rarity = buf.readUtf(16), unique = buf.readUtf(256);
             int pending = buf.readVarInt(), next = buf.readVarInt();
             long profileRevision = buf.readVarLong(), walletRevision = buf.readVarLong(), dust = buf.readVarLong(), facets = buf.readVarLong(),
                     cores = buf.readVarLong(), scouters = buf.readVarLong();

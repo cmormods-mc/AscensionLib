@@ -94,6 +94,34 @@ public record PulseOp(String op, Map<String, Object> args) {
         return new PulseOp(op, args);
     }
 
+    private static final Map<String, String> STAT_NAMES = Map.of("atk", "Attack", "def", "Defense", "spa", "Sp. Atk", "spd", "Sp. Def",
+            "spe", "Speed", "accuracy", "accuracy");
+    private static final Map<String, String> STATUS_NAMES = Map.of("brn", "a burn", "psn", "poison", "par", "paralysis", "confusion", "confusion");
+
+    /** The effect in a plain sentence fragment, with the numbers a holder at this benefit share (1 to 100) actually gets. */
+    public String describe(int benefitPercent) {
+        java.util.function.IntUnaryOperator scaled = value -> Math.max(1, Math.round(value * benefitPercent / 100f));
+        return switch (op) {
+            case "status" -> scaled.applyAsInt((Integer) args.get("chance")) + "% chance to inflict " + STATUS_NAMES.get(args.get("status"));
+            case "foeStage" -> "lowers the foe's " + STAT_NAMES.get(args.get("stat")) + " by " + -(Integer) args.get("delta");
+            case "selfStage" -> "raises its own " + STAT_NAMES.get(args.get("stat")) + " by " + args.get("delta") + " (up to +" + args.get("cap") + ")";
+            case "chip" -> "deals " + scaled.applyAsInt((Integer) args.get("pct")) + "% of the foe's max HP";
+            case "drain" -> "drains " + scaled.applyAsInt((Integer) args.get("pct")) + "% of the foe's max HP";
+            case "heal" -> "heals " + scaled.applyAsInt((Integer) args.get("pct")) + "% of its max HP";
+            case "cleanse" -> "cures its own status condition";
+            case "ward" -> "blocks the next status condition a foe inflicts";
+            case "mimic" -> "copies the foe's highest raised stat (up to +2)";
+            case "strip" -> "strips the foe's raised Defense and Sp. Def";
+            case "unresistedNext" -> "its next move ignores type resistance";
+            case "shield" -> "the next hit it takes is " + scaled.applyAsInt((Integer) args.get("pct")) + "% softer";
+            case "boostNext" -> "its next move deals " + scaled.applyAsInt((Integer) args.get("pct")) + "% more";
+            case "healBoost" -> "its healing moves heal " + scaled.applyAsInt((Integer) args.get("pct")) + "% more for " + args.get("turns") + " turns";
+            case "hide" -> "takes " + scaled.applyAsInt((Integer) args.get("pct")) + "% less damage for " + args.get("turns") + " turns";
+            case "refine" -> "its drawback is " + scaled.applyAsInt((Integer) args.get("pct")) + "% weaker for " + args.get("turns") + " turns";
+            default -> op;
+        };
+    }
+
     /** The JSON form, as sent in the battle payload. */
     public JsonObject toJson() {
         var json = new JsonObject();

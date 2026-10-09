@@ -259,8 +259,29 @@ public final class ProfileService {
         return credited;
     }
 
+    /**
+     * The Unique line a screen shows for this profile: the Unique's name, or for a Transcendent its own name with the recipe, "Fused from
+     * Unique + Unique" (the Uniques it replaced are not active any more, so the hover tells the player what it was made of). Empty for none.
+     */
+    public String uniqueLabel(ProfileV1 profile) {
+        var fusion = store.fusion(profile.pokemonId());
+        if (fusion.isPresent()) {
+            try {
+                var made = Transcendence.shared().resolve(fusion.get().hostSpecies(), fusion.get().hostUnique(), fusion.get().donorSpecies(), fusion.get().donorUnique());
+                String from = made.uniqueIds().stream().map(id -> rules.unique(id).map(UniqueDefinition::name).orElse(id)).reduce((a, b) -> a + " + " + b).orElse("");
+                return made.name() + " (fused from " + from + ")";
+            } catch (RuntimeException exception) {
+                return "Transcendent";
+            }
+        }
+        return profile.unique() == null ? "" : rules.unique(profile.unique().uniqueId()).map(UniqueDefinition::name).orElse("Unknown Unique");
+    }
+
     /** The species id the fusion book knows (the Cobblemon id without its namespace), such as {@code charizard}. */
     static String speciesId(Pokemon pokemon) { return pokemon.getSpecies().getResourceIdentifier().getPath(); }
+
+    /** As {@link #speciesId} for code outside this package. */
+    public static String speciesIdOf(Pokemon pokemon) { return speciesId(pokemon); }
 
     /**
      * The frozen combat form of a Pokemon: its committed profile, with the Transcendent in place of the Unique when it was fused.
