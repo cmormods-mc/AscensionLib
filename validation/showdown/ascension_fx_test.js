@@ -857,6 +857,259 @@ test('44. twist states: an effect armed by a move\'s own first hit does not touc
   assert.strictEqual(lost(shielded, 0), lost(control, 0), 'the shield armed by hit one does not reduce hit two');
 });
 
+// ---- the other eighteen signatures ----
+const side = n => `p${n + 1}a: ${n ? U2 : U1}`;
+const trail = (b, n) => hpTrail(b, side(n), mon(b, n).maxhp);
+const firstHit = (b, n) => mon(b, n).maxhp - trail(b, n)[0];
+const diffs = (b, n) => { const t = [mon(b, n).maxhp, ...trail(b, n)]; return t.slice(1).map((hp, i) => t[i] - hp); };
+const duel = (a, f, script, fxp, extra) => battle(Object.assign({teams: [a, f], moves: turn => script[turn], turns: script.length, fx: fxp}, extra));
+const BL = (moves, level = 50, hp = '') => pack('Blastoise', U1, 'torrent', moves, level, hp);
+const CH = (moves, level = 50, hp = '') => pack('Charizard', U2, 'blaze', moves, level, hp);
+const MH = (uuid, moves, level = 50, hp = '') => pack('Machamp', uuid, 'guts', moves, level, hp);
+const SN = (moves = ['splash'], ability = 'immunity') => pack('Snorlax', U2, ability, moves, 100);
+const ONE = [['move 1', 'move 1']];
+const TWO = [['move 1', 'move 1'], ['move 1', 'move 1']];
+const COMMON_PAIRS = {
+  plague_pyre: ['ashen_heart', 'creeping_venom'], wildfire_crown: ['ashen_heart', 'stormcaller'], brand_of_ruin: ['ashen_heart', 'rupture'],
+  titans_forge: ['ashen_heart', 'titans_heart'], gilded_ember: ['ashen_heart', 'triple_seven'], dying_bloom: ['last_breath', 'creeping_venom'],
+  martyrs_edge: ['last_breath', 'rupture'], colossus_vow: ['last_breath', 'titans_heart'], last_gamble: ['last_breath', 'triple_seven'],
+  miasma_front: ['creeping_venom', 'stormcaller'], festering_gash: ['creeping_venom', 'rupture'], blighted_giant: ['creeping_venom', 'titans_heart'],
+  fortunes_rot: ['creeping_venom', 'triple_seven'], lightning_rend: ['stormcaller', 'rupture'], tempest_colossus: ['stormcaller', 'titans_heart'],
+  skyfall_fortune: ['stormcaller', 'triple_seven'], breakers_might: ['rupture', 'titans_heart'], wager_of_blood: ['rupture', 'triple_seven'],
+};
+Object.assign(UNIQUE_PAIRS, COMMON_PAIRS);
+const FULL = (sg, b = 100, d = 100, tw = IDLE) => sig(U1, sg, b, d, tw);
+
+test('45. wildfire_crown: Fire moves and weather boost damage, Water and Ice moves are weaker', async () => {
+  const fire = async fxp => firstHit(await duel(CH(['flamethrower']).replace(U2, U1), SN(), ONE, fxp), 1);
+  const plain = await fire(undefined);
+  near(await fire(FULL('wildfire_crown')) / plain, 1.20, 0.03, 'a Fire move is 20% stronger');
+  near(await fire(FULL('wildfire_crown', 50)) / plain, 1.10, 0.03, 'a 50% benefit share halves it');
+  const surf = async fxp => firstHit(await duel(BL(['surf']), SN(), ONE, fxp), 1);
+  const dry = await surf(undefined);
+  near(await surf(FULL('wildfire_crown')) / dry, 0.75, 0.03, 'a Water move is 25% weaker');
+  near(await surf(FULL('wildfire_crown', 100, 50)) / dry, 0.875, 0.03, 'a 50% drawback share halves it');
+  const claw = async fxp => firstHit(await duel(pack('Charizard', U1, 'blaze', ['sunnyday', 'dragonclaw'], 50), SN(), [['move 1', 'move 1'], ['move 2', 'move 1']], fxp), 1);
+  near(await claw(FULL('wildfire_crown')) / await claw(undefined), 1.10, 0.03, 'any weather lifts every move 10%');
+});
+
+test('46. plague_pyre: a burned foe loses extra HP each turn and direct damage is weaker', async () => {
+  const burned = fxp => duel(BL(['willowisp']), SN(), TWO, fxp);
+  const plain = await burned(undefined), full = await burned(FULL('plague_pyre')), half = await burned(FULL('plague_pyre', 50));
+  const max = mon(full, 1).maxhp;
+  assert.strictEqual(lost(full, 1) - lost(plain, 1), 2 * Math.floor(max * 0.03), 'two turns of an extra 3%');
+  assert.strictEqual(lost(half, 1) - lost(plain, 1), 2 * Math.floor(max * 0.03 * 0.5), 'a 50% benefit share halves it');
+  assert.strictEqual(lost(await duel(BL(['splash']), SN(), TWO, FULL('plague_pyre')), 1), 0, 'a foe with no status loses nothing extra');
+  const surf = async fxp => firstHit(await duel(BL(['surf']), SN(), ONE, fxp), 1);
+  const dry = await surf(undefined);
+  near(await surf(FULL('plague_pyre')) / dry, 0.90, 0.03, 'direct damage is 10% lower');
+  near(await surf(FULL('plague_pyre', 100, 50)) / dry, 0.95, 0.03, 'a 50% drawback share halves it');
+});
+
+test('47. brand_of_ruin: a Brand makes the foe take more from you and burns hurt more; a new Brand costs HP', async () => {
+  const fight = fxp => duel(BL(['surf']), SN(), TWO, fxp);
+  const plain = await fight(undefined), full = await fight(FULL('brand_of_ruin'));
+  const hit = (b, i) => diffs(b, 1)[i];
+  near(hit(full, 1) / hit(plain, 1), 1.10, 0.03, 'the second hit on a branded foe is 10% stronger');
+  assert.strictEqual(lost(full, 0), Math.floor(mon(full, 0).maxhp * 0.03), 'only the new Brand costs 3% of max HP (the refresh is free)');
+  const half = await fight(FULL('brand_of_ruin', 100, 50));
+  assert.strictEqual(lost(half, 0), Math.floor(mon(half, 0).maxhp * 0.03 * 0.5), 'a 50% drawback share halves the cost');
+  const burn = fxp => duel(BL(['willowisp', 'surf']), SN(), [['move 1', 'move 1'], ['move 2', 'move 1']], fxp);
+  const fire = diffs(await burn(FULL('brand_of_ruin')), 1);   // [burn tick, surf, burn tick]
+  near(fire[2] / fire[0], 1.30, 0.04, 'a burn tick on a branded foe is 30% stronger');
+  const base = diffs(await burn(undefined), 1);
+  near(base[2] / base[0], 1.0, 0.02, 'and the same without the Brand');
+});
+
+test('48. titans_forge: super-effective hits add max HP damage and may burn; the holder bleeds HP while healthy', async () => {
+  const fight = fxp => duel(BL(['surf']), CH(['splash'], 100), ONE, fxp);
+  const plain = await fight(undefined), full = await fight(FULL('titans_forge')), half = await fight(FULL('titans_forge', 50));
+  const max = mon(full, 0).maxhp;
+  assert.strictEqual(firstHit(full, 1) - firstHit(plain, 1), Math.floor(max * 0.08), 'adds 8% of max HP');
+  assert.strictEqual(firstHit(half, 1) - firstHit(plain, 1), Math.floor(max * 0.08 * 0.5), 'a 50% share adds half');
+  assert.strictEqual(lost(full, 0), Math.floor(max * 0.03), 'the holder loses 3% of max HP while above 60% HP');
+  const burns = await across(() => ({teams: [BL(['icebeam']), pack('Dragonite', U2, 'multiscale', ['splash'], 100)], moves: ONE[0], turns: 1, fx: FULL('titans_forge')}), '|-status|');
+  assert.ok(burns >= 2 && burns <= 12, `a 25% burn chance: ${burns} of ${SEEDS.length}`);
+  const weak = await battle({teams: [BL(['surf'], 50, '60'), CH(['splash'], 100)], moves: ['move 1', 'move 1'], turns: 1, fx: FULL('titans_forge')});
+  assert.strictEqual(lost(weak, 0), mon(weak, 0).maxhp - 60, 'below 60% HP the holder is not drained: ' + mon(weak, 0).hp);
+});
+
+test('49. gilded_ember: burns hurt more, KOs stack damage, Water hurts the holder more', async () => {
+  const burn = fxp => duel(BL(['willowisp']), SN(), ONE, fxp);
+  near(firstHit(await burn(FULL('gilded_ember')), 1) / firstHit(await burn(undefined), 1), 1.30, 0.04, 'burn damage +30%');
+  const wet = fxp => duel(CH(['splash'], 100).replace(U2, U1), BL(['surf'], 100).replace(U1, U2), ONE, fxp);
+  near(firstHit(await wet(FULL('gilded_ember')), 0) / firstHit(await wet(undefined), 0), 1.15, 0.03, 'Water hits the holder 15% harder');
+  near(firstHit(await wet(FULL('gilded_ember', 100, 50)), 0) / firstHit(await wet(undefined), 0), 1.075, 0.03, 'a 50% drawback share halves it');
+  const foes = [pack('Magikarp', U2, 'swiftswim', ['splash'], 5), pack('Snorlax', U3, 'immunity', ['splash'], 100)].join(']');
+  const mine = [pack('Blastoise', U1, 'torrent', ['surf'], 100), pack('Charizard', U4, 'blaze', ['splash'], 100)].join(']');
+  const script = [['move 1', 'move 1'], ['move 1', 'switch 2'], ['move 1', 'move 1']];
+  const run = fxp => battle({teams: [mine, foes], moves: turn => script[turn], turns: 3, fx: fxp});
+  const stack = async fxp => { const b = await run(fxp); return mon(b, 1).maxhp - hpTrail(b, 'p2a: ' + U3, mon(b, 1).maxhp)[0]; };
+  const plainHit = await stack(undefined), fxHit = await stack(FULL('gilded_ember'));
+  near(fxHit / plainHit, 1.10, 0.03, 'one KO stack adds 10% damage');
+});
+
+test('50. dying_bloom: poisons attackers below half HP, clutches at 1 HP, cuts healing, ramps poison', async () => {
+  const poisoned = await battle({teams: [hurtBlastoise(120), MH(U2, ['karatechop'], 30)], moves: ['move 3', 'move 1'], turns: 1, fx: FULL('dying_bloom')});
+  assert.strictEqual(mon(poisoned, 1).status, 'psn', 'struck below half HP: the attacker is poisoned');
+  const healthy = await battle({teams: [hurtBlastoise(300), MH(U2, ['karatechop'], 30)], moves: ['move 3', 'move 1'], turns: 1, fx: FULL('dying_bloom')});
+  assert.strictEqual(mon(healthy, 1).status, '', 'above half HP nothing is poisoned');
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['dragonclaw', 'splash'])];
+  const held = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: FULL('dying_bloom')});
+  assert.strictEqual(mon(held, 0).hp, 1, 'the clutch leaves 1 HP');
+  const heal = fxp => battle({teams: [hurtBlastoise(100), idleSnorlax()], moves: ['move 1', 'move 1'], turns: 1, fx: fxp});
+  const plainHeal = mon(await heal(undefined), 0).hp - 100, cut = mon(await heal(FULL('dying_bloom')), 0).hp - 100;
+  near(cut / plainHeal, 0.65, 0.02, 'healing is 35% lower');
+  const gas = fxp => duel(BL(['poisongas']), SN(['splash'], 'thickfat'), [['move 1', 'move 1'], ['move 1', 'move 1'], ['move 1', 'move 1'], ['move 1', 'move 1']], fxp);
+  const ticks = diffs(await gas(FULL('dying_bloom')), 1), native = diffs(await gas(undefined), 1);
+  near(ticks[1] / native[1], 1.2, 0.04, 'poison ticks grow 20% a turn ...');
+  near(ticks[2] / native[2], 1.4, 0.04, '... turn by turn');
+});
+
+test('51. martyrs_edge: physical hits bleed, bleeding foes take more, the clutch guarantees the next crit', async () => {
+  const fight = fxp => duel(MH(U1, ['karatechop']), SN(), TWO, fxp);
+  const plain = await fight(undefined), full = await fight(FULL('martyrs_edge'));
+  assert.ok(count(full, 'is bleeding') > 0, 'a physical hit makes the foe bleed');
+  assert.strictEqual(count(await duel(BL(['surf']), SN(), ONE, FULL('martyrs_edge')), 'is bleeding'), 0, 'a special move does not');
+  near(diffs(full, 1)[2] / diffs(plain, 1)[1], 1.12, 0.04, 'a bleeding foe takes 12% more from the holder');
+  const crits = await across(() => ({teams: [MH(U1, ['karatechop'], 50, '10'), CH(['dragonclaw', 'splash'])], moves: ['move 1', 'move 1'], turns: 1, fx: FULL('martyrs_edge')}), '|-crit|');
+  assert.strictEqual(crits, SEEDS.length, `the holder's next hit is always a critical hit: ${crits} of ${SEEDS.length}`);
+  const survivor = await battle({teams: [MH(U1, ['karatechop'], 50, '10'), CH(['dragonclaw', 'splash'])], moves: ['move 1', 'move 1'], turns: 1, fx: FULL('martyrs_edge')});
+  assert.strictEqual(mon(survivor, 0).hp, 1, 'it holds at 1 HP');
+});
+
+test('52. colossus_vow: super-effective hits are softer and countered; the clutch holds; the holder is slower', async () => {
+  const fight = fxp => duel(CH(['splash'], 100).replace(U2, U1), BL(['surf'], 100).replace(U1, U2), ONE, fxp);
+  const plain = await fight(undefined), full = await fight(FULL('colossus_vow'));
+  near(firstHit(full, 0) / firstHit(plain, 0), 0.85, 0.03, 'a super-effective hit is 15% softer');
+  assert.strictEqual(lost(full, 1), Math.floor(mon(full, 0).maxhp * 0.06), 'and the attacker takes 6% of the holder max HP back');
+  assert.strictEqual(lost(plain, 1), 0);
+  const speed = b => mon(b, 0).getStat('spe');
+  near(speed(full) / speed(plain), 0.85, 0.02, 'Speed is 15% lower');
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['dragonclaw', 'splash'])];
+  assert.strictEqual(mon(await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: FULL('colossus_vow')}), 0).hp, 1, 'the clutch leaves 1 HP');
+});
+
+test('53. last_gamble: the clutch leaves 30% HP and powers two moves, then the holder takes more damage', async () => {
+  const mine = hp => pack('Snorlax', U1, 'immunity', ['tackle', 'splash'], 100, hp);
+  const foe = CH(['dragonclaw', 'splash'], 100);
+  const script = [['move 1', 'move 1'], ['move 1', 'move 1'], ['move 1', 'move 2']];
+  const gamble = await duel(mine('10'), foe, script, FULL('last_gamble'));
+  const plain = await duel(mine(''), foe, script, undefined);
+  const max = mon(gamble, 0).maxhp;
+  const g = trail(gamble, 0), p = trail(plain, 0);
+  assert.strictEqual(g[0], Math.floor(max * 0.30), 'the lethal hit leaves 30% of max HP');
+  assert.ok(g.length >= 2 && p.length >= 2, JSON.stringify({g, p, max}));
+  const hitG = g[0] - g[1], hitP = p[0] - p[1];
+  near(hitG / hitP, 1.25, 0.04, 'after the clutch the holder takes 25% more');
+  const foeG = diffs(gamble, 1), foeP = diffs(plain, 1);
+  near(foeG[0] / foeP[0], 1.30, 0.04, 'the first move after is 30% stronger');
+  near(foeG[1] / foeP[1], 1.30, 0.04, 'the second move too');
+  near(foeG[2] / foeP[2], 1.00, 0.03, 'the third is back to normal');
+});
+
+test('54. miasma_front: weather drains every foe at a rising rate and boosts poison; no weather drains the holder', async () => {
+  const rainy = fxp => duel(BL(['raindance', 'splash']), SN(), [['move 1', 'move 1'], ['move 2', 'move 1'], ['move 2', 'move 1']], fxp);
+  const plain = await rainy(undefined), full = await rainy(FULL('miasma_front'));
+  const max = mon(full, 1).maxhp;
+  const expected = [2.5, 3.5, 4.5].reduce((sum, pct) => sum + Math.floor(max * pct / 100), 0);
+  assert.strictEqual(lost(full, 1) - lost(plain, 1), expected, 'the foe loses 2.5%, then 3.5%, then 4.5% of its max HP');
+  const dry = await duel(BL(['splash']), SN(), TWO, FULL('miasma_front'));
+  assert.strictEqual(lost(dry, 0), 2 * Math.floor(mon(dry, 0).maxhp * 0.02), 'with no weather the holder loses 2% of max HP a turn');
+  assert.strictEqual(lost(dry, 1), 0, 'and the foe loses nothing');
+  const gas = fxp => duel(BL(['poisongas']), SN(['splash'], 'thickfat'), ONE, fxp);
+  near(firstHit(await gas(FULL('miasma_front')), 1) / firstHit(await gas(undefined), 1), 1.20, 0.04, 'poison ticks the holder inflicts are 20% stronger');
+});
+
+test('55. festering_gash: bleeds grow, heal the holder from what they deal, and Psychic hurts more', async () => {
+  const fight = fxp => duel(MH(U1, ['karatechop', 'splash'], 50, '100'), SN(), [['move 1', 'move 1'], ['move 2', 'move 1'], ['move 2', 'move 1']], fxp);
+  const full = await fight(FULL('festering_gash'));
+  const d = diffs(full, 1).slice(1);   // the bleed ticks after the hit
+  assert.ok(d.length >= 3, 'three bleed ticks: ' + JSON.stringify(d));
+  near(d[1] / d[0], 1.15, 0.04, 'the bleed grows 15% a turn');
+  near(d[2] / d[0], 1.30, 0.04, 'and again');
+  assert.strictEqual(mon(full, 0).hp - 100, d.reduce((sum, x) => sum + Math.floor(x * 0.25), 0), 'the holder heals 25% of the bleed damage');
+  const psychic = fxp => duel(SN(['splash']).replace(U2, U1), pack('Alakazam', U2, 'magicguard', ['psychic'], 100), ONE, fxp);
+  near(firstHit(await psychic(FULL('festering_gash')), 0) / firstHit(await psychic(undefined), 0), 1.20, 0.03, 'Psychic hits the holder 20% harder');
+});
+
+test('56. blighted_giant: super-effective hits add max HP damage and poison, poison hits harder, healing is cut', async () => {
+  const fight = fxp => duel(BL(['surf']), CH(['splash'], 100), ONE, fxp);
+  const plain = await fight(undefined), full = await fight(FULL('blighted_giant'));
+  assert.strictEqual(firstHit(full, 1) - firstHit(plain, 1), Math.floor(mon(full, 0).maxhp * 0.07), 'adds 7% of max HP');
+  assert.strictEqual(mon(full, 1).status, 'psn', 'and poisons the foe');
+  const tick = diffs(full, 1)[1];
+  near(tick / Math.floor(mon(full, 1).maxhp / 8), 1.25, 0.03, 'its poison is 25% stronger');
+  const heal = fxp => battle({teams: [hurtBlastoise(100), idleSnorlax()], moves: ['move 1', 'move 1'], turns: 1, fx: fxp});
+  const gain = b => mon(b, 0).hp - 100;
+  near(gain(await heal(FULL('blighted_giant'))) / gain(await heal(undefined)), 0.40, 0.02, 'healing is 60% lower');
+});
+
+test('57. fortunes_rot: foes it poisoned bleed extra HP and the holder takes more damage', async () => {
+  const gas = fxp => duel(BL(['poisongas']), SN(['splash'], 'thickfat'), TWO, fxp);
+  const plain = await gas(undefined), full = await gas(FULL('fortunes_rot'));
+  assert.strictEqual(lost(full, 1) - lost(plain, 1), 2 * Math.floor(mon(full, 1).maxhp * 0.03), 'two turns of an extra 3% on a poisoned foe');
+  const hit = fxp => duel(BL(['splash']), MH(U2, ['karatechop'], 50), ONE, fxp);
+  near(firstHit(await hit(FULL('fortunes_rot')), 0) / firstHit(await hit(undefined), 0), 1.20, 0.03, 'the holder takes 20% more damage');
+});
+
+test('58. lightning_rend: weather and Electric moves hit harder and bleed; with no weather direct damage drops', async () => {
+  const bolt = fxp => duel(BL(['thunderbolt']), SN(), ONE, fxp);
+  const plain = await bolt(undefined);
+  near(firstHit(await bolt(FULL('lightning_rend', 100, 50)), 1) / firstHit(plain, 1), 1.125, 0.04, 'Electric +25%, no weather -10% at a half drawback');
+  assert.ok(count(await bolt(FULL('lightning_rend')), 'is bleeding') > 0, 'an Electric hit makes the foe bleed');
+  assert.strictEqual(count(await duel(BL(['flamethrower']), SN(), ONE, FULL('lightning_rend')), 'is bleeding'), 0, 'a Fire move does not');
+  const rain = fxp => duel(BL(['raindance', 'surf']), SN(), [['move 1', 'move 1'], ['move 2', 'move 1']], fxp);
+  near(firstHit(await rain(FULL('lightning_rend')), 1) / firstHit(await rain(undefined), 1), 1.25, 0.04, 'a weather move in weather is 25% stronger with no penalty');
+});
+
+test('59. tempest_colossus: weather moves and super-effective hits hit harder, Speed drops', async () => {
+  const rain = fxp => duel(BL(['raindance', 'surf']), SN(), [['move 1', 'move 1'], ['move 2', 'move 1']], fxp);
+  near(firstHit(await rain(FULL('tempest_colossus')), 1) / firstHit(await rain(undefined), 1), 1.20, 0.04, 'a weather move is 20% stronger');
+  const se = fxp => duel(BL(['surf']), CH(['splash'], 100), ONE, fxp);
+  const full = await se(FULL('tempest_colossus')), plain = await se(undefined);
+  assert.strictEqual(firstHit(full, 1) - firstHit(plain, 1), Math.floor(mon(full, 0).maxhp * 0.07), 'a super-effective hit adds 7% of max HP');
+  near(mon(full, 0).getStat('spe') / mon(plain, 0).getStat('spe'), 0.88, 0.02, 'Speed is 12% lower');
+});
+
+test('60. skyfall_fortune: weather moves hit harder, KOs under weather stack damage, no weather hurts', async () => {
+  const rain = fxp => duel(BL(['raindance', 'surf']), SN(), [['move 1', 'move 1'], ['move 2', 'move 1']], fxp);
+  near(firstHit(await rain(FULL('skyfall_fortune')), 1) / firstHit(await rain(undefined), 1), 1.25, 0.04, 'a weather move is 25% stronger');
+  const foes = [pack('Magikarp', U2, 'swiftswim', ['splash'], 5), pack('Snorlax', U3, 'immunity', ['splash'], 100)].join(']');
+  const mine = pack('Blastoise', U1, 'torrent', ['raindance', 'surf'], 100);
+  const script = [['move 1', 'move 1'], ['move 2', 'move 1'], ['move 2', 'switch 2'], ['move 2', 'move 1']];
+  const run = fxp => battle({teams: [mine, foes], moves: turn => script[turn], turns: 4, fx: fxp});
+  const hit = async fxp => { const b = await run(fxp); return mon(b, 1).maxhp - hpTrail(b, 'p2a: ' + U3, mon(b, 1).maxhp)[0]; };
+  near(await hit(FULL('skyfall_fortune')) / await hit(undefined), 1.25 * 1.12, 0.06, 'a weather move after one KO in weather');
+  const dry = fxp => duel(BL(['splash']), MH(U2, ['karatechop'], 50), ONE, fxp);
+  near(firstHit(await dry(FULL('skyfall_fortune')), 0) / firstHit(await dry(undefined), 0), 1.20, 0.03, 'with no weather the holder takes 20% more');
+});
+
+test('61. breakers_might: physical hits bleed, super-effective hits add max HP damage, healing is halved', async () => {
+  const fight = fxp => duel(MH(U1, ['karatechop']), SN(), TWO, fxp);
+  const plain = await fight(undefined), full = await fight(FULL('breakers_might'));
+  assert.ok(count(full, 'is bleeding') > 0, 'a physical hit makes the foe bleed');
+  const add = Math.floor(mon(full, 0).maxhp * 0.08);
+  assert.strictEqual(firstHit(full, 1) - firstHit(plain, 1), add, 'the first hit adds 8% of max HP');
+  near(diffs(full, 1)[2], diffs(plain, 1)[1] * 1.10 + add, 4, 'against a bleeding foe 10% more on top');
+  const heal = fxp => battle({teams: [hurtBlastoise(100), idleSnorlax()], moves: ['move 1', 'move 1'], turns: 1, fx: fxp});
+  const gain = b => mon(b, 0).hp - 100;
+  near(gain(await heal(FULL('breakers_might'))) / gain(await heal(undefined)), 0.50, 0.02, 'healing is halved');
+});
+
+test('62. wager_of_blood: physical hits bleed and cost HP, a KO restores HP', async () => {
+  const fight = fxp => duel(MH(U1, ['karatechop']), SN(), ONE, fxp);
+  const full = await fight(FULL('wager_of_blood'));
+  assert.ok(count(full, 'is bleeding') > 0, 'a physical hit makes the foe bleed');
+  assert.strictEqual(lost(full, 0), Math.floor(mon(full, 0).maxhp * 0.02), 'every physical move costs 2% of max HP');
+  const half = await fight(FULL('wager_of_blood', 100, 50));
+  assert.strictEqual(lost(half, 0), Math.floor(mon(half, 0).maxhp * 0.02 * 0.5), 'a 50% drawback share halves it');
+  const prey = [pack('Magikarp', U2, 'swiftswim', ['splash'], 5), idleSnorlax()].join(']');
+  const ko = await duel(MH(U1, ['karatechop'], 100, '100'), prey, ONE, FULL('wager_of_blood'));
+  const max = mon(ko, 0).maxhp;
+  assert.strictEqual(mon(ko, 0).hp, 100 - Math.floor(max * 0.02) + Math.floor(max * 0.10), 'a KO restores 10% of max HP');
+});
+
 (async () => {
   baseline = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});          // before the module is installed
   fx.install({Battle});

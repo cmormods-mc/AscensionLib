@@ -2,6 +2,15 @@
 
 This is the exact implementation and validation record for the first standalone foundation. The full design documents describe the intended finished product, not current behavior.
 
+## Transcendent signatures, all 21 — 2026-10-09
+
+The remaining 18 signatures are implemented in the simulator (`ascension-fx.js`, `TRANSCEND_SIGNATURES`), each following the core, clutch and drawback table in `docs/TRANSCENDENT-POWERS.md`: Plague Pyre, Wildfire Crown, Brand of Ruin, Titan's Forge, Gilded Ember, Dying Bloom, Martyr's Edge, Colossus Vow, Last Gamble, Miasma Front, Festering Gash, Blighted Giant, Fortune's Rot, Lightning Rend, Tempest Colossus, Skyfall Fortune, Breaker's Might, Wager of Blood.
+
+- The bleed code was lifted into one engine (`shared.inflictBleed`) that Rending, Rupture and the signatures all use; the burn/poison damage hook gained two registries (`statusBoosts`, `statusVictimMult`). The original 61 harness tests passed unchanged after the refactor.
+- Clutches gained an `onTrigger` callback (Martyr's Edge arms a guaranteed crit, Last Gamble arms two boosted moves and the later damage penalty); price payments (Brand, Titan's Forge, Wager of Blood, Miasma Front) never take the holder below 1 HP.
+- Harness tests 45 to 62 added; 79 of 79 pass against the real unbundled simulator. No Java changed (the resolver already named all 21 signatures); item-reward bonuses (#6, #11, #15, #18, #20, #21) are still Java-side to do.
+- Not verified: any live battle with these signatures, and the 21 x 25 signature-by-twist matrix test.
+
 ## P1 ranked domain foundation — 2026-10-05
 
 Added in `domain/.../v1/`, beside the untouched schema-zero prototype (the `fabric` module still uses the prototype types and its build is unchanged):

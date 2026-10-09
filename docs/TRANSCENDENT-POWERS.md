@@ -246,9 +246,10 @@ Each is one or two effects from the same sixteen-effect vocabulary as the motif 
 - **Simulator** (`ascension-fx.js`): the pulse dispatcher (HIT and STRUCK after `spreadDamage`, KO after `faintMessages`, TICK after the native residual; LAST is the clutch inside a signature), the sixteen effects, per-holder state for the next-exchange effects (shield, boost, unresisted, hide, heal boost, refine, ward), and the three pilot signatures. Payload validation: the signature must be one the module implements and the twist must pass the vocabulary check, otherwise the signature falls back (unknown signature) or the whole Transcendent is ignored (bad twist or shares).
 - **Harness tests 36 to 44** (61 in all, all passing against the real unbundled simulator): Phoenix Cinder burn and clutch and healing cap, Eye of the Storm weather effects, Jackpot Titan damage, drawback and KO pulse, every effect, the next-exchange states, the once-per-turn cap, bad payloads, and that an effect armed by a move's own hit waits for the next move.
 
+- **All 21 signatures** are implemented in `TRANSCEND_SIGNATURES` (harness tests 45 to 62, 79 in all, all passing). They share three pieces of infrastructure: the bleed engine (Rending, Rupture and the signatures bleed through one `inflictBleed`, with per-bleed stack weights, a per-turn growth and a leech share), hooks into the burn/poison tick (`statusBoosts` raises the inflictor's tick, `statusVictimMult` is what the victim makes of it, used by Brand of Ruin), and a forced critical hit for Martyr's Edge. A signature declares `hooks: {status, bleed}` so the module only installs the wrappers a battle needs. A Fire-type holder's burn chance is naturally zero (Titan's Forge on a Fire foe never burns), which is the engine's own rule.
+
 ## Still to build
 
-1. The other 18 signatures (batches of about six), each with harness tests, using the same `TRANSCEND_SIGNATURES` table.
-2. A profile that can hold a Transcendent (schema 2), the fusion craft kind in the store, eligibility and cost checks, the fusion screen and the hover (name, "Fused from", core, clutch, drawback and twist with their numbers after harmony, rider, types, harmony).
-3. The Java-side item-reward bonus of the 777 signatures (#6, #11, #15, #18, #20, #21), scaled by the benefit share.
-4. A matrix test of 21 signatures x 25 twists inside the damage caps, once all 21 exist.
+1. A profile that can hold a Transcendent (schema 2), the fusion craft kind in the store, eligibility and cost checks, the fusion screen and the hover (name, "Fused from", core, clutch, drawback and twist with their numbers after harmony, rider, types, harmony).
+2. The Java-side item-reward bonus of the 777 signatures (#6, #11, #15, #18, #20, #21), scaled by the benefit share.
+3. A matrix test of 21 signatures x 25 twists inside the damage caps, once all 21 exist.

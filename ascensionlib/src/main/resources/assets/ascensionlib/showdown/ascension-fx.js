@@ -340,18 +340,37 @@ function apply(battle, payload) {
       return result;
     };
   }
-  applyStatusDamage(battle, byUuid, caps, of, has, scale);
+  // What the burn/poison hook and the bleed engine share with the Transcendent signatures (which register into it after the fact).
+  const shared = {
+    bleeds: new Map(),            // afflicted Pokemon -> bleed state (Rending, Rupture and the signatures all bleed through one engine)
+    bleedKeys: new Set(),         // one signature bleed per move use and target
+    statusBoosts: [],             // fn(inflictor, victim, causeId) -> percent added to the residual channel for that tick
+    statusVictimMult: [],         // fn(victim, causeId) -> multiplier on a burn / poison / bleed tick the victim takes
+    needStatus: false, needBleed: false,
+    isBleeding: () => false,
+    inflictBleed: () => {},
+  };
+  for (const list of byUuid.values()) {
+    for (const effect of list) {
+      const signature = effect.i === 'transcendent_sig' ? TRANSCEND_SIGNATURES[effect.sg] : null;
+      if (signature && signature.hooks) {
+        shared.needStatus = shared.needStatus || !!signature.hooks.status;
+        shared.needBleed = shared.needBleed || !!signature.hooks.bleed;
+      }
+    }
+  }
+  applyStatusDamage(battle, byUuid, caps, of, has, scale, shared);
   applyMechanics(battle, byUuid, of, has, momentum);
-  transcend = applyTranscendents({battle, byUuid, weatherNow, rawHeal});
+  transcend = applyTranscendents({battle, byUuid, weatherNow, rawHeal, shared});
   return byUuid.size;
 }
 
 /** Smoldering / Venomous (potency of the holder's own burn / poison) and Rending (the library's bleed). */
-function applyStatusDamage(battle, byUuid, caps, of, has, scale) {
+function applyStatusDamage(battle, byUuid, caps, of, has, scale, shared) {
   const holds = ids => [...byUuid.values()].some(list => list.some(fx => ids.includes(fx.i)));
 
   // ---- potency: scale a native burn / regular-poison residual once, only when the holder inflicted it ----
-  if (holds([...Object.keys(POTENCY), 'ashen_heart', 'creeping_venom']) && typeof battle.damage === 'function') {
+  if ((holds([...Object.keys(POTENCY), 'ashen_heart', 'creeping_venom']) || shared.needStatus) && typeof battle.damage === 'function') {
     const rawDamage = battle.damage;
     const venomTicks = new Map();   // victim -> {state, ticks}: how long this poison has lasted, reset when it is cured or replaced
     battle.damage = function (damage, target, source, effect, instafaint) {
@@ -376,8 +395,14 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale) {
               entry.ticks++;
               if (ramp > 0) percents.push(ramp);
             }
+            for (const boost of shared.statusBoosts) {
+              const extra = boost(inflictor, victim, cause.id);
+              if (extra) percents.push(extra);
+            }
             if (percents.length) scaled = damage * grow(percents, caps.res);
           }
+          // What the victim itself makes of the tick (a Brand makes burn and bleed hurt more), whoever inflicted it.
+          for (const mult of shared.statusVictimMult) scaled *= mult(victim, cause.id);
         }
       } catch (err) {
         scaled = damage;
@@ -438,10 +463,28 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale) {
     }
   }
 
-  // ---- rending: a chance on a direct hit to start or deepen a bleed ----
-  if (!holds([RENDING, 'rupture'])) return;
-  const bleeds = new Map();           // afflicted Pokemon -> {stacks, turns, percent}
+  // ---- the bleed engine: Rending, Rupture and the Transcendent signatures all bleed through this ----
+  if (!holds([RENDING, 'rupture']) && !shared.needBleed) return;
+  const bleeds = shared.bleeds;       // afflicted Pokemon -> {stacks, turns, percent, weights, growth, age, leech, source}
   const rolled = new Set();           // one roll per move use and target, however many hits it lands
+  shared.isBleeding = mon => bleeds.has(mon);
+  /**
+   * Starts or deepens a bleed on target. opts: percent (potency, residual channel), weights (the stack weights, default 1,1,1),
+   * growth {step, max} (percent more per turn it has bled), leech (share of the damage healed to source). The latest inflictor decides.
+   */
+  shared.inflictBleed = (source, target, opts) => {
+    const state = bleeds.get(target) || {stacks: 0, turns: 0, percent: 0, weights: null, growth: null, age: 0, leech: 0, source: null};
+    const before = state.stacks;
+    state.stacks = Math.min(BLEED_STACKS, state.stacks + 1);
+    state.turns = BLEED_TURNS;
+    state.percent = Math.max(state.percent, opts.percent || 0);
+    state.weights = opts.weights || null;
+    state.growth = opts.growth || null;
+    state.leech = opts.leech || 0;
+    state.source = source;
+    bleeds.set(target, state);
+    if (state.stacks > before) note(battle, `${target.name} is bleeding!`);
+  };
   const rawSpread = battle.spreadDamage;
   if (typeof rawSpread === 'function') {
     battle.spreadDamage = function (damage, targetArray, source, effect, instafaint) {
@@ -461,15 +504,11 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale) {
             rolled.add(key);
             const rupturing = ruptures && (ruptureShare >= 1 || this.random(100) < Math.round(ruptureShare * 100));
             if (!rupturing && (!percents.length || this.random(100) >= RENDING_CHANCE)) continue;
-            const state = bleeds.get(target) || {stacks: 0, turns: 0, percent: 0, rupture: false};
-            const before = state.stacks;
-            state.stacks = Math.min(BLEED_STACKS, state.stacks + 1);
-            state.turns = BLEED_TURNS;
-            state.percent = Math.max(state.percent, ...percents);
-            state.rupture = has(source, 'rupture');   // the latest inflictor decides whether the Rupture drawback applies
-            state.ruptureShare = state.rupture ? scale.d(source, 'rupture') : 1;
-            bleeds.set(target, state);
-            if (state.stacks > before) note(this, `${target.name} is bleeding!`);
+            shared.inflictBleed(source, target, {
+              percent: percents.length ? Math.max(...percents) : 0,
+              // The latest inflictor decides whether the Rupture drawback applies.
+              weights: has(source, 'rupture') ? RUPTURE_WEIGHTS.map(w => scale.drawback(w, scale.d(source, 'rupture'))) : null,
+            });
           }
         }
       } catch (err) { /* fail open: the hit already happened */ }
@@ -490,17 +529,28 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale) {
             continue;
           }
           const bleed = {id: 'ascensionbleed', name: 'Bleed', fullname: 'bleed', effectType: 'Status'};
-          const weights = state.rupture ? RUPTURE_WEIGHTS.map(w => scale.drawback(w, state.ruptureShare)) : [1, 1, 1];
+          const weights = state.weights || [1, 1, 1];
           const share = weights.slice(0, state.stacks).reduce((a, b) => a + b, 0);
-          let amount = Math.max(1, Math.trunc(mon.baseMaxhp / BLEED_DIVISOR * share * grow([state.percent], caps.res)));
+          const growth = state.growth ? 1 + Math.min(state.growth.max, state.age * state.growth.step) / 100 : 1;
+          let victim = 1;
+          for (const mult of shared.statusVictimMult) victim *= mult(mon, 'bleed');
+          let amount = Math.max(1, Math.trunc(mon.baseMaxhp / BLEED_DIVISOR * share * grow([state.percent], caps.res) * growth * victim));
           // Magic Guard and other native damage rules get their say; a plain -damage line is used because the client
           // misreads a [from] it does not know.
           const allowed = this.runEvent('Damage', mon, null, bleed, amount, true);
           if (allowed || allowed === 0) {
             amount = Math.max(1, Math.trunc(allowed));
             const dealt = mon.damage(amount, null, bleed);
-            if (dealt) this.add('-damage', mon, mon.getHealth);
+            if (dealt) {
+              this.add('-damage', mon, mon.getHealth);
+              const leecher = state.source;
+              if (state.leech > 0 && leecher && leecher.hp > 0 && leecher.isActive) {
+                const healed = leecher.heal(Math.max(1, Math.floor(dealt * state.leech)));
+                if (healed) this.add('-heal', leecher, leecher.getHealth);
+              }
+            }
           }
+          state.age++;
           if (--state.turns <= 0) bleeds.delete(mon);
         } catch (err) { bleeds.delete(mon); }
       }
@@ -700,7 +750,7 @@ const newTranscendState = () => ({
 });
 
 /** Survive a lethal foe move once per battle: at 1 HP, or brought up to remainOf(mon) HP (a plain heal that no cap refuses). */
-function clutch(t, remainOf, message) {
+function clutch(t, remainOf, message, onTrigger) {
   const mon = t.mon;
   const battle = t.env.battle;
   const inner = mon.damage;
@@ -714,6 +764,7 @@ function clutch(t, remainOf, message) {
         amount = this.hp - 1;
         remain = remainOf(this);
         note(battle, `${this.name} ${message}`);
+        if (onTrigger) onTrigger();
       }
     } catch (err) { amount = d; remain = 0; }
     const result = inner.call(this, amount, source, effect);
@@ -726,8 +777,81 @@ function clutch(t, remainOf, message) {
 
 const transcendEffect = {id: 'ascensiontranscendent', name: 'Transcendent', fullname: 'transcendent', effectType: 'Status'};
 
-// Each signature: its pulse, an optional install (wraps the holder once), outgoing/incoming damage adjustments, post-hit and tick
-// behaviour. t is the holder's context: {mon, fx, env, st, P (benefit share 0..1), S (drawback share, softened by Refine), chance(p)}.
+/** A drawback or benefit multiplier moved toward 1 by a share: soften(0.85, 0.5) = 0.925, soften(1.25, 0.5) = 1.125. */
+const soften = (multiplier, share) => 1 + (multiplier - 1) * share;
+
+// ---- helpers the signatures share ---------------------------------------------------------------------------------------------
+
+/** Damage the holder to pay a price (never to a faint: a price is not a kill). A plain -damage line, like the other residuals. */
+function selfDamage(t, amount) {
+  const mon = t.mon;
+  const cost = Math.min(Math.floor(amount), mon.hp - 1);
+  if (cost < 1) return 0;
+  const dealt = mon.damage(cost, null, transcendEffect);
+  if (dealt) t.env.battle.add('-damage', mon, mon.getHealth);
+  return dealt;
+}
+
+/** Damage a foe outside any move (a tick, a counter): plain -damage line, so a client that does not know the cause is not confused. */
+function chipFoe(t, foe, amount) {
+  if (!foe || !(foe.hp > 0)) return 0;
+  const dealt = foe.damage(Math.max(1, Math.floor(amount)), t.mon, transcendEffect);
+  if (dealt) t.env.battle.add('-damage', foe, foe.getHealth);
+  return dealt;
+}
+
+/** Healing the holder receives is cut by this fraction of the drawback share (a plain heal, a drain, a twist: all of it). */
+function cutHealing(t, fraction) {
+  const inner = t.mon.heal;
+  t.mon.heal = function (amount, source, effect) {
+    if (typeof amount === 'number' && amount > 0) amount = Math.max(1, Math.floor(amount * (1 - fraction * t.S)));
+    return inner.call(this, amount, source, effect);
+  };
+}
+
+/** The holder's Speed stat (after the engine's own modifiers) is lowered by this fraction of the drawback share. */
+function slowSpeed(t, fraction) {
+  const inner = t.mon.getStat;
+  t.mon.getStat = function (statName, unboosted, unmodified) {
+    const stat = inner.apply(this, arguments);
+    try {
+      if (statName === 'spe' && !unmodified && typeof stat === 'number') {
+        return Math.max(1, t.env.battle.modify(stat, Math.round((1 - fraction * t.S) * 1000), 1000));
+      }
+    } catch (err) { /* fail open */ }
+    return stat;
+  };
+}
+
+/** Adds percent to the residual channel for a burn / poison tick this holder inflicted (percentOf(victim) is read at tick time). */
+function boostStatus(t, cause, percentOf) {
+  t.env.shared.statusBoosts.push((inflictor, victim, id) => (inflictor === t.mon && id === cause ? percentOf(victim) : 0));
+}
+
+/** Starts a bleed on a foe, once per move use and target. */
+function bleedOn(t, foe, moveKey, opts) {
+  const shared = t.env.shared;
+  const key = `sg:${moveKey}:${foe.uuid}`;
+  if (shared.bleedKeys.has(key)) return;
+  shared.bleedKeys.add(key);
+  shared.inflictBleed(t.mon, foe, opts || {});
+}
+
+/** True the first time it is asked for this move use (a flat bonus is paid once per move, however many targets or hits). */
+function oncePerMove(t, field, ctx) {
+  if (t.st[field] === ctx.key) return false;
+  t.st[field] = ctx.key;
+  return true;
+}
+
+const weatherMove = (ctx, move) => !!ctx.weather && WEATHER_TYPE[ctx.weather] === move.type;
+const isStatused = foe => ['brn', 'psn', 'tox'].includes(foe.status);
+
+// ---- the signatures -------------------------------------------------------------------------------------------------------------
+// Each: its pulse, optional hooks flags (status: burn/poison tick hook; bleed: bleed engine), forceCrit, an install (wraps the holder
+// once), outgoing/incoming damage adjustments (the numbers act after the caps, like the Uniques' drawbacks), postHit(t, role, foe,
+// moveKey, move), tick(t), onKo(t). t is the holder's context: {mon, fx, env, st, P (benefit share 0..1), S (drawback share, softened
+// by Refine), chance(p)}. Item-reward bonuses are Java-side and not here.
 const TRANSCEND_SIGNATURES = {
   phoenix_cinder: {
     pulse: 'STRUCK',
@@ -752,6 +876,293 @@ const TRANSCEND_SIGNATURES = {
       foe.trySetStatus('brn', t.mon, transcendEffect);
     },
   },
+
+  plague_pyre: {
+    pulse: 'TICK',
+    // Core: burned or poisoned foes take an extra 3% of max HP each turn.
+    tick(t) {
+      for (const foe of t.env.battle.sides.flatMap(side => (side ? side.active : []))) {
+        if (foe && foe.side !== t.mon.side && foe.hp > 0 && isStatused(foe)) chipFoe(t, foe, foe.maxhp * 0.03 * t.P);
+      }
+    },
+    // Drawback: direct damage 10% lower.
+    outgoing(t) { return {mult: soften(0.90, t.S)}; },
+  },
+
+  wildfire_crown: {
+    pulse: 'HIT',
+    // Core: Fire moves +20%, and while any weather is active every move +10%. Drawback: Water and Ice moves 25% weaker.
+    outgoing(t, ctx) {
+      let mult = 1;
+      if (ctx.move.type === 'Fire') mult *= 1 + 0.20 * t.P;
+      if (ctx.weather) mult *= 1 + 0.10 * t.P;
+      if (ctx.move.type === 'Water' || ctx.move.type === 'Ice') mult *= soften(0.75, t.S);
+      return {mult};
+    },
+  },
+
+  brand_of_ruin: {
+    pulse: 'HIT',
+    hooks: {status: true},
+    install(t) {
+      t.st.brands = new Map();   // foe -> the last turn it stays branded
+      const branded = foe => (t.st.brands.get(foe) || -1) >= t.env.battle.turn;
+      t.env.shared.statusVictimMult.push((victim, cause) => (branded(victim) && (cause === 'brn' || cause === 'bleed') ? 1 + 0.30 * t.P : 1));
+      t.branded = branded;
+    },
+    // Core: a damaging hit Brands the foe for 3 turns. Drawback: a NEW Brand costs 3% of max HP (a refresh is free).
+    postHit(t, role, foe) {
+      if (role !== 'hit' || !foe || !(foe.hp > 0)) return;
+      const fresh = !t.branded(foe);
+      t.st.brands.set(foe, t.env.battle.turn + 3);
+      if (fresh) {
+        note(t.env.battle, `${foe.name} is branded!`);
+        selfDamage(t, t.mon.maxhp * 0.03 * t.S);
+      }
+    },
+    // Core: a branded foe takes 10% more from the holder.
+    outgoing(t, ctx) { return t.branded && t.branded(ctx.target) ? {mult: 1 + 0.10 * t.P} : null; },
+  },
+
+  titans_forge: {
+    pulse: 'HIT',
+    // Core: a super-effective hit adds 8% of the holder's max HP in damage and may burn.
+    outgoing(t, ctx) {
+      if (!(ctx.hit.typeMod > 0) || !oncePerMove(t, 'seKey', ctx)) return null;
+      t.st.seTarget = ctx.target;
+      return {add: Math.floor(t.mon.maxhp * 0.08 * t.P)};
+    },
+    postHit(t, role, foe, moveKey) {
+      if (role !== 'hit' || t.st.seKey !== moveKey || t.st.seTarget !== foe || !foe || foe.status || !(foe.hp > 0)) return;
+      if (t.chance(25 * t.P)) foe.trySetStatus('brn', t.mon, transcendEffect);
+    },
+    // Drawback: lose 3% of max HP each turn while above 60% HP.
+    tick(t) { if (t.mon.hp > t.mon.maxhp * 0.6) selfDamage(t, t.mon.maxhp * 0.03 * t.S); },
+  },
+
+  gilded_ember: {
+    pulse: 'KO',
+    hooks: {status: true},
+    // Core: burn damage the holder inflicts +30%; each KO adds +10% damage, up to 3 times, until it leaves the field.
+    install(t) { boostStatus(t, 'brn', () => 30 * t.P); },
+    outgoing(t) { return t.st.koStacks ? {mult: 1 + 0.10 * t.P * t.st.koStacks} : null; },
+    onKo(t) { t.st.koStacks = Math.min(3, (t.st.koStacks || 0) + 1); },
+    // Drawback: 15% more damage from Water moves.
+    incoming(t, ctx) { return ctx.move.type === 'Water' ? soften(1.15, t.S) : 1; },
+  },
+
+  dying_bloom: {
+    pulse: 'STRUCK',
+    hooks: {status: true},
+    install(t) {
+      clutch(t, () => 1, 'hung on with a dying bloom!');
+      cutHealing(t, 0.35);
+      // Core: poison the holder inflicts ramps +20% a turn it has lasted (to +80%), twice as fast while the holder is below half HP.
+      const ticks = new Map();
+      t.env.shared.statusBoosts.push((inflictor, victim, id) => {
+        if (inflictor !== t.mon || id !== 'psn') return 0;
+        let entry = ticks.get(victim);
+        if (!entry || entry.state !== victim.statusState) { entry = {state: victim.statusState, ticks: 0}; ticks.set(victim, entry); }
+        const step = (t.mon.hp < t.mon.maxhp / 2 ? 40 : 20) * t.P;
+        const ramp = Math.min(80 * t.P, entry.ticks * step);
+        entry.ticks++;
+        return ramp;
+      });
+    },
+    // Core: attackers that hit the holder while it is below half HP are poisoned.
+    postHit(t, role, foe) {
+      if (role !== 'struck' || !foe || !(foe.hp > 0) || foe.status || !(t.mon.hp < t.mon.maxhp / 2) || !t.chance(100 * t.P)) return;
+      foe.trySetStatus('psn', t.mon, transcendEffect);
+    },
+  },
+
+  martyrs_edge: {
+    pulse: 'HIT',
+    hooks: {bleed: true},
+    forceCrit: true,
+    // Clutch: a lethal hit leaves 1 HP and the holder's next move is a guaranteed critical hit.
+    install(t) { clutch(t, () => 1, 'fought on as a martyr!', () => { t.st.crit = true; }); },
+    // Core: physical hits bleed (Rupture's weaker stacks are the drawback) and the holder deals 12% more to a bleeding foe.
+    postHit(t, role, foe, moveKey, move) {
+      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move || move.category !== 'Physical') return;
+      bleedOn(t, foe, moveKey, {weights: RUPTURE_WEIGHTS.map(w => soften(w, t.S))});
+    },
+    outgoing(t, ctx) { return t.env.shared.isBleeding(ctx.target) ? {mult: 1 + 0.12 * t.P} : null; },
+  },
+
+  colossus_vow: {
+    pulse: 'STRUCK',
+    install(t) {
+      clutch(t, () => 1, 'stood firm!');
+      slowSpeed(t, 0.15);
+    },
+    // Core: 15% less damage from a super-effective hit, and that hit is countered for 6% of the holder's max HP.
+    incoming(t, ctx) {
+      if (!(ctx.hit.typeMod > 0)) return 1;
+      t.st.struckSeKey = ctx.key;
+      return 1 - 0.15 * t.P;
+    },
+    postHit(t, role, foe, moveKey) {
+      if (role === 'struck' && t.st.struckSeKey === moveKey && oncePerMove(t, 'counterKey', {key: moveKey})) chipFoe(t, foe, t.mon.maxhp * 0.06 * t.P);
+    },
+  },
+
+  last_gamble: {
+    pulse: 'KO',
+    // Clutch: a lethal hit leaves 30% HP and the next two moves deal +30%. Drawback: after it fires, 25% more damage for the rest of the battle.
+    install(t) {
+      clutch(t, mon => Math.max(1, Math.floor(mon.maxhp * 0.30 * t.P)), 'bet everything and survived!', () => {
+        t.st.gambled = true;
+        t.st.gambleLeft = 2;
+      });
+    },
+    outgoing(t, ctx) {
+      if (!(t.st.gambleLeft > 0) && t.st.gambleKey !== ctx.key) return null;
+      if (t.st.gambleKey !== ctx.key) { t.st.gambleKey = ctx.key; t.st.gambleLeft--; }
+      return {mult: 1 + 0.30 * t.P};
+    },
+    incoming(t) { return t.st.gambled ? 1 + 0.25 * t.S : 1; },
+  },
+
+  miasma_front: {
+    pulse: 'TICK',
+    hooks: {status: true},
+    install(t) { boostStatus(t, 'psn', () => 20 * t.P); },
+    // Core: while any weather is active every foe takes 2.5% of max HP a turn, rising 1% a turn to 5%.
+    // Drawback: with no weather the holder loses 2% of max HP each turn.
+    tick(t) {
+      if (t.env.weatherNow()) {
+        t.st.miasmaTurns = (t.st.miasmaTurns || 0) + 1;
+        const percent = Math.min(5, 2.5 + (t.st.miasmaTurns - 1)) * t.P;
+        for (const foe of t.env.battle.sides.flatMap(side => (side ? side.active : []))) {
+          if (foe && foe.side !== t.mon.side && foe.hp > 0) chipFoe(t, foe, foe.maxhp * percent / 100);
+        }
+      } else {
+        t.st.miasmaTurns = 0;
+        selfDamage(t, t.mon.maxhp * 0.02 * t.S);
+      }
+    },
+  },
+
+  festering_gash: {
+    pulse: 'HIT',
+    hooks: {bleed: true},
+    // Core: physical hits bleed; the bleed grows 15% a turn (to 60%) and the holder heals 25% of the bleed damage it deals.
+    postHit(t, role, foe, moveKey, move) {
+      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move || move.category !== 'Physical') return;
+      bleedOn(t, foe, moveKey, {growth: {step: 15 * t.P, max: 60 * t.P}, leech: 0.25 * t.P});
+    },
+    // Drawback: 20% more damage from Psychic moves.
+    incoming(t, ctx) { return ctx.move.type === 'Psychic' ? soften(1.20, t.S) : 1; },
+  },
+
+  blighted_giant: {
+    pulse: 'HIT',
+    hooks: {status: true},
+    install(t) {
+      boostStatus(t, 'psn', () => 25 * t.P);
+      cutHealing(t, 0.60);
+    },
+    // Core: a super-effective hit adds 7% of the holder's max HP in damage and poisons the foe.
+    outgoing(t, ctx) {
+      if (!(ctx.hit.typeMod > 0) || !oncePerMove(t, 'seKey', ctx)) return null;
+      t.st.seTarget = ctx.target;
+      return {add: Math.floor(t.mon.maxhp * 0.07 * t.P)};
+    },
+    postHit(t, role, foe, moveKey) {
+      if (role !== 'hit' || t.st.seKey !== moveKey || t.st.seTarget !== foe || !foe || foe.status || !(foe.hp > 0)) return;
+      if (t.chance(100 * t.P)) foe.trySetStatus('psn', t.mon, transcendEffect);
+    },
+  },
+
+  fortunes_rot: {
+    pulse: 'TICK',
+    // Core: foes the holder has poisoned lose an extra 3% of max HP each turn. (Item rewards +15% are Java-side.)
+    tick(t) {
+      for (const foe of t.env.battle.sides.flatMap(side => (side ? side.active : []))) {
+        if (foe && foe.side !== t.mon.side && foe.hp > 0 && (foe.status === 'psn' || foe.status === 'tox') &&
+            foe.statusState && foe.statusState.source === t.mon) chipFoe(t, foe, foe.maxhp * 0.03 * t.P);
+      }
+    },
+    // Drawback: 20% more damage taken.
+    incoming(t) { return 1 + 0.20 * t.S; },
+  },
+
+  lightning_rend: {
+    pulse: 'HIT',
+    hooks: {bleed: true},
+    // Core: weather-type moves and Electric moves deal 25% more and bleed whatever their category. Drawback: with no weather, 20% less direct damage.
+    outgoing(t, ctx) {
+      let mult = 1;
+      if (weatherMove(ctx, ctx.move) || ctx.move.type === 'Electric') mult *= 1 + 0.25 * t.P;
+      if (!ctx.weather) mult *= soften(0.80, t.S);
+      return {mult};
+    },
+    postHit(t, role, foe, moveKey, move) {
+      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move) return;
+      if (move.type === 'Electric' || (t.env.weatherNow() && WEATHER_TYPE[t.env.weatherNow()] === move.type)) bleedOn(t, foe, moveKey, {});
+    },
+  },
+
+  tempest_colossus: {
+    pulse: 'HIT',
+    install(t) { slowSpeed(t, 0.12); },
+    // Core: weather-type moves +20%, and a super-effective hit adds 7% of the holder's max HP in damage.
+    outgoing(t, ctx) {
+      const out = {};
+      if (weatherMove(ctx, ctx.move)) out.mult = 1 + 0.20 * t.P;
+      if (ctx.hit.typeMod > 0 && oncePerMove(t, 'seKey', ctx)) out.add = Math.floor(t.mon.maxhp * 0.07 * t.P);
+      return out.mult || out.add ? out : null;
+    },
+  },
+
+  skyfall_fortune: {
+    pulse: 'KO',
+    // Core: weather-type moves +25%; each KO while a weather is active adds +12% damage (3 stacks, until the holder leaves).
+    outgoing(t, ctx) {
+      let mult = 1;
+      if (weatherMove(ctx, ctx.move)) mult *= 1 + 0.25 * t.P;
+      if (t.st.koStacks) mult *= 1 + 0.12 * t.P * t.st.koStacks;
+      return mult !== 1 ? {mult} : null;
+    },
+    onKo(t) { if (t.env.weatherNow()) t.st.koStacks = Math.min(3, (t.st.koStacks || 0) + 1); },
+    // Drawback: with no weather, 20% more damage taken.
+    incoming(t, ctx) { return ctx.weather ? 1 : 1 + 0.20 * t.S; },
+  },
+
+  breakers_might: {
+    pulse: 'HIT',
+    hooks: {bleed: true},
+    install(t) { cutHealing(t, 0.50); },
+    // Core: physical hits bleed; a super-effective hit adds 8% of the holder's max HP in damage, and 10% more against a bleeding foe.
+    outgoing(t, ctx) {
+      const out = {};
+      if (ctx.hit.typeMod > 0) {
+        if (oncePerMove(t, 'seKey', ctx)) out.add = Math.floor(t.mon.maxhp * 0.08 * t.P);
+        if (t.env.shared.isBleeding(ctx.target)) out.mult = 1 + 0.10 * t.P;
+      }
+      return out.mult || out.add ? out : null;
+    },
+    postHit(t, role, foe, moveKey, move) {
+      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move || move.category !== 'Physical') return;
+      bleedOn(t, foe, moveKey, {});
+    },
+  },
+
+  wager_of_blood: {
+    pulse: 'KO',
+    hooks: {bleed: true},
+    // Core: physical hits bleed and each KO restores 10% of max HP. Drawback: every physical move that hits costs 2% of max HP.
+    postHit(t, role, foe, moveKey, move) {
+      if (role !== 'hit' || !foe || !move || move.category !== 'Physical') return;
+      if (foe.hp > 0) bleedOn(t, foe, moveKey, {});
+      if (oncePerMove(t, 'costKey', {key: moveKey})) selfDamage(t, t.mon.maxhp * 0.02 * t.S);
+    },
+    onKo(t) {
+      if (t.mon.heal(Math.max(1, Math.floor(t.mon.maxhp * 0.10 * t.P)))) t.env.battle.add('-heal', t.mon, t.mon.getHealth);
+    },
+  },
+
   eye_of_the_storm: {
     pulse: 'TICK',
     install(t) { clutch(t, () => 1, 'held on in the eye of the storm!'); },
@@ -763,6 +1174,7 @@ const TRANSCEND_SIGNATURES = {
       if (t.mon.heal(Math.max(1, Math.floor(t.mon.maxhp * 0.03 * t.P)))) t.env.battle.add('-heal', t.mon, t.mon.getHealth);
     },
   },
+
   jackpot_titan: {
     pulse: 'KO',
     // Core: a super-effective hit adds 10% of the holder's max HP in damage, once per move use. (Item rewards +20% are a Java-side bonus.)
@@ -856,7 +1268,6 @@ function applyTranscendents(env) {
     refine(t, op) { t.st.refine = Math.min(0.9, op.pct * t.P / 100); t.st.refineUntil = battle.turn + op.turns; },
   };
 
-  /** A pulse of this kind for this holder: the twist fires, at most once per turn, if the holder's signature is built on this pulse. */
   // moveKey names the move use that caused the pulse (null for a KO or the end of a turn). An effect armed by a move's own hit is
   // for the NEXT move use: without this, a "next hit taken" shield armed by hit one of a two-hit move would also soften hit two.
   const pulse = (t, kind, foe, moveKey) => {
@@ -899,8 +1310,41 @@ function applyTranscendents(env) {
       } catch (err) { /* fail open */ }
       return innerHeal.call(this, amount, source, effect);
     };
+    // What a signature counts "while on the field" (KO stacks, a rising tick) ends when the holder leaves it.
+    const innerClear = mon.clearVolatile;
+    mon.clearVolatile = function () {
+      t.st.koStacks = 0;
+      t.st.miasmaTurns = 0;
+      return innerClear.apply(this, arguments);
+    };
     const sig = sigOf(t);
     if (sig && sig.install) sig.install(t);
+  }
+
+  // ---- a guaranteed critical hit (Martyr's Edge): the move use after the clutch, every hit and target of it ----
+  const actions = battle.actions;
+  if ([...holders.values()].some(t => sigOf(t) && sigOf(t).forceCrit) && actions && typeof actions.getDamage === 'function') {
+    const rawGetDamage = actions.getDamage;
+    actions.getDamage = function (source, target, move) {
+      let forced = false;
+      try {
+        const t = holders.get(source);
+        if (t && move && typeof move === 'object' && move.willCrit === undefined && !move.damage && !move.ohko) {
+          const key = `${battle.turn}:${source.uuid}:${source.activeMoveActions}`;
+          if (t.st.critKey === key || (t.st.crit && t.st.critKey !== key)) {
+            t.st.crit = false;
+            t.st.critKey = key;
+            move.willCrit = true;
+            forced = true;
+          }
+        }
+      } catch (err) { forced = false; }
+      try {
+        return rawGetDamage.apply(this, arguments);
+      } finally {
+        if (forced) move.willCrit = undefined;
+      }
+    };
   }
 
   // ---- pulses: HIT and STRUCK after a damaging move connects ----
@@ -916,13 +1360,13 @@ function applyTranscendents(env) {
             const attacker = holders.get(source);
             if (attacker) {
               const sig = sigOf(attacker);
-              if (sig && sig.postHit) sig.postHit(attacker, 'hit', target);
+              if (sig && sig.postHit) sig.postHit(attacker, 'hit', target, moveKey, effect);
               pulse(attacker, 'HIT', target, moveKey);
             }
             const defender = holders.get(target);
             if (defender) {
               const sig = sigOf(defender);
-              if (sig && sig.postHit) sig.postHit(defender, 'struck', source);
+              if (sig && sig.postHit) sig.postHit(defender, 'struck', source, moveKey, effect);
               pulse(defender, 'STRUCK', source, moveKey);
             }
           }
@@ -995,7 +1439,7 @@ function applyTranscendents(env) {
           }
           const boost = consume(a.st, 'boost', 'boostActive', 'boostKey', key);
           if (boost) out = battle.modify(out, Math.round((1 + boost) * 1000), 1000);
-          const extra = sig && sig.outgoing ? sig.outgoing(a, {move, hit, weather, key}) : null;
+          const extra = sig && sig.outgoing ? sig.outgoing(a, {move, hit, weather, key, target, attacker}) : null;
           if (extra) {
             if (extra.mult) out = battle.modify(out, Math.round(extra.mult * 1000), 1000);
             if (extra.add) out += extra.add;
@@ -1004,7 +1448,7 @@ function applyTranscendents(env) {
         const d = holders.get(target);
         if (d) {
           const sig = sigOf(d);
-          const mult = sig && sig.incoming ? sig.incoming(d, {attacker, move, hit, weather, key}) : 1;
+          const mult = sig && sig.incoming ? sig.incoming(d, {attacker, move, hit, weather, key, target}) : 1;
           if (mult !== 1) out = Math.max(1, battle.modify(out, Math.round(mult * 1000), 1000));
           if (d.st.hideUntil >= battle.turn && d.st.hide) out = Math.max(1, battle.modify(out, Math.round((1 - d.st.hide) * 1000), 1000));
           const shield = consume(d.st, 'shield', 'shieldActive', 'shieldKey', key);
