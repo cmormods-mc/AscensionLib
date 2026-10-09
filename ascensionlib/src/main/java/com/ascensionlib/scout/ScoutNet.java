@@ -18,10 +18,14 @@ public final class ScoutNet {
         PayloadTypeRegistry.playC2S().register(ScoutPayloads.Use.TYPE, ScoutPayloads.Use.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(ScoutPayloads.Request.TYPE, (payload, context) ->
-                context.server().execute(() -> ScoutEncounters.push(context.player().getUUID())));
+                context.server().execute(() -> {
+                    if (com.ascensionlib.net.RateLimit.allow(context.player().getUUID(), "scout.request", 6, 3))
+                        ScoutEncounters.push(context.player().getUUID());
+                }));
         ServerPlayNetworking.registerGlobalReceiver(ScoutPayloads.Use.TYPE, (payload, context) ->
                 context.server().execute(() -> {
                     var player = context.player();
+                    if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "scout.use", 4, 2)) return;
                     String message = ScoutEncounters.use(player.getUUID(), payload.encounterId(), payload.subjectId());
                     player.displayClientMessage(Component.literal("[Scout] " + message), true);
                 }));

@@ -68,7 +68,8 @@ public final class AscensionBattles {
             if (payload == null) return Map.of();
             LOG.debug("Battle {}: ascension effects for {} Pokemon", battleId, plan.size());
             return Map.of(FIELD, payload);
-        } catch (Throwable ex) {
+        } catch (RuntimeException | LinkageError ex) {
+            // Not Throwable: an OutOfMemoryError must not be swallowed here as if the battle could simply start without effects.
             LOG.error("Could not build ascension effects for battle {}; it starts without them", battleId, ex);
             return Map.of();
         }

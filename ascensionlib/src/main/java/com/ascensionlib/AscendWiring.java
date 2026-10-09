@@ -40,7 +40,13 @@ final class AscendWiring {
     private static final String[] ROMAN = {"", "I", "II", "III", "IV", "V"};
 
     private final Map<UUID, PendingAcquisition> pending = new LinkedHashMap<>();
+    /** Pokemon waiting to be reconciled after a login: a PC of hundreds would otherwise cost one long tick (a store read each). */
+    private final java.util.ArrayDeque<SweepJob> sweepQueue = new java.util.ArrayDeque<>();
+    private static final int SWEEP_PER_TICK = 30;
+    private static final int SWEEP_QUEUE_LIMIT = 20_000;
     private MinecraftServer server;
+
+    private record SweepJob(UUID player, Pokemon pokemon) {}
 
     private record PendingAcquisition(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity,
                                       MinecraftServer server, int queuedTick) {}
@@ -48,13 +54,8 @@ final class AscendWiring {
     void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(started -> server = started);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> {
-            var service = service();
-            if (service != null) {
-                int handled = service.sweep(handler.getPlayer());
-                if (handled > 0) LOG.debug("Reconciled {} Pokemon for {}", handled, handler.getPlayer().getGameProfile().getName());
-            }
-        }));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> enqueueSweep(handler.getPlayer())));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
             var s = event.getPlayer().getServer();
             if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, s));
@@ -72,11 +73,13 @@ final class AscendWiring {
             });
         });
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
+        ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
         LOG.info("Capture rarity, level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
     }
 
     private void stop(MinecraftServer stopping) {
+        sweepQueue.clear();
         pending.entrySet().removeIf(e -> e.getValue().server() == stopping);
         server = null;
     }
@@ -86,6 +89,27 @@ final class AscendWiring {
 
     private void safely(String what, Runnable action) {
         try { action.run(); } catch (RuntimeException exception) { LOG.error("{} failed; data preserved", what, exception); }
+    }
+
+    // --- login sweep -----------------------------------------------------------------------------------
+
+    /** Queues the player's party (first, so it is ready at once) and PC. Reading the lists costs memory only; the store reads happen in {@link #sweepSome}. */
+    private void enqueueSweep(net.minecraft.server.level.ServerPlayer player) {
+        if (service() == null) return;
+        var storage = Cobblemon.INSTANCE.getStorage();
+        UUID id = player.getUUID();
+        for (var pokemon : storage.getParty(player)) if (sweepQueue.size() < SWEEP_QUEUE_LIMIT) sweepQueue.add(new SweepJob(id, pokemon));
+        for (var pokemon : storage.getPC(player)) if (sweepQueue.size() < SWEEP_QUEUE_LIMIT) sweepQueue.add(new SweepJob(id, pokemon));
+    }
+
+    /** Reconciles a bounded number of queued Pokemon each tick; reconcile is idempotent, so a Pokemon that moved meanwhile is harmless. */
+    private void sweepSome(MinecraftServer s) {
+        var service = service();
+        if (service == null) { sweepQueue.clear(); return; }
+        for (int i = 0; i < SWEEP_PER_TICK && !sweepQueue.isEmpty(); i++) {
+            var job = sweepQueue.poll();
+            safely("login reconcile", () -> service.reconcile(job.pokemon()));
+        }
     }
 
     // --- acquisition -----------------------------------------------------------------------------------

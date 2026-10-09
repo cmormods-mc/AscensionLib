@@ -69,7 +69,12 @@ public final class AscensionLibClient implements ClientModInitializer {
                 context.client().execute(() -> {
                     if (context.client().screen instanceof AscendInspectScreen screen) screen.acceptOwned(payload);
                 }));
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> { ScoutClientState.clear(); CaptureReveals.clear(); });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            ScoutClientState.clear();
+            CaptureReveals.clear();
+            CraftClient.clear();
+            InspectClient.clear();
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CaptureReveals.tick(client);

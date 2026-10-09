@@ -17,7 +17,19 @@ import net.minecraft.network.chat.Component;
 public final class InspectClient {
     private record Hit(int x, int y, ActiveClientBattlePokemon pokemon) {}
     private static final List<Hit> HITS = new ArrayList<>();
+    private static int failures;
     private InspectClient() {}
+
+    /** After a few failures the hooks switch themselves off for the session; the J key still opens the inspector. */
+    private static boolean broken() { return failures >= 3; }
+
+    private static void failed(String where, Throwable error) {
+        failures++;
+        org.slf4j.LoggerFactory.getLogger("ascensionlib").warn("Inspect hook {} failed ({} of 3 before it is switched off): {}", where, failures, error.toString());
+    }
+
+    /** Forgets the last battle's tiles (called on disconnect, so no battle object outlives the session). */
+    public static void clear() { HITS.clear(); }
 
     public static void summaryButton(Screen screen, java.util.function.Supplier<Pokemon> selected) {
         // Fit to Cobblemon's own party panel (found by class, so it follows the screen if Cobblemon moves it): in the panel's
@@ -44,6 +56,17 @@ public final class InspectClient {
             ClientPlayNetworking.send(new OwnedInspectPayload.Request(pokemonId));
     }
 
+    /**
+     * Opens the owner's inspector for a tile on the player's own side of a battle. The id is the BATTLE Pokemon's, which is the
+     * party Pokemon's id only in an ordinary battle: in a raid or an exhibition the team is made of copies with fresh ids, so the
+     * server (which knows the original behind each copy) resolves it. Upgrading is not offered from inside a battle.
+     */
+    public static void openOwnedFromBattle(Screen parent, String battlePokemonId, String name) {
+        Minecraft.getInstance().setScreen(new AscendInspectScreen(parent, battlePokemonId, name, false, true));
+        if (ClientPlayNetworking.canSend(OwnedInspectPayload.Request.TYPE))
+            ClientPlayNetworking.send(new OwnedInspectPayload.Request(battlePokemonId));
+    }
+
     public static void openOwned(Screen parent, Pokemon pokemon) {
         var screen = new AscendInspectScreen(parent, pokemon.getUuid().toString(), pokemon.getDisplayName(false).getString());
         Minecraft.getInstance().setScreen(screen);
@@ -53,6 +76,16 @@ public final class InspectClient {
 
     public static void beginTiles() { HITS.clear(); }
     public static void tile(GuiGraphics g, ActiveClientBattlePokemon active, boolean left, int index, boolean compact) {
+        // Runs inside Cobblemon's per-frame overlay render: an exception here would be a crash report, so it must never escape.
+        if (broken()) return;
+        try {
+            drawTileButton(g, active, left, index, compact);
+        } catch (RuntimeException | LinkageError error) {
+            failed("tile", error);
+        }
+    }
+
+    private static void drawTileButton(GuiGraphics g, ActiveClientBattlePokemon active, boolean left, int index, boolean compact) {
         var battle = CobblemonClient.INSTANCE.getBattle();
         if (battle == null || active.getBattlePokemon() == null) return;
         int group = (Character.digit(active.getActorShowdownId().charAt(1), 10) - 1) / 2 * 10;
@@ -69,10 +102,28 @@ public final class InspectClient {
     }
 
     public static boolean click(Screen parent, double x, double y, int button) {
-        if (button != 0) return false;
+        if (button != 0 || broken()) return false;
+        try {
+            return handleClick(parent, x, y);
+        } catch (RuntimeException | LinkageError error) {
+            failed("click", error);
+            return false;
+        }
+    }
+
+    private static boolean handleClick(Screen parent, double x, double y) {
         for (Hit hit : HITS) if (x >= hit.x && x < hit.x + 12 && y >= hit.y && y < hit.y + 12) {
             var pokemon = hit.pokemon.getBattlePokemon();
             if (pokemon == null) return false;
+            // A tile is mine when its actor is me: the very rule Cobblemon's overlay uses to draw my side on the left. Matching the
+            // Pokemon's id against my party is wrong in a raid or an exhibition (copies with new ids): it fell through to the scouting
+            // view, which shows the opposing encounter, so my own Pokemon opened the opponent's inspection.
+            var self = Minecraft.getInstance().player;
+            var tileActor = hit.pokemon.getActor();
+            if (self != null && tileActor != null && self.getUUID().equals(tileActor.getUuid())) {
+                openOwnedFromBattle(parent, pokemon.getUuid().toString(), pokemon.getDisplayName().getString());
+                return true;
+            }
             var battle = CobblemonClient.INSTANCE.getBattle();
             boolean pvp = battle != null && java.util.Arrays.stream(battle.getSides()).allMatch(side ->
                     side.getActors().stream().anyMatch(actor -> actor.getType()
@@ -80,9 +131,6 @@ public final class InspectClient {
             if (pvp) {
                 Minecraft.getInstance().setScreen(new AscendInspectScreen(parent, null, pokemon.getDisplayName().getString(), true));
                 return true;
-            }
-            for (Pokemon owned : CobblemonClient.INSTANCE.getStorage().getParty()) {
-                if (owned != null && owned.getUuid().equals(pokemon.getUuid())) { openOwned(parent, owned); return true; }
             }
             if (ClientPlayNetworking.canSend(ScoutPayloads.Request.TYPE)) ClientPlayNetworking.send(new ScoutPayloads.Request());
             Minecraft.getInstance().setScreen(new AscendInspectScreen(parent, null, pokemon.getDisplayName().getString()));

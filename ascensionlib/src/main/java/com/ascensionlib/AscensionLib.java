@@ -4,6 +4,7 @@ import com.cobbleascend.domain.v1.RankedRules;
 import com.cobbleascend.store.ProgressionStore;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,12 @@ public final class AscensionLib implements ModInitializer {
         com.ascensionlib.scout.ScoutNet.register();
         ServerLifecycleEvents.SERVER_STARTING.register(this::start);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
+        // A player who leaves keeps neither their request throttles nor an "armed" battle: the encounter owner re-arms at the next battle.
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            var id = handler.getPlayer().getUUID();
+            com.ascensionlib.net.RateLimit.forget(id);
+            com.ascensionlib.scout.ScoutEncounters.disarmBattle(java.util.List.of(id));
+        });
         new AscendWiring().register();
         LOG.info("AscensionLib: shared progression store ready to open with the world.");
     }
@@ -41,6 +48,7 @@ public final class AscensionLib implements ModInitializer {
     }
 
     private void stop(MinecraftServer server) {
+        com.ascensionlib.net.RateLimit.clear();
         com.ascensionlib.scout.ScoutEncounters.detach();
         AscensionApi.detach();
         if (runtime != null) runtime.close();

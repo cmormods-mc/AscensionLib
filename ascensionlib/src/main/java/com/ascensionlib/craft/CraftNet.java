@@ -38,14 +38,21 @@ public final class CraftNet {
         PayloadTypeRegistry.playC2S().register(CraftPayloads.Confirm.TYPE, CraftPayloads.Confirm.CODEC);
         PayloadTypeRegistry.playS2C().register(CraftPayloads.View.TYPE, CraftPayloads.View.CODEC);
         PayloadTypeRegistry.playS2C().register(CraftPayloads.Done.TYPE, CraftPayloads.Done.CODEC);
+        // Fabric already runs receivers on the server thread; the extra execute() only defers the work, which is harmless.
         ServerPlayNetworking.registerGlobalReceiver(CraftPayloads.Open.TYPE, (payload, context) -> context.server().execute(() -> {
             var player = context.player();
+            // Each open scans the player's party and PC and reads the wallet: a client must not be able to spam it.
+            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "craft.open", 6, 3)) return;
             long profiled = com.ascensionlib.Profiler.start();
-            findOwned(player, payload.pokemonId()).ifPresent(p -> {
-                var locked = com.ascensionlib.CraftLocks.reason(p);
-                if (locked.isPresent()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(locked.get()));
-                else sendView(player, p, false, "");
-            });
+            try {
+                findOwned(player, payload.pokemonId()).ifPresent(p -> {
+                    var locked = com.ascensionlib.CraftLocks.reason(p);
+                    if (locked.isPresent()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(locked.get()));
+                    else sendView(player, p, false, "");
+                });
+            } catch (RuntimeException exception) {
+                LOG.error("Craft open failed for {}", player.getGameProfile().getName(), exception);
+            }
             com.ascensionlib.Profiler.stop("server.craftOpen", profiled);
         }));
         ServerPlayNetworking.registerGlobalReceiver(CraftPayloads.Confirm.TYPE, (payload, context) ->
@@ -159,6 +166,12 @@ public final class CraftNet {
     }
 
     private static void confirm(ServerPlayer player, CraftPayloads.Confirm request) {
+        // Every distinct operation id is a store transaction (an fsync): bound how fast one player can submit them.
+        if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "craft.confirm", 4, 2)) {
+            ServerPlayNetworking.send(player, new CraftPayloads.Done(request.operationId(), false, "Too many requests. Wait a moment.",
+                    request.slotId(), "", 0, 0, "", 0, 0, false));
+            return;
+        }
         var service = AscensionApi.service().orElse(null);
         UUID operation;
         try { operation = UUID.fromString(request.operationId()); } catch (IllegalArgumentException e) { return; }

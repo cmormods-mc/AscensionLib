@@ -75,17 +75,20 @@ final class CardArt {
             }
         }
         if (model != null) {
+            boolean scissored = false;
             try {
                 model.setX(x);
                 model.setY(y);
                 g.enableScissor(x, y, x + w, y + h);
+                scissored = true;
                 model.render(g, mouseX, mouseY, delta);
                 return;
             } catch (RuntimeException | LinkageError e) {
                 org.slf4j.LoggerFactory.getLogger("ascensionlib").warn("Card art model failed; using label", e);
                 model = null;
             } finally {
-                g.disableScissor();
+                // Only pop a scissor this call pushed: popping an empty stack throws and would hide the original failure.
+                if (scissored) g.disableScissor();
             }
         }
         g.drawString(font, fallback, x + (w - font.width(fallback)) / 2, y + (h - 8) / 2, PixelArt.Q_MUTED, false);

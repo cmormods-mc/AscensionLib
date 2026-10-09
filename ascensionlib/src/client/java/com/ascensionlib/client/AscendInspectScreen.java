@@ -30,6 +30,8 @@ public class AscendInspectScreen extends Screen {
     private final Screen parent;
     private final String ownedId;
     private final boolean pvp;
+    /** Opened from a tile in a live battle: no Upgrade button (nothing is crafted mid-battle, and the id may be a battle copy's). */
+    private final boolean inBattle;
     private String title;
     private OwnedInspectPayload.Result owned;
     private ScoutPayloads.State shown = ScoutPayloads.State.none(0);
@@ -50,10 +52,15 @@ public class AscendInspectScreen extends Screen {
     }
 
     public AscendInspectScreen(Screen parent, String ownedId, String title, boolean pvp) {
+        this(parent, ownedId, title, pvp, false);
+    }
+
+    public AscendInspectScreen(Screen parent, String ownedId, String title, boolean pvp, boolean inBattle) {
         super(Component.translatable("screen.ascensionlib.inspect"));
         this.parent = parent;
         this.ownedId = ownedId;
         this.pvp = pvp;
+        this.inBattle = inBattle;
         this.title = title;
     }
 
@@ -79,7 +86,7 @@ public class AscendInspectScreen extends Screen {
         selected = Math.min(selected, Math.max(0, shown.entries().size() - 1));
         int by = top + ph - 8 - 19;
         addRenderableWidget(new PixelButton(left + pw - 8 - 60, by, 60, 18, Component.literal("Close"), b -> onClose()));
-        if (owned != null && owned.detail().isPresent()) {
+        if (owned != null && owned.detail().isPresent() && !inBattle) {
             String label = owned.pending() > 0 ? "Upgrade (" + owned.pending() + ")" : "Upgrade";
             boolean locked = owned.extra().craftLocked();
             var upgrade = new PixelButton(left + pw - 8 - 60 - 4 - 84, by, 84, 18, Component.literal(locked ? "Locked" : label),

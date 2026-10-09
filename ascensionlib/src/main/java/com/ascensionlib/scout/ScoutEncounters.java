@@ -144,6 +144,8 @@ public final class ScoutEncounters {
     /** Forgets the encounter and every reveal of it; its participants' screens go back to nothing. */
     public static synchronized void end(String encounterId) {
         Encounter ended = ACTIVE.remove(encounterId);
+        // A player still armed for a finished encounter would otherwise fight natively (no wild rating either) until the server restarts.
+        ARMED.values().removeIf(encounterId::equals);
         AscensionApi.scouting().ifPresent(scouting -> scouting.endEncounter(encounterId));
         if (ended != null) ended.participants.forEach(ScoutEncounters::push);
     }

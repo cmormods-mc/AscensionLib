@@ -5,6 +5,9 @@ plugins {
 }
 base { archivesName = 'AscensionLib' }
 loom {
+    // Generates the mixin refmap. Without it the injections that target Minecraft-named methods (render, mouseClicked, init)
+    // are written with Mojang names, which exist only in a development run: in a normal install they cannot be found.
+    mixin { useLegacyMixinAp = true }
     // The scouting screen is the first client-only code (the shared library stays server-authoritative); split
     // sources keep it from loading on a dedicated server.
     splitEnvironmentSourceSets()

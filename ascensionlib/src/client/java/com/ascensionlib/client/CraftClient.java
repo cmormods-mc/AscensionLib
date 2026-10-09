@@ -14,6 +14,9 @@ final class CraftClient {
     private static Screen pendingParent;
     private static boolean waitingToOpen;
     private static long openSentAt;
+    private static long waitStartedNanos;
+    /** An open request that gets no answer (the server refused it, or the connection dropped) stops waiting after this long. */
+    private static final long WAIT_NANOS = 10_000_000_000L;
 
     private CraftClient() {}
 
@@ -22,12 +25,21 @@ final class CraftClient {
         if (!ClientPlayNetworking.canSend(CraftPayloads.Open.TYPE)) return;
         pendingParent = parent;
         waitingToOpen = true;
+        waitStartedNanos = System.nanoTime();
         openSentAt = com.ascensionlib.Profiler.start();
         ClientPlayNetworking.send(new CraftPayloads.Open(pokemonId));
     }
 
+    /** Forgets a pending request (the player disconnected); otherwise its parent screen is kept alive and a later view could open over anything. */
+    static void clear() {
+        pendingParent = null;
+        waitingToOpen = false;
+    }
+
     static void onView(CraftPayloads.View view) {
         var mc = Minecraft.getInstance();
+        // The server answers a locked or refused open with a chat line and no view: do not let that stale wait capture a later view.
+        if (waitingToOpen && System.nanoTime() - waitStartedNanos > WAIT_NANOS) clear();
         if (waitingToOpen) com.ascensionlib.Profiler.stop("craft.openRoundTrip", openSentAt);
         long profiled = com.ascensionlib.Profiler.start();
         if (mc.screen instanceof CraftScreen screen && screen.pokemonId().equals(view.pokemonId())) {

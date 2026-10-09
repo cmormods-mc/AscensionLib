@@ -72,10 +72,13 @@ final class CaptureRevealScreen extends Screen {
         if (AscensionClientSettings.reducedMotion) flipAt = 0;
     }
 
+    /** Read once: the environment does not change while the game runs, and this is consulted every tick. */
+    private static final boolean HOLD_BACK = System.getenv("ASCENSIONLIB_HOLD_BACK") != null;
+
     private long age() { return (System.nanoTime() - opened) / 1_000_000L; }
     /** Rarer outcomes wait a little longer before turning over by themselves; a click or Space turns it at once. */
     private long autoFlipMs() {
-        if (System.getenv("ASCENSIONLIB_HOLD_BACK") != null) return Long.MAX_VALUE / 2;   // development only: hold the card face-down for screenshots
+        if (HOLD_BACK) return Long.MAX_VALUE / 2;   // development only: hold the card face-down for screenshots
         return rarity >= 5 ? 1400 : rarity >= 4 ? 1000 : 700;
     }
     private float flip() {
