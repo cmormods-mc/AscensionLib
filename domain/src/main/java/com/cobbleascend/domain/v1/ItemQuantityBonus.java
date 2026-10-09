@@ -1,5 +1,6 @@
 package com.cobbleascend.domain.v1;
 
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -10,15 +11,35 @@ import java.util.Random;
 public final class ItemQuantityBonus {
     public static final int PERCENT = 20;
 
+    /** The item-reward percent each Transcendent signature built on the 777 Unique carries before harmony (docs/TRANSCENDENT-POWERS.md). */
+    private static final Map<String, Integer> SIGNATURE_PERCENT = Map.of(
+            "gilded_ember", 10, "last_gamble", 15, "fortunes_rot", 15,
+            "skyfall_fortune", 15, "wager_of_blood", 15, "jackpot_titan", 20);
+
     private ItemQuantityBonus() {}
+
+    /**
+     * The item-reward percent of a Transcendent: its signature's percent times the benefit share (whole percent 0..100), rounded
+     * down; 0 for a signature that carries none or an out-of-range share.
+     */
+    public static int percentFor(String signatureId, int benefitPercent) {
+        Integer base = SIGNATURE_PERCENT.get(signatureId);
+        if (base == null || benefitPercent < 0 || benefitPercent > 100) return 0;
+        return base * benefitPercent / 100;
+    }
 
     /**
      * @param count the base quantity (at least 1)
      * @param seed  identifies this reward (player, item, source), so the rounding is stable
      */
     public static int scale(int count, String seed) {
-        if (count < 1) return count;
-        long scaledTimes100 = (long) count * (100 + PERCENT);
+        return scale(count, seed, PERCENT);
+    }
+
+    /** As {@link #scale(int, String)} with another bonus: a Transcendent's {@link #percentFor}. A percent of 0 or less changes nothing. */
+    public static int scale(int count, String seed, int percent) {
+        if (count < 1 || percent <= 0) return count;
+        long scaledTimes100 = (long) count * (100 + Math.min(percent, 100));
         int whole = (int) (scaledTimes100 / 100);
         int remainder = (int) (scaledTimes100 % 100);
         if (remainder > 0 && new Random(RewardSeed.of("item-quantity", seed, count)).nextInt(100) < remainder) whole++;

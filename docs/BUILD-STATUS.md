@@ -11,6 +11,12 @@ The remaining 18 signatures are implemented in the simulator (`ascension-fx.js`,
 - Harness tests 45 to 62 added; 79 of 79 pass against the real unbundled simulator. No Java changed (the resolver already named all 21 signatures); item-reward bonuses (#6, #11, #15, #18, #20, #21) are still Java-side to do.
 - Not verified: any live battle with these signatures, and the 21 x 25 signature-by-twist matrix test.
 
+## Fusion rules and Transcendent loot bonus (domain) — 2026-10-09
+
+- `FusionRules` (domain): who may fuse and the price (600 dust, 30 facets, 10 cores, 1 Catalyst; host Mythical with all ten upgrade credits spent, 150 lifetime attunement, a Unique; donor Epic or better with a different Unique; neither already a Transcendent; not the same Pokemon). Refusals are `CraftException` reasons (`FUSION_*`, `ALREADY_TRANSCENDENT`). The approved draft "every ordinary slot at rank V" was unsatisfiable (24 credits needed, 10 earnable), so the owner chose "all credits spent". Not wired to the store or any screen yet.
+- `ItemQuantityBonus.percentFor(signature, benefit)` and `scale(count, seed, percent)`: the item-reward percent of the six 777 signatures (10/15/15/15/15/20) times the benefit share. Not wired to `AscensionRewards` until a profile can hold a Transcendent.
+- Domain tests: 176 plus the new ones, all passing.
+
 ## P1 ranked domain foundation — 2026-10-05
 
 Added in `domain/.../v1/`, beside the untouched schema-zero prototype (the `fabric` module still uses the prototype types and its build is unchanged):

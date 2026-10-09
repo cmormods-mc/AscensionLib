@@ -10,7 +10,7 @@ Status: **the research, the data, the recipe resolver and the battle effect are 
 - The result is shaped by both Uniques and by both Pokemon, and is **deterministic and previewed**: there is no hidden roll.
 - Recipes cover **every Cobblemon species** (1025 in Cobblemon 1.8.1), built from researched lore.
 
-Proposed, not yet decided: the host must be Mythical with every ordinary slot at rank V; the donor Epic or higher; both the player's own and not craft-locked; a Pokemon transcends once; cost 600 dust, 30 facets, 10 cores, 150 lifetime attunement on the host and one Catalyst (about 67 keyed Tower runs of cores). The donor is permanently removed behind an explicit confirmation.
+Proposed, not yet decided: the host must be Mythical with all ten upgrade credits spent (decided 2026-10-09: the first draft, every slot at rank V, needs 24 credits on six slots when only 10 can be earned); the donor Epic or higher; both the player's own and not craft-locked; a Pokemon transcends once; cost 600 dust, 30 facets, 10 cores, 150 lifetime attunement on the host and one Catalyst (about 67 keyed Tower runs of cores). The donor is permanently removed behind an explicit confirmation.
 
 ## The research
 
