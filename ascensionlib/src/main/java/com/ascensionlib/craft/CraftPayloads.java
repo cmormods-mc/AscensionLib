@@ -90,7 +90,7 @@ public final class CraftPayloads {
      * refreshes one that is already open. {@code message} is a one-line notice (an error from the last action, or empty).
      */
     public record View(String pokemonId, String name, String speciesId, List<String> aspects, int level, String rarityId, String uniqueName,
-                       int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores,
+                       int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores, long scouters,
                        Price refine, Price reforge, Promotion promotion, UniqueState unique, List<SlotView> slots, String message, boolean open) implements CustomPacketPayload {
         public static final Type<View> TYPE = new Type<>(id("craft_view"));
         public static final StreamCodec<RegistryFriendlyByteBuf, View> CODEC = StreamCodec.of((buf, v) -> {
@@ -109,6 +109,7 @@ public final class CraftPayloads {
             buf.writeVarLong(v.dust());
             buf.writeVarLong(v.facets());
             buf.writeVarLong(v.cores());
+            buf.writeVarLong(v.scouters());
             for (Price price : new Price[] {v.refine(), v.reforge()}) {
                 buf.writeVarInt(price.dust());
                 buf.writeVarInt(price.facets());
@@ -149,7 +150,7 @@ public final class CraftPayloads {
             String rarity = buf.readUtf(16), unique = buf.readUtf(128);
             int pending = buf.readVarInt(), next = buf.readVarInt();
             long profileRevision = buf.readVarLong(), walletRevision = buf.readVarLong(), dust = buf.readVarLong(), facets = buf.readVarLong(),
-                    cores = buf.readVarLong();
+                    cores = buf.readVarLong(), scouters = buf.readVarLong();
             Price refine = new Price(buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
             Price reforge = new Price(buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
             Promotion promotion = new Promotion(buf.readUtf(16), new Price(buf.readVarInt(), buf.readVarInt(), buf.readVarInt()),
@@ -167,7 +168,7 @@ public final class CraftPayloads {
             List<SlotView> slots = new ArrayList<>();
             for (int i = 0; i < slotCount; i++) slots.add(SlotView.read(buf));
             return new View(pokemonId, name, species, aspects, level, rarity, unique, pending, next, profileRevision, walletRevision, dust,
-                    facets, cores, refine, reforge, promotion, uniqueState, slots, buf.readUtf(256), buf.readBoolean());
+                    facets, cores, scouters, refine, reforge, promotion, uniqueState, slots, buf.readUtf(256), buf.readBoolean());
         });
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }

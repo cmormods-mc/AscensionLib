@@ -34,6 +34,22 @@ public final class AscensionGrants {
     private AscensionGrants() {}
 
     /**
+     * For a Pokemon lent out with a profile (a rental draft): awards any level milestones it has reached, then spends every
+     * pending upgrade credit on randomly chosen slots, one rank each. {@link Result#GRANTED} when the Pokemon has a profile
+     * afterwards (nothing left to spend is fine). New method; the contract of {@link #grantWithRarity} is unchanged.
+     */
+    public static Result upgradeRandomly(Pokemon pokemon) {
+        var service = AscensionApi.service();
+        if (service.isEmpty()) return Result.DISABLED;
+        try {
+            return service.get().autoUpgrade(pokemon).isPresent() ? Result.GRANTED : Result.FAILED;
+        } catch (RuntimeException exception) {
+            LOG.error("Could not upgrade Pokemon {} at random", pokemon.getUuid(), exception);
+            return Result.FAILED;
+        }
+    }
+
+    /**
      * Gives an owned Pokemon a profile at an operator-chosen rarity: the rarity is never rolled, its modifier slots
      * are. Call after the Pokemon has been added to the player's party or PC, on the server thread. Safe to repeat:
      * a Pokemon that already has a profile keeps it.

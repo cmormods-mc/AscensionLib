@@ -1,6 +1,6 @@
-# Status-damage affixes: design (2026-10-05, draft; code waits for the owner's batch test)
+# Status-damage affixes: design (2026-10-05; built the same day, lib commit 1f3c86c)
 
-Status: **design only, nothing built.** Scope chosen by the owner: burn and poison potency, plus one custom ("bleed-style")
+Status: **built, verified only in the simulator harness, never seen in a live battle.** Scope chosen by the owner: burn and poison potency, plus one custom ("bleed-style")
 damage-over-time effect the library applies itself. Spec references: `CobbleAscension_TECHNICAL-DESIGN-SPECIFICATION.md` 8.1, 8.2, 9.1 (Ashen Heart).
 
 ## Where this plugs in
@@ -48,12 +48,20 @@ dex at battle start, or (b) a library ledger plus a hook on the engine's residua
 client must also render it: an unknown `[from]` effect in a `-damage` line is misread by the Cobblemon client (a lesson already recorded in
 `triumphant`), so the tick uses a plain `-damage` line plus a `-message` text.
 
-## Open questions
+## Decisions (formerly open questions; as built in `ascension-fx.js`)
 
-1. Rending trigger: a chance on each damaging hit, or the holder's first hit of the battle, or only on a critical hit?
-2. Rending damage and length: a fixed percent of the target's max HP per turn for N turns (recommended: 1/16 like burn, 3 turns, refreshing
-   instead of stacking), and does it ignore Magic Guard?
-3. Who is immune: Rock/Steel? Pokemon that already have a major status? (Recommended: no type immunity, only Magic Guard and a Substitute block.)
-4. Do Smoldering and Venomous also boost Rending (one shared "residual" boost), or only their own status? (Recommended: only their own.)
-5. Caps: residual channel cap 100 like outgoing damage, or lower (it multiplies a small base, so a high cap is safe)?
-6. Rank bands: same five-band shape as other affixes; the numbers need a balance pass once the effects run.
+1. Rending trigger: **30% per damaging move** that deals damage to an opponent, one roll per move use and target however many hits land.
+2. Rending damage and length: **1/12 of max HP per stack per turn, up to 3 stacks, 3 turns**, every new application refreshes the turns
+   and adds a stack (this replaced the "refresh, don't stack" recommendation). Damage goes through the engine's `Damage` event, so
+   **Magic Guard blocks it**.
+3. Immunity: no type immunity. Only Magic Guard (and other native damage rules via the `Damage` event) stops a tick; a hit that deals no
+   damage never rolls, which is how a Substitute is expected to absorb it (not separately tested).
+4. Smoldering and Venomous boost **only their own status**. Rending is boosted by its own rolled percent.
+5. Caps: the `residual` channel has a cap of **100** (`caps.res` in the payload), shared by Smoldering, Venomous, Rending and the Unique
+   Ashen Heart.
+6. Rank bands: same five-band shape as other affixes, numbers still **provisional**; they need a balance pass after the stacked-team live test.
+
+Related Uniques that share the bleed: Rupture (physical moves always bleed, stacks weigh 100/80/60%). The catalog version was not bumped,
+so the three affixes roll for new captures immediately and existing profiles stay valid.
+
+Still open: live confirmation that the Cobblemon client renders the plain `-damage` line plus "<name> is bleeding!" without errors.

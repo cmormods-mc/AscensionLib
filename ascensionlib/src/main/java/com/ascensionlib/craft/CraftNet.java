@@ -40,28 +40,47 @@ public final class CraftNet {
         PayloadTypeRegistry.playS2C().register(CraftPayloads.Done.TYPE, CraftPayloads.Done.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(CraftPayloads.Open.TYPE, (payload, context) -> context.server().execute(() -> {
             var player = context.player();
-            findOwned(player, payload.pokemonId()).ifPresent(p -> sendView(player, p, false, ""));
+            long profiled = com.ascensionlib.Profiler.start();
+            findOwned(player, payload.pokemonId()).ifPresent(p -> {
+                var locked = com.ascensionlib.CraftLocks.reason(p);
+                if (locked.isPresent()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(locked.get()));
+                else sendView(player, p, false, "");
+            });
+            com.ascensionlib.Profiler.stop("server.craftOpen", profiled);
         }));
         ServerPlayNetworking.registerGlobalReceiver(CraftPayloads.Confirm.TYPE, (payload, context) ->
-                context.server().execute(() -> confirm(context.player(), payload)));
+                context.server().execute(() -> {
+                    long profiled = com.ascensionlib.Profiler.start();
+                    confirm(context.player(), payload);
+                    com.ascensionlib.Profiler.stop("server.craftConfirm", profiled);
+                }));
     }
 
     /** The player's own Pokemon in party or PC with this id, never a battle clone. */
     public static Optional<Pokemon> findOwned(ServerPlayer player, String pokemonId) {
         UUID id;
         try { id = UUID.fromString(pokemonId); } catch (IllegalArgumentException e) { return Optional.empty(); }
+        long profiled = com.ascensionlib.Profiler.start();
         List<Pokemon> all = new ArrayList<>();
         Cobblemon.INSTANCE.getStorage().getParty(player).forEach(all::add);
         Cobblemon.INSTANCE.getStorage().getPC(player).forEach(all::add);
-        return all.stream().filter(p -> p.getUuid().equals(id) && !p.isBattleClone() && player.getUUID().equals(p.getOwnerUUID())).findFirst();
+        var found = all.stream().filter(p -> p.getUuid().equals(id) && !p.isBattleClone() && player.getUUID().equals(p.getOwnerUUID())).findFirst();
+        com.ascensionlib.Profiler.stop("server.findOwned", profiled);
+        return found;
     }
 
     public static boolean sendView(ServerPlayer player, Pokemon pokemon, boolean open, String message) {
         var service = AscensionApi.service().orElse(null);
         if (service == null || !ServerPlayNetworking.canSend(player, CraftPayloads.View.TYPE)) return false;
+        if (com.ascensionlib.CraftLocks.locked(pokemon)) return false;     // a lent Pokemon has no upgrade screen
+        long profiled = com.ascensionlib.Profiler.start();
         var profile = service.canonical(pokemon);
+        com.ascensionlib.Profiler.stop("server.canonical", profiled);
         if (profile.isEmpty()) return false;
-        ServerPlayNetworking.send(player, view(player, pokemon, service, profile.get(), open, message));
+        profiled = com.ascensionlib.Profiler.start();
+        var built = view(player, pokemon, service, profile.get(), open, message);
+        com.ascensionlib.Profiler.stop("server.craftView", profiled);
+        ServerPlayNetworking.send(player, built);
         return true;
     }
 
@@ -126,7 +145,7 @@ public final class CraftNet {
                 pokemon.getSpecies().getResourceIdentifier().toString(), new ArrayList<>(pokemon.getAspects()), pokemon.getLevel(),
                 profile.rarity().id(), profile.unique() == null ? "" : rules.unique(profile.unique().uniqueId()).map(u -> u.name()).orElse("Unknown Unique"),
                 profile.pendingCredits(), nextMilestone, profile.revision(), wallet.revision(), wallet.balance(MaterialId.RESONANCE_DUST),
-                wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE),
+                wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE), wallet.balance(MaterialId.SCOUTER),
                 new CraftPayloads.Price(refineCost.dust(), refineCost.facets(), refineCost.cores()),
                 new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, slots, message, open);
     }
@@ -147,6 +166,8 @@ public final class CraftNet {
         var found = findOwned(player, request.pokemonId());
         if (found.isEmpty()) { fail(player, request, "That Pokémon is no longer yours to change."); return; }
         var pokemon = found.get();
+        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
+        if (locked.isPresent()) { fail(player, request, locked.get()); return; }
         var before = service.canonical(pokemon);
         if (before.isEmpty()) { fail(player, request, "That Pokémon has no ascension profile."); return; }
         if (request.kind().equals("assemble")) { assemble(player, service, pokemon, request, operation); return; }

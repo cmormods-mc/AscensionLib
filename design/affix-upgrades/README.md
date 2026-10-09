@@ -2,7 +2,7 @@
 
 **Design approved by the owner on October 3, 2026. Preserve for later native implementation.** The approved reference is this clean-pixel Upgrade/Reforge interface, including selection, roll-range comparison, explicit confirmation, result feedback and pending-credit handling. Approval of presentation does not finalize the provisional balance values or claim live game integration.
 
-Interactive companion to the approved clean-pixel capture reveal. Open `preview.html`; editable source is `affix-upgrades.fragment.html`.
+Interactive companion to the approved clean-pixel capture reveal. The browser preview (HTML, its browser checks and screenshots) was removed from the repository on 2026-10-09; it remains in git history before that commit. This README is kept as the design record.
 
 The screen retains the reveal's pale inventory panels, hard pixel borders, Pixelify Sans preview font and commit-pinned Cobblemon Cards Growlithe sprite. Mythic is a small crimson/silver rarity accent. Native Minecraft integration should use the game's font and texture renderer.
 
@@ -29,4 +29,4 @@ Preview preferences persist; simulated crafting changes are session-local. No ac
 
 ## Verification
 
-`work/check-affix-ui.cjs` passed upgrade bounds and credit consumption, cancel/Escape without spending, rank-preserving reforge, depleted materials, defer/reopen, no-credit/max-rank cases, script errors and label/width geometry at 780, 600, 360 and 320 px. Sprite loading was verified with network access. Screenshots: `work/affix-ui-desktop.png` and `work/affix-ui-mobile.png`.
+`work/check-affix-ui.cjs` (removed 2026-10-09 with the preview) passed upgrade bounds and credit consumption, cancel/Escape without spending, rank-preserving reforge, depleted materials, defer/reopen, no-credit/max-rank cases, script errors and label/width geometry at 780, 600, 360 and 320 px. Sprite loading was verified with network access. Screenshots: `work/affix-ui-desktop.png` and `work/affix-ui-mobile.png`.

@@ -32,4 +32,4 @@ These checks prove compilation, packaging and existing rule/store regressions. T
 7. Add species/form/shiny-aware sprite resolution or Cobblemon's native portrait renderer. The five bundled regular sprites are reference assets, not full Pokémon appearance coverage.
 8. Test empty wallet, successful scouting, duplicate clicks, invalid owned UUID, ownership transfer while open, disconnect, encounter end and stale responses. The Use button disables pending requests and retries only after response/timeout; the existing server scouting service owns spending and reveal scope.
 
-The browser preview under `design/inspect/` remains the complete art/interaction reference. This build is the native injection foundation; the gaps above are explicit completion gates for matching that reference fully.
+The design record under `design/inspect/` (its browser preview was removed 2026-10-09, see git history) remains the art/interaction reference. This build is the native injection foundation; the gaps above are explicit completion gates for matching that reference fully.

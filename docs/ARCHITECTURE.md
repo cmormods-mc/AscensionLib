@@ -1,6 +1,6 @@
 # Technical architecture and persistence proposal
 
-Status: full-product architecture proposal. The current compiled prototype implements only a subset, with schema-zero per-Pokémon storage and pure domain calculations; the canonical SQLite store and client are not implemented. See BUILD-STATUS.md. Raid integration is deferred. Primary-source evidence and uncertainties are in `API-RESEARCH.md` and `COBBLERAIDS-INTEGRATION.md`.
+Status: full-product architecture proposal, written before the build; the text below keeps its original wording. The canonical SQLite store (`store`), the Fabric wiring and a client now exist, and the mod is AscensionLib (mod ID `ascensionlib`), a single Fabric jar in the `ascensionlib` module that nests `domain` and `store`. The module table, the `fabric`/`simulator`/`raids-compat` split and `AscensionService` below are proposals, not the current layout: the Fabric code, client, networking and the battle adapter all live in `ascensionlib`, and the simulator module is installed through CobbleRaids' extension API. See BUILD-STATUS.md for what is actually built and verified. Raid integration is deferred. Primary-source evidence and uncertainties are in `API-RESEARCH.md` and `COBBLERAIDS-INTEGRATION.md`.
 
 ## Distribution
 
@@ -20,7 +20,7 @@ Build core/client as one required mod jar initially. Ship raids-compat as an opt
 
 ## Deep service boundaries
 
-`AscensionService`: initialize once, read snapshot, validate/import profile, promote/reforge/refine using explicit owner and revision. Internalizes generation and lifecycle identity rules.
+`ProfileService` (originally proposed as `AscensionService`; renamed because CobbleTowers has an unrelated class of that name): initialize once, read snapshot, validate/import profile, promote/reforge/refine using explicit owner and revision. Internalizes generation and lifecycle identity rules.
 
 `ProgressionStore`: atomically owns wallets, profiles, craft operations, research counters, attunement, reward entitlements and run reservations. Exposes domain operations, not arbitrary database access.
 

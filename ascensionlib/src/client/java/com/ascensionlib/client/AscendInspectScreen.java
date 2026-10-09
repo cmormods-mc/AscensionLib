@@ -81,7 +81,18 @@ public class AscendInspectScreen extends Screen {
         addRenderableWidget(new PixelButton(left + pw - 8 - 60, by, 60, 18, Component.literal("Close"), b -> onClose()));
         if (owned != null && owned.detail().isPresent()) {
             String label = owned.pending() > 0 ? "Upgrade (" + owned.pending() + ")" : "Upgrade";
-            addRenderableWidget(new PixelButton(left + pw - 8 - 60 - 4 - 84, by, 84, 18, Component.literal(label), b -> CraftClient.open(this, ownedId)).primary());
+            boolean locked = owned.extra().craftLocked();
+            var upgrade = new PixelButton(left + pw - 8 - 60 - 4 - 84, by, 84, 18, Component.literal(locked ? "Locked" : label),
+                    b -> CraftClient.open(this, ownedId));
+            if (locked) {
+                // A lent Pokemon: the server refuses everything here anyway; this just says so instead of offering a button that fails.
+                upgrade.active = false;
+                upgrade.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+                        "This Pokemon is on loan and cannot be upgraded.")));
+            } else {
+                upgrade.primary();
+            }
+            addRenderableWidget(upgrade);
         }
         if (ownedId == null && !pvp) {
             scout = new PixelButton(left + pw / 2 - 47, by, 94, 18, Component.translatable("button.ascensionlib.scout"), b -> {
@@ -153,6 +164,14 @@ public class AscendInspectScreen extends Screen {
     }
 
     @Override public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        com.ascensionlib.Profiler.frame("inspect.frameGap");
+        long profiled = com.ascensionlib.Profiler.start(), allocated = com.ascensionlib.Profiler.startAlloc();
+        drawBackground(g, mouseX, mouseY, delta);
+        com.ascensionlib.Profiler.stop("inspect.background", profiled);
+        com.ascensionlib.Profiler.stopAlloc("inspect.background", allocated);
+    }
+
+    private void drawBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
         // A plain warm dim over the world: no blur, so the panel and its text stay crisp.
         g.fill(0, 0, width, height, 0xB0140D09);
         int x = left, y = top;

@@ -23,7 +23,9 @@ import net.minecraft.sounds.SoundEvents;
 final class CraftScreen extends Screen {
     private enum Mode { UPGRADE, REFINE, REFORGE, PROMOTE, UNIQUE }
     private enum Phase { BROWSE, REVIEW, WAITING }
-    private static final int W = 400, H = 236, ROW_H = 20, LEFT_W = 176;
+    private static final int W = 496, H = 252, ROW_H = 20, UNIQUE_ROW_H = 18, LEFT_W = 176;
+    private static final int SIDE_W = 96;   // the wallet column on the right, gap included
+    private static final int ASSEMBLE_W = 104, ASSEMBLE_Y = 114;   // the Assemble button's width and its offset below the right panel's top
     private static final int REVIEW_W = 58;
     private static final int TABS = 5, TAB_W = 56;
     private static final String[] ROMAN = {"", "I", "II", "III", "IV", "V"};
@@ -40,7 +42,7 @@ final class CraftScreen extends Screen {
     private boolean bannerOk;
     private CardArt art;
     private String artKey = "";
-    private int left, top, pw, ph;
+    private int left, top, pw, ph, mainW;
 
     CraftScreen(Screen parent, CraftPayloads.View view) {
         super(Component.translatable("screen.ascensionlib.craft"));
@@ -129,10 +131,17 @@ final class CraftScreen extends Screen {
     // ---- widgets ------------------------------------------------------------------------------------------------------------
 
     @Override protected void init() {
+        long profiled = com.ascensionlib.Profiler.start();
+        buildWidgets();
+        com.ascensionlib.Profiler.stop("craft.init", profiled);
+    }
+
+    private void buildWidgets() {
         pw = Math.min(W, width - 8);
         ph = Math.min(H, height - 8);
         left = (width - pw) / 2;
         top = (height - ph) / 2;
+        mainW = pw - 16 - SIDE_W;
         int x = left + 8;
         if (phase == Phase.BROWSE) {
             String[] names = {"Upgrade", "Refine", "Reforge", "Promote", "Unique"};
@@ -143,9 +152,9 @@ final class CraftScreen extends Screen {
             int rowY = top + 8 + 36 + 3 + 16 + 17 + 2;
             if (mode == Mode.UNIQUE) {
                 for (var option : view.unique().options()) {
-                    addRenderableWidget(new UniqueRow(x + 2, rowY, LEFT_W - 4, ROW_H - 1, option, option.id().equals(selectedUnique),
+                    addRenderableWidget(new UniqueRow(x + 2, rowY, LEFT_W - 4, UNIQUE_ROW_H - 1, option, option.id().equals(selectedUnique),
                             () -> { selectedUnique = option.id(); rebuildWidgets(); }));
-                    rowY += ROW_H;
+                    rowY += UNIQUE_ROW_H;
                 }
             }
             for (var s : mode == Mode.UNIQUE ? java.util.List.<CraftPayloads.SlotView>of() : view.slots()) {
@@ -157,15 +166,15 @@ final class CraftScreen extends Screen {
             addRenderableWidget(new PixelButton(left + pw - 8 - 86, fy, 86, 18, Component.literal("Decide later"), b -> onClose()));
             var current = slot();
             if (current != null || mode == Mode.PROMOTE || mode == Mode.UNIQUE) {
-                int rx = x + LEFT_W + 6, rw = left + pw - 8 - rx, panelBottom = top + ph - 8 - 24;
+                int rx = x + LEFT_W + 6, rw = x + mainW - rx, panelBottom = top + ph - 8 - 24;
                 var review = new PixelButton(rx + rw - 6 - REVIEW_W, panelBottom - 2 - 17, REVIEW_W, 16,
                         Component.literal("Review"), b -> { phase = Phase.REVIEW; rebuildWidgets(); }).primary();
                 review.active = mode == Mode.PROMOTE ? view.promotion().block().isEmpty() && !view.promotion().toRarity().isEmpty()
                         : mode == Mode.UNIQUE ? uniqueReady() : blockFor(current).isEmpty();
                 addRenderableWidget(review);
                 if (mode == Mode.UNIQUE) {
-                    var assemble = new PixelButton(rx + rw - 6 - 96, top + 8 + 36 + 3 + 16 + 17 + 100, 96, 14,
-                            Component.literal("Assemble Catalyst"), b -> assemble());
+                    var assemble = new PixelButton(rx + rw - 6 - ASSEMBLE_W, top + 8 + 36 + 3 + 17 + ASSEMBLE_Y, ASSEMBLE_W, 14,
+                            Component.literal("Assemble " + Math.min(view.unique().fragments(), view.unique().fragmentsNeeded()) + "/" + view.unique().fragmentsNeeded()), b -> assemble());
                     assemble.active = view.unique().fragments() >= view.unique().fragmentsNeeded();
                     addRenderableWidget(assemble);
                 }
@@ -221,7 +230,8 @@ final class CraftScreen extends Screen {
     }
 
     @Override public void onClose() {
-        if (phase == Phase.WAITING) return;       // the answer is on its way; do not abandon a request in flight
+        if (phase == Phase.WAITING) return;
+        com.ascensionlib.Profiler.flush();       // the answer is on its way; do not abandon a request in flight
         minecraft.setScreen(parent);
         if (parent instanceof AscendInspectScreen inspect) inspect.refreshOwned();
     }
@@ -229,11 +239,18 @@ final class CraftScreen extends Screen {
     // ---- drawing ------------------------------------------------------------------------------------------------------------
 
     @Override public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        long profiled = com.ascensionlib.Profiler.start();
+        drawBackground(g, mouseX, mouseY);
+        com.ascensionlib.Profiler.stop("craft.background", profiled);
+    }
+
+    private void drawBackground(GuiGraphics g, int mouseX, int mouseY) {
         g.fill(0, 0, width, height, 0xB0140D09);
         var style = PixelArt.style(view.rarityId());
         PixelArt.qpanel(g, left, top, pw, ph);
         PixelArt.ring(g, left + 4, top + 4, pw - 8, ph - 8, style.accent(), 2);
         PixelArt.ring(g, left + 6, top + 6, pw - 12, ph - 12, 0xFF1B120D, 1);
+        mainW = pw - 16 - SIDE_W;
         int x = left + 8, y = top + 8, innerW = pw - 16;
 
         // ---- header: the Pokemon, its rarity, how many upgrades wait --------------------------------------------------------
@@ -259,9 +276,9 @@ final class CraftScreen extends Screen {
 
         // ---- tab row: line and the result banner -----------------------------------------------------------------------------
         int tabY = y + 36 + 3;
-        g.fill(x, tabY + 16, x + innerW, tabY + 17, PixelArt.Q_EDGE);
+        g.fill(x, tabY + 16, x + mainW, tabY + 17, PixelArt.Q_EDGE);
         if (!bannerText.isEmpty()) {
-            int bx = x + TABS * TAB_W + 4, bw = innerW - TABS * TAB_W - 4;
+            int bx = x + TABS * TAB_W + 4, bw = mainW - TABS * TAB_W - 4;
             g.fill(bx, tabY + 1, bx + bw, tabY + 15, bannerOk ? 0xFFDDEBD0 : 0xFFF2D8D2);
             g.fill(bx, tabY + 1, bx + 2, tabY + 15, bannerOk ? 0xFF6F9A52 : 0xFFB5482E);
             g.drawString(font, font.plainSubstrByWidth(bannerText, bw - 10), bx + 6, tabY + 4, PixelArt.Q_INK, false);
@@ -278,7 +295,7 @@ final class CraftScreen extends Screen {
         if (!uniqueTab && view.slots().isEmpty()) g.drawString(font, "No affixes to change.", x + 8, panelTop + 24, PixelArt.Q_MUTED, false);
 
         // ---- right: the chosen action on the chosen affix -----------------------------------------------------------------------
-        int rx = x + LEFT_W + 6, rw = left + pw - 8 - rx, t = panelTop;
+        int rx = x + LEFT_W + 6, rw = x + mainW - rx, t = panelTop;
         PixelArt.qpanel(g, rx, t, rw, panelBottom - t);
         var s = slot();
         if (mode == Mode.PROMOTE) {
@@ -289,13 +306,13 @@ final class CraftScreen extends Screen {
             g.drawString(font, "Choose an affix on the left.", rx + 8, t + 10, PixelArt.Q_MUTED, false);
         } else {
             boolean prefix = s.category().equals("prefix");
-            String kind = mode.name() + " " + s.category().toUpperCase(Locale.ROOT);
+            String kind = mode.name() + " · " + (prefix ? "OFFENSE" : "DEFENSE");
             g.drawString(font, kind, rx + 8, t + 5, PixelArt.Q_MUTED, false);
             g.drawString(font, font.plainSubstrByWidth(s.name(), rw - 16), rx + 8, t + 16, PixelArt.Q_INK, false);
-            String effect = s.condition().isEmpty() ? (prefix ? "An offensive modifier." : "A defensive or recovery modifier.") : s.condition();
+            String effect = s.condition().isEmpty() ? (prefix ? "Boosts your damage." : "Protects or heals you.") : s.condition();
             var lines = font.split(Component.literal(effect), rw - 16);
-            for (int i = 0; i < Math.min(2, lines.size()); i++) g.drawString(font, lines.get(i), rx + 8, t + 27 + i * 9, PixelArt.Q_MUTED, false);
-            int boxY = t + 46, boxW = (rw - 12 - 18) / 2, boxH = 34;
+            for (int i = 0; i < Math.min(3, lines.size()); i++) g.drawString(font, lines.get(i), rx + 8, t + 27 + i * 9, PixelArt.Q_INK, false);
+            int boxY = t + 58, boxW = (rw - 12 - 18) / 2, boxH = 34;
             String curLabel = "Current · " + ROMAN[Math.max(1, Math.min(5, s.rank()))];
             String curBig = "+" + s.value() + "%";
             String curSmall = "Range " + s.bandMin() + "–" + s.bandMax() + "%";
@@ -336,9 +353,9 @@ final class CraftScreen extends Screen {
                 if (filled) g.fill(sx + 1, barY + 1, sx + segW - 1, barY + 2, style2.accent());
             }
             String what = switch (mode) {
-                case UPGRADE -> "Keeps this affix, rolls in the next range. No failure chance.";
-                case REFINE -> "Rerolls only the value in this rank's range. May go down.";
-                default -> "Swaps this affix for another. Rank stays; value rolls anew.";
+                case UPGRADE -> "Raises this affix one rank and rerolls its value. Never fails.";
+                case REFINE -> "Rerolls the value inside this rank's range. It can go lower.";
+                default -> "Swaps this affix for a different one. Rank stays, value rerolls.";
             };
             var explain = font.split(Component.literal(what), rw - 16);
             for (int i = 0; i < Math.min(2, explain.size()); i++) g.drawString(font, explain.get(i), rx + 8, barY + 10 + i * 9, PixelArt.Q_MUTED, false);
@@ -354,32 +371,123 @@ final class CraftScreen extends Screen {
 
         // ---- footer: progress and wallet ---------------------------------------------------------------------------------------
         int fy = top + ph - 8 - 20;
-        String next = view.nextMilestone() > 0 ? "Next upgrade at Lv. " + view.nextMilestone() : "Every level milestone reached";
-        g.drawString(font, next, x + 2, fy + 6, PixelArt.Q_INK, false);
-        String wallet = view.dust() + " Dust · " + view.facets() + " Facets · " + view.cores() + " Cores";
-        g.drawString(font, font.plainSubstrByWidth(wallet, innerW - 86 - font.width(next) - 24), x + 2 + font.width(next) + 14, fy + 6, PixelArt.Q_MUTED, false);
+        String next = view.nextMilestone() > 0 ? "Next upgrade at Lv " + view.nextMilestone() : "All level milestones reached";
+        g.drawString(font, font.plainSubstrByWidth(next, innerW - 86 - 12), x + 2, fy + 6, PixelArt.Q_INK, false);
+
+        drawWallet(g, x + mainW + 6, tabY, SIDE_W - 6, panelBottom - tabY, mouseX, mouseY);
 
         if (phase != Phase.BROWSE) review(g);
     }
 
+    private record Coin(String name, String[] sprite, int color, long amount) {}
+
+    private List<Coin> coins() {
+        var u = view.unique();
+        return List.of(
+                new Coin("Resonance Dust", ICON_DUST, 0xFFD9A441, view.dust()),
+                new Coin("Facets", ICON_FACET, 0xFF4F9AD9, view.facets()),
+                new Coin("Ascension Cores", ICON_CORE, 0xFFC9694F, view.cores()),
+                new Coin("Scouters", ICON_EYE, 0xFF6F9A52, view.scouters()),
+                new Coin("Unique Fragments", ICON_SHARD, 0xFF8C63C7, u.fragments()),
+                new Coin("Unique Catalysts", ICON_FLASK, 0xFFB04FA0, u.catalysts()));
+    }
+
+    private static final int COIN_ROW_H = 18;
+    private static final String[] ICON_DUST = {"...#...", "..#+#..", ".#+*+#.", "#+***+#", ".#+*+#.", "..#+#..", "...#..."};
+    private static final String[] ICON_FACET = {"..###..", ".#+++#.", "#+*++*#", "#+++++#", ".#+++#.", "..#+#..", "...#..."};
+    private static final String[] ICON_CORE = {"..###..", ".#+++#.", "#+***+#", "#+***+#", "#+***+#", ".#+++#.", "..###.."};
+    private static final String[] ICON_EYE = {".......", "..###..", ".#+++#.", "#+*#*+#", ".#+++#.", "..###..", "......."};
+    private static final String[] ICON_SHARD = {"...#...", "..##...", "..#+#..", ".#++#..", "..#+#..", "..##...", "...#..."};
+    private static final String[] ICON_FLASK = {"..###..", "...#...", "..#+#..", ".#+++#.", "#+***+#", "#+++++#", ".#####."};
+
+    /** Whole numbers with thousands separators; millions shorten so the column never overflows. */
+    private static String amount(long n) {
+        if (n >= 10_000_000L) return String.format(Locale.ROOT, "%.1fM", n / 1_000_000.0);
+        return String.format(Locale.ROOT, "%,d", n);
+    }
+
+    /** The wallet column: one row per material, its sprite and the amount held. The name appears on hover (see {@link #render}). */
+    private void drawWallet(GuiGraphics g, int x, int y, int w, int h, int mouseX, int mouseY) {
+        PixelArt.qpanel(g, x, y, w, h);
+        g.fill(x + 2, y + 2, x + w - 2, y + 16, PixelArt.Q_HEAD);
+        g.drawString(font, "Wallet", x + 6, y + 5, PixelArt.Q_INK, false);
+        int ry = y + 18;
+        for (var coin : coins()) {
+            boolean hover = phase == Phase.BROWSE && mouseX >= x + 2 && mouseX < x + w - 2 && mouseY >= ry && mouseY < ry + COIN_ROW_H - 1;
+            g.fill(x + 2, ry, x + w - 2, ry + COIN_ROW_H - 1, hover ? 0xFFFFFFFF : PixelArt.Q_PANEL);
+            g.fill(x + 2, ry + COIN_ROW_H - 1, x + w - 2, ry + COIN_ROW_H, PixelArt.Q_LINE);
+            g.fill(x + 5, ry + 3, x + 16, ry + 14, 0xFF1B120D);
+            g.fill(x + 6, ry + 4, x + 15, ry + 13, coin.color());
+            PixelArt.icon(g, coin.sprite(), x + 7, ry + 5, 0xFFFFFFFF, 0xFF1B120D);
+            String text = amount(coin.amount());
+            g.drawString(font, font.plainSubstrByWidth(text, w - 24 - 6), x + 21, ry + 5, coin.amount() > 0 ? PixelArt.Q_INK : PixelArt.Q_MUTED, false);
+            ry += COIN_ROW_H;
+        }
+    }
+
+    private static boolean calibrated;
+
+    /** Profiling only, once per session: what one drawing operation costs in time and garbage, so the per-frame total can be explained. */
+    private void calibrate(GuiGraphics g) {
+        calibrated = true;
+        String sample = "Burns you inflict deal 50% more damage.";
+        record Op(String name, int n, Runnable run) {}
+        var ops = new java.util.ArrayList<Op>();
+        ops.add(new Op("fill", 2000, () -> g.fill(-80, -80, -70, -70, 0xFF336699)));
+        ops.add(new Op("drawString(40 chars)", 400, () -> g.drawString(font, sample, -400, -40, 0xFF000000, false)));
+        ops.add(new Op("drawString(8 chars)", 400, () -> g.drawString(font, "Facets", -400, -40, 0xFF000000, false)));
+        ops.add(new Op("font.split(40 chars)", 400, () -> font.split(Component.literal(sample), 186)));
+        ops.add(new Op("font.plainSubstrByWidth", 400, () -> font.plainSubstrByWidth(sample, 120)));
+        ops.add(new Op("font.width", 400, () -> font.width(sample)));
+        ops.add(new Op("PixelArt.icon(shield)", 400, () -> PixelArt.icon(g, PixelArt.ICON_SHIELD, -80, -80, 0xFFFFFFFF)));
+        ops.add(new Op("qpanel", 400, () -> PixelArt.qpanel(g, -300, -300, 100, 60)));
+        ops.add(new Op("String.format(%,d)", 400, () -> String.format(Locale.ROOT, "%,d", 956056L)));
+        for (var op : ops) {
+            for (int i = 0; i < 50; i++) op.run().run();   // warm up
+            long bytes = com.ascensionlib.Profiler.allocatedBytes(), t0 = System.nanoTime();
+            for (int i = 0; i < op.n(); i++) op.run().run();
+            long nanos = System.nanoTime() - t0, allocated = com.ascensionlib.Profiler.allocatedBytes() - bytes;
+            org.slf4j.LoggerFactory.getLogger("ascensionlib").info("[profile] calibrate {}: {} bytes/op, {} us/op", op.name(),
+                    allocated / op.n(), String.format(Locale.ROOT, "%.2f", nanos / 1000.0 / op.n()));
+        }
+    }
+
+    @Override public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        if (com.ascensionlib.Profiler.on && !calibrated) calibrate(g);
+        long profiled = com.ascensionlib.Profiler.start(), allocated = com.ascensionlib.Profiler.startAlloc();
+        com.ascensionlib.Profiler.frame("craft.frameGap");
+        super.render(g, mouseX, mouseY, delta);
+        com.ascensionlib.Profiler.stop("craft.render", profiled);
+        com.ascensionlib.Profiler.stopAlloc("craft.render", allocated);
+        if (phase != Phase.BROWSE) return;
+        int x = left + 8 + mainW + 6, w = SIDE_W - 6, ry = top + 8 + 36 + 3 + 18;
+        for (var coin : coins()) {
+            if (mouseX >= x + 2 && mouseX < x + w - 2 && mouseY >= ry && mouseY < ry + COIN_ROW_H - 1) {
+                g.renderTooltip(font, Component.literal(coin.name()), mouseX, mouseY);
+                break;
+            }
+            ry += COIN_ROW_H;
+        }
+    }
+
     /** The Unique tab's right panel: the chosen power, what it gives and what it costs, the Catalyst balance and the cost row. */
     private void drawUnique(GuiGraphics g, int rx, int t, int rw, int panelBottom) {
-        g.drawString(font, "UNIQUE POWER", rx + 8, t + 5, PixelArt.Q_MUTED, false);
         var o = uniqueOption();
         if (o == null) {
-            g.drawString(font, "No Unique powers are on offer.", rx + 8, t + 16, PixelArt.Q_MUTED, false);
+            g.drawString(font, "No Unique powers are on offer.", rx + 8, t + 8, PixelArt.Q_MUTED, false);
             return;
         }
-        g.drawString(font, font.plainSubstrByWidth(o.name() + (o.current() ? " (held)" : ""), rw - 16), rx + 8, t + 16, PixelArt.Q_INK, false);
-        g.drawString(font, "Benefit", rx + 8, t + 30, PixelArt.Q_MUTED, false);
-        int y = t + 40;
-        for (var line : font.split(Component.literal(o.benefit()), rw - 16)) { if (y > t + 62) break; g.drawString(font, line, rx + 8, y, PixelArt.Q_INK, false); y += 9; }
+        String held = o.current() ? "held" : "";
+        g.drawString(font, font.plainSubstrByWidth(o.name(), rw - 16 - font.width(held) - 8), rx + 8, t + 6, PixelArt.Q_INK, false);
+        if (!held.isEmpty()) g.drawString(font, held, rx + rw - 8 - font.width(held), t + 6, 0xFF7A2E22, false);
+        g.drawString(font, "Benefit", rx + 8, t + 22, PixelArt.Q_MUTED, false);
+        int y = t + 32;
+        for (var line : font.split(Component.literal(o.benefit()), rw - 16)) { if (y > t + 50) break; g.drawString(font, line, rx + 8, y, PixelArt.Q_INK, false); y += 9; }
         g.drawString(font, "Drawback", rx + 8, t + 66, PixelArt.Q_MUTED, false);
         y = t + 76;
-        for (var line : font.split(Component.literal(o.drawback()), rw - 16)) { if (y > t + 98) break; g.drawString(font, line, rx + 8, y, 0xFF8A2E22, false); y += 9; }
+        for (var line : font.split(Component.literal(o.drawback()), rw - 16)) { if (y > t + 94) break; g.drawString(font, line, rx + 8, y, 0xFF8A2E22, false); y += 9; }
         var u = view.unique();
-        String balance = "Catalysts " + u.catalysts() + " · Fragments " + u.fragments() + "/" + u.fragmentsNeeded();
-        g.drawString(font, font.plainSubstrByWidth(balance, rw - 16 - 100), rx + 8, t + 103, PixelArt.Q_MUTED, false);
+        g.drawString(font, font.plainSubstrByWidth("Catalysts: " + u.catalysts(), rw - 16 - ASSEMBLE_W - 6), rx + 8, t + ASSEMBLE_Y + 3, PixelArt.Q_MUTED, false);
         int costY = panelBottom - 2 - 19;
         g.fill(rx + 6, costY - 3, rx + rw - 6, costY - 2, PixelArt.Q_LINE);
         int costW = rw - 12 - REVIEW_W - 8;
@@ -575,7 +683,7 @@ final class CraftScreen extends Screen {
             var font = net.minecraft.client.Minecraft.getInstance().font;
             String value = "+" + slot.value() + "%";
             g.drawString(font, font.plainSubstrByWidth(slot.name(), w - 24 - font.width(value) - 8), x + 19, y + 2, dim, false);
-            g.drawString(font, slot.category() + " · " + ROMAN[Math.max(1, Math.min(5, slot.rank()))], x + 19, y + 10, PixelArt.Q_MUTED, false);
+            g.drawString(font, (prefix ? "Offense" : "Defense") + " · " + ROMAN[Math.max(1, Math.min(5, slot.rank()))], x + 19, y + 10, PixelArt.Q_MUTED, false);
             g.drawString(font, value, x + w - 5 - font.width(value), y + 6, selected ? 0xFF7A2E22 : dim, false);
         }
     }

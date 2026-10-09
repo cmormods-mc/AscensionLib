@@ -169,6 +169,13 @@ final class CaptureRevealScreen extends Screen {
     }
 
     @Override public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        com.ascensionlib.Profiler.frame("reveal.frameGap");
+        long profiled = com.ascensionlib.Profiler.start();
+        drawBackground(g, mouseX, mouseY, delta);
+        com.ascensionlib.Profiler.stop("reveal.background", profiled);
+    }
+
+    private void drawBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
         g.fill(0, 0, width, height, 0xA0140D09);
         float f = flip();
         long reveal = AscensionClientSettings.reducedMotion ? 10_000 : flipAt < 0 ? -1 : age() - flipAt - FLIP_MS;

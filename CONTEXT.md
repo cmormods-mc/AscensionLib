@@ -1,6 +1,6 @@
-# CobbleAscend — proposed domain language
+# AscensionLib — domain language
 
-A turn-based Pokémon progression overhaul in which captures acquire potential, battles test builds, and crafting develops individual Pokémon. CobbleAscend is a working title.
+A turn-based Pokémon progression overhaul in which captures acquire potential, battles test builds, and crafting develops individual Pokémon. The mod is AscensionLib (mod ID `ascensionlib`); CobbleAscend was the working title and survives only in stored data names (the `<world>/cobbleascend/` directory, the `cobbleascend` Pokémon NBT keys) and the `com.cobbleascend` domain/store packages.
 
 ## Pokémon progression
 
@@ -69,3 +69,26 @@ _Avoid_: Map (which also means a Minecraft item or world).
 **Refine**: Rerolling only the numerical value of one affix within its displayed range.
 
 **Sealed reward**: An encounter reward committed to a claimable ledger before delivery.
+
+## Scouting
+
+**Scouter**: A one-use wallet material that reveals one chosen enemy's build for a single encounter. Obtained only as a CobbleTowers drop; it is spent only on a valid reveal.
+
+**Reveal**: The in-memory disclosure of an enemy's level, types, base stats, rarity, Unique and modifiers (never IVs, EVs or moves). A boss reveal is shared with the whole party; any other reveal is for the user only. It ends with the encounter.
+
+**Wild rating**: The rarity and slots of a wild Pokémon, derived from a server secret and the Pokémon's UUID so a preview equals the capture result and fleeing cannot reroll it.
+
+## Storage and integration
+
+**Wallet**: A player's account-bound balance of the crafting materials and the Scouter. There are no physical items.
+
+**Progression store**: The per-world SQLite database that is authoritative for profiles, wallets and operations. The Pokémon's NBT is only a projection of its last committed revision.
+_Avoid_: Save file, Pokémon data (as the source of truth).
+
+**Authority**: The identity of one world's store, recorded in `authority.id`. A missing, mismatched or corrupt store disables progression instead of resetting it.
+
+**Operation ID**: A caller-supplied key under which a mutation is recorded once. A repeated request returns the recorded result; the same ID with different parameters is rejected.
+
+**Craft lock**: The persistent-data flag `ascensionlib_craft_locked` marking a lent Pokémon (such as a Towers rental). It can be inspected but not crafted.
+
+**Profiler**: An opt-in timing aid, off by default, that logs screen and server-path timings.

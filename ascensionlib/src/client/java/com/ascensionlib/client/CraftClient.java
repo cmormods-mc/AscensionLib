@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.Screen;
 final class CraftClient {
     private static Screen pendingParent;
     private static boolean waitingToOpen;
+    private static long openSentAt;
 
     private CraftClient() {}
 
@@ -21,19 +22,24 @@ final class CraftClient {
         if (!ClientPlayNetworking.canSend(CraftPayloads.Open.TYPE)) return;
         pendingParent = parent;
         waitingToOpen = true;
+        openSentAt = com.ascensionlib.Profiler.start();
         ClientPlayNetworking.send(new CraftPayloads.Open(pokemonId));
     }
 
     static void onView(CraftPayloads.View view) {
         var mc = Minecraft.getInstance();
+        if (waitingToOpen) com.ascensionlib.Profiler.stop("craft.openRoundTrip", openSentAt);
+        long profiled = com.ascensionlib.Profiler.start();
         if (mc.screen instanceof CraftScreen screen && screen.pokemonId().equals(view.pokemonId())) {
             screen.accept(view);
         } else if (view.open() || waitingToOpen) {
             // Never over a battle or a screen we did not ask for; a command-opened view waits for a free screen like a reveal does.
             if (mc.screen == null || waitingToOpen || mc.screen instanceof AscendInspectScreen) {
                 mc.setScreen(new CraftScreen(waitingToOpen ? pendingParent : mc.screen, view));
+                com.ascensionlib.Profiler.resetFrames();
             }
         }
+        com.ascensionlib.Profiler.stop("craft.onView", profiled);
         waitingToOpen = false;
         pendingParent = null;
     }

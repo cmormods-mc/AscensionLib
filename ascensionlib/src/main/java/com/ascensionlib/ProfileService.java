@@ -70,9 +70,40 @@ public final class ProfileService {
      * stale or unaffordable request changes nothing. The caller has already verified the player owns the Pokemon.
      */
     public com.cobbleascend.store.Outcome craft(Pokemon pokemon, CraftRequest request) {
+        // The last line of defence: whichever way a request got here, a locked (lent) Pokemon is never crafted on.
+        if (CraftLocks.locked(pokemon)) throw new IllegalStateException(CraftLocks.REASON);
         var outcome = store.craft(request);
         if (outcome.profile() != null) project(pokemon, outcome.profile());
         return outcome;
+    }
+
+    /**
+     * Server-driven: first awards any level milestones the Pokemon has reached, then spends EVERY pending upgrade credit on
+     * randomly chosen slots below rank V (one rank per credit), the way a player would have. For a Pokemon lent out with a
+     * profile (a rental draft), where nobody will craft. No wallet cost, and the craft lock does not apply: this is not a player
+     * craft. The slot picks are seeded from the Pokemon's id and its spent credits, so a repeat after a crash chooses the same
+     * slot and the store's operation ids make it a replay, never a double spend.
+     *
+     * @return the profile after the upgrades, or empty when the Pokemon has no owner or no canonical profile
+     */
+    public Optional<ProfileV1> autoUpgrade(Pokemon pokemon) {
+        var found = canonical(pokemon);
+        if (found.isEmpty() || pokemon.getOwnerUUID() == null || pokemon.isBattleClone()) return Optional.empty();
+        var profile = observeLevel(pokemon, found.get());
+        UUID id = pokemon.getUuid();
+        long seed = id.getMostSignificantBits() * 31L + id.getLeastSignificantBits();
+        // A profile has at most 6 slots of 4 upgrades each; the guard only stops a broken store from looping.
+        for (int guard = 0; guard < 24 && profile.pendingCredits() > 0; guard++) {
+            var open = profile.ordinarySlots().stream().filter(slot -> slot.rank() < RankedAffix.RANKS).toList();
+            if (open.isEmpty()) break;
+            var slot = open.get(new java.util.Random(seed ^ (profile.spentUpgradeCredits() * 0x9E3779B97F4A7C15L)).nextInt(open.size()));
+            var outcome = store.craft(CraftRequest.upgrade(
+                    operationId("auto-upgrade", id + ":" + profile.spentUpgradeCredits() + ":" + slot.slotId()),
+                    pokemon.getOwnerUUID(), id, slot.slotId(), profile.revision(), CraftRequest.ANY_REVISION));
+            profile = outcome.profile();
+        }
+        project(pokemon, profile);
+        return Optional.of(profile);
     }
 
     /** A dry run of a craft on a copy: what it would cost and whether the rules allow it. Rolls nothing that is kept or shown. */

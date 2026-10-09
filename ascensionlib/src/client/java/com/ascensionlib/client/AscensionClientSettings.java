@@ -25,6 +25,7 @@ final class AscensionClientSettings {
             try { reveal = RevealMode.valueOf(p.getProperty("reveal", "full").toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException ignored) { reveal = RevealMode.FULL; }
             reducedMotion = Boolean.parseBoolean(p.getProperty("reducedMotion", "false"));
             sounds = Boolean.parseBoolean(p.getProperty("sounds", "true"));
+            if (Boolean.parseBoolean(p.getProperty("uiProfile", "false"))) com.ascensionlib.Profiler.on = true;
         } catch (java.io.IOException e) {
             org.slf4j.LoggerFactory.getLogger("ascensionlib").warn("Cannot read client settings", e);
         }
@@ -38,6 +39,7 @@ final class AscensionClientSettings {
                 p.setProperty("reveal", reveal.name().toLowerCase(Locale.ROOT));
                 p.setProperty("reducedMotion", Boolean.toString(reducedMotion));
                 p.setProperty("sounds", Boolean.toString(sounds));
+                p.setProperty("uiProfile", Boolean.toString(com.ascensionlib.Profiler.on));
                 p.store(writer, "AscensionLib client presentation only");
             }
         } catch (java.io.IOException e) {

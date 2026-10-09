@@ -304,6 +304,11 @@ final class AscendWiring {
             source.sendFailure(Component.literal("That party slot is empty."));
             return 0;
         }
+        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
+        if (locked.isPresent()) {
+            source.sendFailure(Component.literal(locked.get()));
+            return 0;
+        }
         if (!com.ascensionlib.craft.CraftNet.sendView(player, pokemon, true, "")) {
             source.sendFailure(Component.literal("That Pokemon has no ascension profile, or your client does not have the upgrade screen."));
             return 0;

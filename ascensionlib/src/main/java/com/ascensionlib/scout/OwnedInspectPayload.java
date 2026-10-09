@@ -24,8 +24,8 @@ public final class OwnedInspectPayload {
      * its rarity allows, and the identifiers the client needs to draw it. Catalog and profile facts only; never IVs, EVs or moves.
      */
     public record Extra(String speciesId, List<String> aspects, String origin, String initialRarity, int highestLevel,
-                        int milestones, int prefixCap, int suffixCap) {
-        public static final Extra NONE = new Extra("", List.of(), "", "", 0, 0, 0, 0);
+                        int milestones, int prefixCap, int suffixCap, boolean craftLocked) {
+        public static final Extra NONE = new Extra("", List.of(), "", "", 0, 0, 0, 0, false);
         static final StreamCodec<RegistryFriendlyByteBuf, Extra> CODEC = StreamCodec.of((buf, v) -> {
             buf.writeUtf(v.speciesId(), 128);
             buf.writeVarInt(v.aspects().size());
@@ -36,13 +36,14 @@ public final class OwnedInspectPayload {
             buf.writeVarInt(v.milestones());
             buf.writeVarInt(v.prefixCap());
             buf.writeVarInt(v.suffixCap());
+            buf.writeBoolean(v.craftLocked());
         }, buf -> {
             String species = buf.readUtf(128);
             int count = Math.min(16, buf.readVarInt());
             List<String> aspects = new ArrayList<>();
             for (int i = 0; i < count; i++) aspects.add(buf.readUtf(64));
             return new Extra(species, aspects, buf.readUtf(64), buf.readUtf(16), buf.readVarInt(), buf.readVarInt(),
-                    buf.readVarInt(), buf.readVarInt());
+                    buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
         });
     }
 

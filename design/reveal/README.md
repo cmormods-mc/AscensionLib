@@ -4,11 +4,11 @@ Current direction, October 3, 2026: compact Cobblemon-style panels, crisp pixel 
 
 ## Reviewable prototype
 
-Open `preview.html`. The initial view shows the finished sample capture. Replay starts the full reveal; Sound enables original synthesized preview cues. Choose any of the six rarities, inspect an affix, skip or use Escape, and try reduced motion. The level-28 sample has two pending milestone upgrades.
+The browser preview was removed from the repository on 2026-10-09 (see git history); the description below records what it showed. The initial view shows the finished sample capture. Replay starts the full reveal; Sound enables original synthesized preview cues. Choose any of the six rarities, inspect an affix, skip or use Escape, and try reduced motion. The level-28 sample has two pending milestone upgrades.
 
 This is a browser UI prototype, not a Minecraft screen. Capture data, affix values and party delivery are sample content. It does not grant Pokémon, implement affix effects, spend currency or persist gameplay. Only preview preferences are saved. Native game integration remains future work.
 
-Editable source: `capture-reveal-pixel.fragment.html`. The standalone wrapper is `preview.html`. The inline copy lives in the task visualization directory. Regenerate the wrapper after source changes.
+The preview source, `capture-reveal-pixel.fragment.html`, and its wrapper are no longer in the tree.
 
 ## Presentation rules
 
@@ -34,10 +34,10 @@ Growlithe is imported unchanged from Howlite-UI/CobblemonCards, commit `c02aafb5
 
 Repository: https://github.com/Howlite-UI/CobblemonCards
 
-The original sprite and upstream license are retained in `assets/`. The inline preview uses the same commit-pinned asset through jsDelivr. The repository declares CC0-1.0; Pokémon remains third-party franchise content. No generated creature replaces the requested sprite. CSS panel art, layout, choreography and synthesized cues are original prototype work. The rejected generated concept is not an implementation asset.
+The preview used the original sprite from CobblemonCards at a pinned commit; the copy and its license file were removed with the preview (2026-10-09). The repository declares CC0-1.0; Pokémon remains third-party franchise content. No generated creature replaces the requested sprite. CSS panel art, layout, choreography and synthesized cues are original prototype work. The rejected generated concept is not an implementation asset.
 
 ## Validation
 
-`work/check-pixel-reveal.cjs` checks all six rarities and slot counts, affix inspection, completion/replay, full timed reveal, skip/Escape, reduced motion, runtime errors, and width/label overlap at 780, 560, 360 and 320 px. Network-enabled checks confirm the actual sprite and preview font load. Desktop and narrow screenshots are under `work/pixel-reveal-*.png`.
+`work/check-pixel-reveal.cjs` (removed 2026-10-09 with the preview) checked all six rarities and slot counts, affix inspection, completion/replay, full timed reveal, skip/Escape, reduced motion, runtime errors, and width/label overlap at 780, 560, 360 and 320 px. Network-enabled checks confirm the actual sprite and preview font load. Desktop and narrow screenshots are under `work/pixel-reveal-*.png`.
 
 Next native milestone: reproduce the accepted layout at Minecraft GUI scale using resource textures and the native font, preserving species/form/shiny texture resolution. Do not ship this HTML or its synthetic browser audio as the Minecraft GUI.

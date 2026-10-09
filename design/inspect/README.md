@@ -1,8 +1,8 @@
-# Ascension inspect screen — design preview
+# Ascension inspect screen — design record
 
 Native injection foundation prepared October 5, 2026: see [integration notes](../../docs/INSPECTION-INJECTION.md) for the built artifact, client hooks, implemented data flow and required live fitting.
 
-Open `preview.html`. Browser prototype of the planned `AscendInspectScreen`, in the clean-pixel direction (see `../reveal/README.md`) with more Cobblemon personality: type-themed battle backdrop with a platform and drifting motes, a pixel Poké Ball rarity badge (top half in the rarity colour) and close button, Pokédex-style "No." tag, segmented stat bars, diamond rank pips, a scanner-style screen for unscouted data with a target-lock reveal, a "Scouted · source" stamp and a flame-edged Unique card. Sample data only: nothing reads a real Pokémon. Recipes, costs and scouting rules are not final.
+Browser prototype of the planned `AscendInspectScreen`, in the clean-pixel direction (see `../reveal/README.md`) with more Cobblemon personality: type-themed battle backdrop with a platform and drifting motes, a pixel Poké Ball rarity badge (top half in the rarity colour) and close button, Pokédex-style "No." tag, segmented stat bars, diamond rank pips, a scanner-style screen for unscouted data with a target-lock reveal, a "Scouted · source" stamp and a flame-edged Unique card. Sample data only: nothing reads a real Pokémon. Recipes, costs and scouting rules are not final.
 
 ## Owner decisions (October 5, 2026)
 
@@ -33,4 +33,4 @@ Open `preview.html`. Browser prototype of the planned `AscendInspectScreen`, in 
 
 Growlithe/Arcanine/Gyarados/Houndoom/Gengar pixel sprites come unchanged from Howlite-UI/CobblemonCards commit `c02aafb50d5915b83dafa9af28ddebd58be24b5e`, path `common/src/main/resources/assets/cobblemon-cards/textures/item/cards/pokemon/entity_icon/<dex>_<name>/<name>.png` (repository declares CC0-1.0; license copied to `assets/`). Pokémon remains third-party franchise content. Layout, CSS, Poké Ball and magnifier pixel art and behaviour are original prototype work. Pixelify Sans is a browser approximation of the in-game font.
 
-Browser check: `work/check-inspect-ui.cjs` (run with `PLAYWRIGHT_BROWSERS_PATH=work/preview-browsers`): scenarios, scouting reveal, no slot-count leak, wild Scouter use and the empty-bag state, entry buttons, Escape, reduced motion, layouts at 860/600/360/320 px, no script errors. Screenshots in `work/inspect-*.png`.
+Browser check (removed 2026-10-09 with the preview, see git history): `work/check-inspect-ui.cjs` (run with `PLAYWRIGHT_BROWSERS_PATH=work/preview-browsers`): scenarios, scouting reveal, no slot-count leak, wild Scouter use and the empty-bag state, entry buttons, Escape, reduced motion, layouts at 860/600/360/320 px, no script errors. Screenshots were removed with it.

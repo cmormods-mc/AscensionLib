@@ -88,6 +88,13 @@ final class ScoutScreen extends Screen {
     }
 
     @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        com.ascensionlib.Profiler.frame("scout.frameGap");
+        long profiled = com.ascensionlib.Profiler.start();
+        draw(graphics, mouseX, mouseY, partialTick);
+        com.ascensionlib.Profiler.stop("scout.render", profiled);
+    }
+
+    private void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         graphics.drawString(font, "Scout", left + 8, top + 8, 0xFFFFFF);
         List<ScoutPayloads.Entry> entries = shown.entries();

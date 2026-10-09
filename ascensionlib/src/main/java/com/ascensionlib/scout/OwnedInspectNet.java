@@ -40,7 +40,8 @@ public final class OwnedInspectNet {
                     profile.map(v -> v.highestLevelObserved()).orElse(0),
                     profile.map(v -> v.awardedMilestones().size()).orElse(0),
                     profile.map(v -> service.rules().slotCount(v.rarity(), Category.PREFIX)).orElse(0),
-                    profile.map(v -> service.rules().slotCount(v.rarity(), Category.SUFFIX)).orElse(0));
+                    profile.map(v -> service.rules().slotCount(v.rarity(), Category.SUFFIX)).orElse(0),
+                    com.ascensionlib.CraftLocks.locked(p));
             ServerPlayNetworking.send(player, new OwnedInspectPayload.Result(request.pokemonId(), p.getDisplayName(false).getString(),
                     p.getSpecies().getName(), profile.map(v -> v.pendingCredits()).orElse(0),
                     profile.map(v -> v.attunement()).orElse(0), detail, extra));
