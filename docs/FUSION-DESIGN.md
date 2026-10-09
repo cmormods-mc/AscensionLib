@@ -1,6 +1,8 @@
 # Fusion (Transcendence): lore research and recipe book (2026-10-09)
 
-Status: **the research, the data and the recipe resolver are built (domain only). The fusion action itself is not.** Nothing here has been seen in a live game. Every number is provisional. Read with [DEPTH-DESIGN.md](DEPTH-DESIGN.md), part C.
+> **Superseded in part (2026-10-09):** the owner decided a Transcendent is a completely new power, not two Uniques at reduced strength. The design is in [TRANSCENDENT-POWERS.md](TRANSCENDENT-POWERS.md). The battle effect described under "What exists" is the interim fallback for the 18 signatures not yet written; recipes, lore, harmony and names below still stand.
+
+Status: **the research, the data, the recipe resolver and the battle effect are built. The fusion action itself (profile, store, screen) is not.** Nothing here has been seen in a live game. Every number is provisional. Read with [DEPTH-DESIGN.md](DEPTH-DESIGN.md), part C.
 
 ## Rules (owner decisions, 2026-10-09)
 
@@ -55,10 +57,15 @@ Better fit keeps more benefit and takes less drawback; **opposed fusions are vol
 - `design/lore/species-lore.json` (1025 species: Cobblemon id, evolutionary family, types, motifs, note), `design/lore/motifs.json`, `design/transcendents.json` (scales, 21 bases, 45 pairs, 35 groups).
 - `tools/build_fusion_data.py` regenerates `motifs.json` and `transcendents.json` and validates every curated species name.
 - `domain/v1`: `LoreCatalog`, `Transcendence` (the resolver), `CraftException.Reason.UNKNOWN_SPECIES`; `TranscendenceTest` has 15 tests, including a full 1025 by 1025 run (every pair resolves, every harmony occurs, neutral stays under 70 percent).
+- **The battle effect** (built 2026-10-09, simulator-tested only). `CombatSnapshot` carries an optional `Fused` (two Unique ids, the benefit and drawback shares, host and donor type; a snapshot holds a Unique or a Transcendent, never both); `Transcendence.Transcendent.toFused()` produces it; `BattleFx` sends it as one effect `{"i":"transcendent","u":[a,b],"b":78,"d":60,"t":"Fire","r":"Water"}`. `ascension-fx.js` validates it (two different known Uniques, both shares whole percents 1 to 100, known types, otherwise the whole effect is ignored; one per Pokemon) and expands it into the two Uniques plus two internal typed effects (`transcend_offense` +10 percent on the host type in the outgoing channel, `transcend_defense` -10 percent on the donor type in the incoming channel, capped with everything else; a payload cannot name those two directly).
+  - **How each Unique scales.** A drawback multiplier moves toward 1 by its share: 0.85 at a 50 percent share becomes 0.925, 1.25 becomes 1.125. Ashen Heart: burn bonus x benefit share, direct-damage penalty softened. Stormcaller: weather bonus x benefit share, no-weather penalty softened. Creeping Venom: ramp step and maximum x benefit share, Psychic penalty softened. 777: damage-taken penalty softened. Titan's Heart: extra damage x benefit share, and (1 - drawback share) of each heal lands instead of none. Last Breath: a binary benefit becomes a chance equal to the benefit share, once per battle; the healing penalty is softened. Rupture: every physical move bleeds becomes a chance equal to the benefit share; the stack weights 1, 0.8, 0.6 move toward 1.
+  - **Not scaled here:** 777's item-reward bonus (a Java-side reward, to be scaled by the same benefit share when a Transcendent exists in a profile).
+  - Tests: `validation/showdown/ascension_fx_test.js` 52 (7 new, tests 29 to 35), `TranscendentBattleTest` 8.
 
 ## What does not exist yet
 
-- The **battle effect**: the simulator needs each Unique handler to take a benefit and a drawback scale, so a Transcendent runs both source Uniques at their harmony shares, plus the typed bonuses above. Not written.
+Nothing can produce a Transcendent in a real game yet, because a profile cannot hold one:
+
 - The **profile and store**: a Transcendent in the Unique slot is a profile schema 2, a fusion craft kind that removes the donor in the same transaction as the host change and the material debit, and the usual operation-ID replay. Not written.
 - The **fusion screen** (left slot, right slot, preview of name, benefit, drawback and cost, confirmation), the eligibility and cost checks, and the recipe-book display.
 - Playtesting. The harmony scales, the costs and every curated recipe are untested guesses.

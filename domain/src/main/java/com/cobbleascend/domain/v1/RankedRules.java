@@ -120,6 +120,9 @@ public final class RankedRules {
         if (invested > Milestones.MAX_LEVEL / Milestones.STEP)
             throw new IllegalArgumentException("Slot ranks exceed the ten available milestone credits");
         validateUnique(snapshot.uniqueId(), snapshot.uniqueId() == null ? 0 : catalogVersion);
+        if (snapshot.transcendent() != null) {
+            for (var id : snapshot.transcendent().uniqueIds()) validateUnique(id, catalogVersion);
+        }
     }
 
     private void validateSlots(Rarity rarity, Collection<OrdinarySlot> slots) {

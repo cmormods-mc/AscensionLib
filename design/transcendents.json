@@ -1,5 +1,5 @@
 {
- "schemaVersion": 1,
+ "schemaVersion": 2,
  "status": "provisional-research-based-recipes",
  "scales": {
   "LINEAGE": {
@@ -214,6 +214,498 @@
    "blurb": "A giant paid in gold, hurt by its own weight."
   }
  ],
+ "signatures": [
+  {
+   "id": "phoenix_cinder",
+   "pulse": "STRUCK",
+   "core": "Attackers that hit you while you are below 50% HP are burned.",
+   "clutch": "A lethal hit leaves you at 20% HP instead of fainting.",
+   "drawback": "Healing cannot raise you above 70% of max HP."
+  },
+  {
+   "id": "plague_pyre",
+   "pulse": "TICK",
+   "core": "Burned or poisoned foes take an extra 3% of max HP each turn.",
+   "clutch": "",
+   "drawback": "Your direct damage is 10% lower."
+  },
+  {
+   "id": "wildfire_crown",
+   "pulse": "HIT",
+   "core": "Fire moves deal 20% more; while any weather is active all your moves deal 10% more.",
+   "clutch": "",
+   "drawback": "Water and Ice moves deal 25% less."
+  },
+  {
+   "id": "brand_of_ruin",
+   "pulse": "HIT",
+   "core": "A damaging hit Brands the foe for 3 turns: it takes 10% more from you and 30% more from burn and bleed.",
+   "clutch": "",
+   "drawback": "A new Brand costs you 3% of max HP."
+  },
+  {
+   "id": "titans_forge",
+   "pulse": "HIT",
+   "core": "A super-effective hit adds 8% of your max HP in damage and has a 25% chance to burn.",
+   "clutch": "",
+   "drawback": "You lose 3% of max HP each turn while above 60% HP."
+  },
+  {
+   "id": "gilded_ember",
+   "pulse": "KO",
+   "core": "Burn damage you inflict +30%; each KO adds +10% damage (3 stacks, lost on switching out); item rewards +10%.",
+   "clutch": "",
+   "drawback": "You take 15% more damage from Water moves."
+  },
+  {
+   "id": "dying_bloom",
+   "pulse": "STRUCK",
+   "core": "Attackers that hit you while you are below 50% HP are poisoned; your poison ramps twice as fast then.",
+   "clutch": "A lethal hit leaves you at 1 HP.",
+   "drawback": "Healing you receive is 35% lower."
+  },
+  {
+   "id": "eye_of_the_storm",
+   "pulse": "TICK",
+   "core": "While any weather is active, heal 3% of max HP each turn and take 12% less damage.",
+   "clutch": "A lethal hit leaves you at 1 HP.",
+   "drawback": "With no weather you take 12% more damage."
+  },
+  {
+   "id": "martyrs_edge",
+   "pulse": "HIT",
+   "core": "Physical hits bleed; you deal 12% more to bleeding foes.",
+   "clutch": "A lethal hit leaves you at 1 HP and your next hit is a guaranteed critical.",
+   "drawback": "Your bleeds are weaker (stack weights 1, 0.8, 0.6)."
+  },
+  {
+   "id": "colossus_vow",
+   "pulse": "STRUCK",
+   "core": "You take 15% less from super-effective hits and counter any super-effective hit for 6% of your max HP.",
+   "clutch": "A lethal hit leaves you at 1 HP.",
+   "drawback": "Your Speed is 15% lower."
+  },
+  {
+   "id": "last_gamble",
+   "pulse": "KO",
+   "core": "Item rewards +15%.",
+   "clutch": "A lethal hit leaves you at 30% HP and your next 2 moves deal 30% more.",
+   "drawback": "After the clutch fires you take 25% more damage for the rest of the battle."
+  },
+  {
+   "id": "miasma_front",
+   "pulse": "TICK",
+   "core": "While any weather is active every foe takes 2.5% of max HP each turn, rising 1% a turn to 5%; poison you inflict +20%.",
+   "clutch": "",
+   "drawback": "With no weather you lose 2% of max HP each turn."
+  },
+  {
+   "id": "festering_gash",
+   "pulse": "HIT",
+   "core": "Physical hits bleed; each turn a foe bleeds its bleed damage rises 15% (to 60%); you heal 25% of the bleed damage dealt.",
+   "clutch": "",
+   "drawback": "You take 20% more damage from Psychic moves."
+  },
+  {
+   "id": "blighted_giant",
+   "pulse": "HIT",
+   "core": "A super-effective hit adds 7% of your max HP in damage and poisons the foe; poison damage you inflict +25%.",
+   "clutch": "",
+   "drawback": "Healing you receive is 60% lower."
+  },
+  {
+   "id": "fortunes_rot",
+   "pulse": "TICK",
+   "core": "Foes you have poisoned lose an extra 3% of max HP each turn; item rewards +15%.",
+   "clutch": "",
+   "drawback": "You take 20% more damage."
+  },
+  {
+   "id": "lightning_rend",
+   "pulse": "HIT",
+   "core": "Moves of the active weather's type, or Electric moves, deal 25% more and cause a bleed whatever their category.",
+   "clutch": "",
+   "drawback": "With no weather your direct damage is 20% lower."
+  },
+  {
+   "id": "tempest_colossus",
+   "pulse": "HIT",
+   "core": "Weather-type moves deal 20% more; a super-effective hit adds 7% of your max HP in damage.",
+   "clutch": "",
+   "drawback": "Your Speed is 12% lower."
+  },
+  {
+   "id": "skyfall_fortune",
+   "pulse": "KO",
+   "core": "Weather-type moves deal 25% more; each KO while a weather is active adds 12% damage (3 stacks); item rewards +15%.",
+   "clutch": "",
+   "drawback": "With no weather you take 20% more damage."
+  },
+  {
+   "id": "breakers_might",
+   "pulse": "HIT",
+   "core": "Physical hits bleed; a super-effective hit adds 8% of your max HP in damage, and 10% more if the foe is bleeding.",
+   "clutch": "",
+   "drawback": "Healing you receive is 50% lower."
+  },
+  {
+   "id": "wager_of_blood",
+   "pulse": "KO",
+   "core": "Physical hits bleed; each KO restores 10% of your max HP; item rewards +15%.",
+   "clutch": "",
+   "drawback": "Every physical move you use costs you 2% of max HP."
+  },
+  {
+   "id": "jackpot_titan",
+   "pulse": "KO",
+   "core": "A super-effective hit adds 10% of your max HP in damage; item rewards +20%.",
+   "clutch": "",
+   "drawback": "You take 22% more damage."
+  }
+ ],
+ "twists": {
+  "EMBER": {
+   "name": "Scorch",
+   "effects": [
+    {
+     "op": "status",
+     "status": "brn",
+     "chance": 30
+    }
+   ]
+  },
+  "TIDE": {
+   "name": "Wash",
+   "effects": [
+    {
+     "op": "cleanse"
+    }
+   ]
+  },
+  "GALE": {
+   "name": "Tailwind",
+   "effects": [
+    {
+     "op": "selfStage",
+     "stat": "spe",
+     "delta": 1,
+     "cap": 2
+    }
+   ]
+  },
+  "VERDANT": {
+   "name": "Bloom",
+   "effects": [
+    {
+     "op": "heal",
+     "pct": 4
+    }
+   ]
+  },
+  "FROST": {
+   "name": "Chill",
+   "effects": [
+    {
+     "op": "foeStage",
+     "stat": "spe",
+     "delta": -1
+    }
+   ]
+  },
+  "STORM": {
+   "name": "Static",
+   "effects": [
+    {
+     "op": "status",
+     "status": "par",
+     "chance": 30
+    }
+   ]
+  },
+  "STONE": {
+   "name": "Brace",
+   "effects": [
+    {
+     "op": "selfStage",
+     "stat": "def",
+     "delta": 1,
+     "cap": 2
+    }
+   ]
+  },
+  "IRON": {
+   "name": "Plating",
+   "effects": [
+    {
+     "op": "shield",
+     "pct": 15
+    }
+   ]
+  },
+  "VENOM": {
+   "name": "Taint",
+   "effects": [
+    {
+     "op": "status",
+     "status": "psn",
+     "chance": 30
+    }
+   ]
+  },
+  "SPIRIT": {
+   "name": "Haunt",
+   "effects": [
+    {
+     "op": "drain",
+     "pct": 4
+    }
+   ]
+  },
+  "DREAM": {
+   "name": "Daze",
+   "effects": [
+    {
+     "op": "status",
+     "status": "confusion",
+     "chance": 25
+    }
+   ]
+  },
+  "WILD": {
+   "name": "Frenzy",
+   "effects": [
+    {
+     "op": "selfStage",
+     "stat": "atk",
+     "delta": 1,
+     "cap": 2
+    }
+   ]
+  },
+  "HIVE": {
+   "name": "Sting",
+   "effects": [
+    {
+     "op": "chip",
+     "pct": 3
+    }
+   ]
+  },
+  "FAE": {
+   "name": "Charm",
+   "effects": [
+    {
+     "op": "foeStage",
+     "stat": "atk",
+     "delta": -1
+    }
+   ]
+  },
+  "WYRM": {
+   "name": "Dragon's Breath",
+   "effects": [
+    {
+     "op": "boostNext",
+     "pct": 15
+    }
+   ]
+  },
+  "SHADE": {
+   "name": "Blind",
+   "effects": [
+    {
+     "op": "foeStage",
+     "stat": "accuracy",
+     "delta": -1
+    }
+   ]
+  },
+  "RADIANCE": {
+   "name": "Dawn",
+   "effects": [
+    {
+     "op": "selfStage",
+     "stat": "spa",
+     "delta": 1,
+     "cap": 2
+    }
+   ]
+  },
+  "CHIME": {
+   "name": "Dissonance",
+   "effects": [
+    {
+     "op": "foeStage",
+     "stat": "spd",
+     "delta": -1
+    }
+   ]
+  },
+  "GUARD": {
+   "name": "Ward",
+   "effects": [
+    {
+     "op": "ward"
+    }
+   ]
+  },
+  "HARVEST": {
+   "name": "Feast",
+   "effects": [
+    {
+     "op": "healBoost",
+     "pct": 20,
+     "turns": 2
+    }
+   ]
+  },
+  "COSMOS": {
+   "name": "Warp",
+   "effects": [
+    {
+     "op": "unresistedNext"
+    }
+   ]
+  },
+  "ANCIENT": {
+   "name": "Primeval Hide",
+   "effects": [
+    {
+     "op": "hide",
+     "pct": 10,
+     "turns": 2
+    }
+   ]
+  },
+  "ARTISAN": {
+   "name": "Refine",
+   "effects": [
+    {
+     "op": "refine",
+     "pct": 20,
+     "turns": 2
+    }
+   ]
+  },
+  "TRICKSTER": {
+   "name": "Mimic",
+   "effects": [
+    {
+     "op": "mimic"
+    }
+   ]
+  },
+  "BRAWL": {
+   "name": "Break Guard",
+   "effects": [
+    {
+     "op": "strip"
+    }
+   ]
+  }
+ },
+ "riders": {
+  "EMBER": {
+   "affix": "smoldering",
+   "value": 10
+  },
+  "TIDE": {
+   "affix": "restorative",
+   "value": 8
+  },
+  "GALE": {
+   "affix": "swift_strike",
+   "value": 4
+  },
+  "VERDANT": {
+   "affix": "steadfast_guard",
+   "value": 5
+  },
+  "FROST": {
+   "affix": "opening_guard",
+   "value": 6
+  },
+  "STORM": {
+   "affix": "ensnaring",
+   "value": 6
+  },
+  "STONE": {
+   "affix": "physical_bulwark",
+   "value": 4
+  },
+  "IRON": {
+   "affix": "special_bulwark",
+   "value": 4
+  },
+  "VENOM": {
+   "affix": "venomous",
+   "value": 10
+  },
+  "SPIRIT": {
+   "affix": "stubborn",
+   "value": 5
+  },
+  "DREAM": {
+   "affix": "status_guard",
+   "value": 4
+  },
+  "WILD": {
+   "affix": "keen_edge",
+   "value": 5
+  },
+  "HIVE": {
+   "affix": "rending",
+   "value": 8
+  },
+  "FAE": {
+   "affix": "bracing_entry",
+   "value": 8
+  },
+  "WYRM": {
+   "affix": "overwhelming_force",
+   "value": 3
+  },
+  "SHADE": {
+   "affix": "opening_strike",
+   "value": 6
+  },
+  "RADIANCE": {
+   "affix": "healthy_force",
+   "value": 4
+  },
+  "CHIME": {
+   "affix": "momentum",
+   "value": 3
+  },
+  "GUARD": {
+   "affix": "iron_resolve",
+   "value": 4
+  },
+  "HARVEST": {
+   "affix": "triumphant",
+   "value": 8
+  },
+  "COSMOS": {
+   "affix": "super_effective_force",
+   "value": 4
+  },
+  "ANCIENT": {
+   "affix": "resilient_hide",
+   "value": 4
+  },
+  "ARTISAN": {
+   "affix": "kindred_force",
+   "value": 5
+  },
+  "TRICKSTER": {
+   "affix": "wardstone",
+   "value": 6
+  },
+  "BRAWL": {
+   "affix": "executioner",
+   "value": 6
+  }
+ },
  "pairs": [
   {
    "id": "primordial_clash",
@@ -223,7 +715,22 @@
     "kyogre",
     "groudon"
    ],
-   "blurb": "Sea and land, locked in the oldest war."
+   "blurb": "Sea and land, locked in the oldest war.",
+   "twist": {
+    "name": "Cataclysm",
+    "effects": [
+     {
+      "op": "chip",
+      "pct": 4
+     },
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "hand_of_creation",
@@ -233,7 +740,19 @@
     "dialga",
     "palkia"
    ],
-   "blurb": "Time and space, the two halves of the world."
+   "blurb": "Time and space, the two halves of the world.",
+   "twist": {
+    "name": "Fold of Space-Time",
+    "effects": [
+     {
+      "op": "shield",
+      "pct": 20
+     },
+     {
+      "op": "unresistedNext"
+     }
+    ]
+   }
   },
   {
    "id": "taijitu",
@@ -243,7 +762,20 @@
     "reshiram",
     "zekrom"
    ],
-   "blurb": "Truth and ideals, yang and yin turning together."
+   "blurb": "Truth and ideals, yang and yin turning together.",
+   "twist": {
+    "name": "Yin and Yang",
+    "effects": [
+     {
+      "op": "drain",
+      "pct": 4
+     },
+     {
+      "op": "boostNext",
+      "pct": 10
+     }
+    ]
+   }
   },
   {
    "id": "white_boundary",
@@ -253,7 +785,22 @@
     "kyurem",
     "reshiram"
    ],
-   "blurb": "The empty vessel filled with truth."
+   "blurb": "The empty vessel filled with truth.",
+   "twist": {
+    "name": "Truth Frozen",
+    "effects": [
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 30
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "black_boundary",
@@ -263,7 +810,22 @@
     "kyurem",
     "zekrom"
    ],
-   "blurb": "The empty vessel filled with ideals."
+   "blurb": "The empty vessel filled with ideals.",
+   "twist": {
+    "name": "Ideal Frozen",
+    "effects": [
+     {
+      "op": "status",
+      "status": "par",
+      "chance": 30
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "crowned_pair",
@@ -273,7 +835,20 @@
     "zacian",
     "zamazenta"
    ],
-   "blurb": "Sword and shield of a forgotten king."
+   "blurb": "Sword and shield of a forgotten king.",
+   "twist": {
+    "name": "Sword and Shield",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "shield",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "wheel_of_life",
@@ -283,7 +858,20 @@
     "xerneas",
     "yveltal"
    ],
-   "blurb": "Life and destruction, one cocoon to the next."
+   "blurb": "Life and destruction, one cocoon to the next.",
+   "twist": {
+    "name": "Life and Death",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "drain",
+      "pct": 4
+     }
+    ]
+   }
   },
   {
    "id": "eclipse",
@@ -293,7 +881,23 @@
     "solgaleo",
     "lunala"
    ],
-   "blurb": "Sun and moon, devouring and giving light."
+   "blurb": "Sun and moon, devouring and giving light.",
+   "twist": {
+    "name": "Totality",
+    "effects": [
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     },
+     {
+      "op": "selfStage",
+      "stat": "spa",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "dusk_mane",
@@ -303,7 +907,22 @@
     "necrozma",
     "solgaleo"
    ],
-   "blurb": "A prism feeding on the sun."
+   "blurb": "A prism feeding on the sun.",
+   "twist": {
+    "name": "Prism Feed",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "boostNext",
+      "pct": 10
+     }
+    ]
+   }
   },
   {
    "id": "dawn_wings",
@@ -313,7 +932,20 @@
     "necrozma",
     "lunala"
    ],
-   "blurb": "A prism feeding on the moon."
+   "blurb": "A prism feeding on the moon.",
+   "twist": {
+    "name": "Prism Veil",
+    "effects": [
+     {
+      "op": "cleanse"
+     },
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "eon_bond",
@@ -323,7 +955,19 @@
     "latias",
     "latios"
    ],
-   "blurb": "Siblings who share their dreams."
+   "blurb": "Siblings who share their dreams.",
+   "twist": {
+    "name": "Shared Dream",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "cleanse"
+     }
+    ]
+   }
   },
   {
    "id": "rainbow_tower",
@@ -333,7 +977,22 @@
     "lugia",
     "hooh"
    ],
-   "blurb": "Guardians of the sea and the sky."
+   "blurb": "Guardians of the sea and the sky.",
+   "twist": {
+    "name": "Seven Colours",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 3
+     },
+     {
+      "op": "selfStage",
+      "stat": "spa",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "original_and_copy",
@@ -343,7 +1002,18 @@
     "mew",
     "mewtwo"
    ],
-   "blurb": "The ancestor and the mind that refused its making."
+   "blurb": "The ancestor and the mind that refused its making.",
+   "twist": {
+    "name": "Perfect Copy",
+    "effects": [
+     {
+      "op": "mimic"
+     },
+     {
+      "op": "strip"
+     }
+    ]
+   }
   },
   {
    "id": "ice_rider",
@@ -353,7 +1023,21 @@
     "calyrex",
     "glastrier"
    ],
-   "blurb": "The king upon the steed of ice."
+   "blurb": "The king upon the steed of ice.",
+   "twist": {
+    "name": "Rider of Ice",
+    "effects": [
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     },
+     {
+      "op": "boostNext",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "shadow_rider",
@@ -363,7 +1047,21 @@
     "calyrex",
     "spectrier"
    ],
-   "blurb": "The king upon the steed of shadow."
+   "blurb": "The king upon the steed of shadow.",
+   "twist": {
+    "name": "Rider of Shadow",
+    "effects": [
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     },
+     {
+      "op": "drain",
+      "pct": 4
+     }
+    ]
+   }
   },
   {
    "id": "past_and_future",
@@ -373,7 +1071,21 @@
     "koraidon",
     "miraidon"
    ],
-   "blurb": "The ancient dragon and the iron serpent."
+   "blurb": "The ancient dragon and the iron serpent.",
+   "twist": {
+    "name": "Time Fold",
+    "effects": [
+     {
+      "op": "hide",
+      "pct": 10,
+      "turns": 2
+     },
+     {
+      "op": "boostNext",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "origin_and_shadow",
@@ -383,7 +1095,20 @@
     "arceus",
     "giratina"
    ],
-   "blurb": "The creator and its banished echo."
+   "blurb": "The creator and its banished echo.",
+   "twist": {
+    "name": "Distortion",
+    "effects": [
+     {
+      "op": "strip"
+     },
+     {
+      "op": "status",
+      "status": "confusion",
+      "chance": 25
+     }
+    ]
+   }
   },
   {
    "id": "elder_tusk",
@@ -393,7 +1118,23 @@
     "donphan",
     "greattusk"
    ],
-   "blurb": "Armoured elephant meets its primeval mammoth."
+   "blurb": "Armoured elephant meets its primeval mammoth.",
+   "twist": {
+    "name": "Mammoth Charge",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "hide",
+      "pct": 10,
+      "turns": 2
+     }
+    ]
+   }
   },
   {
    "id": "wheel_of_donphan",
@@ -403,7 +1144,22 @@
     "donphan",
     "irontreads"
    ],
-   "blurb": "Armoured elephant meets its future machine."
+   "blurb": "Armoured elephant meets its future machine.",
+   "twist": {
+    "name": "Rolling Armour",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "boostNext",
+      "pct": 10
+     }
+    ]
+   }
   },
   {
    "id": "tusk_and_tread",
@@ -413,7 +1169,22 @@
     "greattusk",
     "irontreads"
    ],
-   "blurb": "Past and future of the same armoured giant."
+   "blurb": "Past and future of the same armoured giant.",
+   "twist": {
+    "name": "Tusk and Tread",
+    "effects": [
+     {
+      "op": "shield",
+      "pct": 15
+     },
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "lullaby_unbound",
@@ -423,7 +1194,22 @@
     "jigglypuff",
     "screamtail"
    ],
-   "blurb": "The gentle singer and her screaming ancestor."
+   "blurb": "The gentle singer and her screaming ancestor.",
+   "twist": {
+    "name": "Scream Lullaby",
+    "effects": [
+     {
+      "op": "status",
+      "status": "confusion",
+      "chance": 25
+     },
+     {
+      "op": "foeStage",
+      "stat": "spd",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "gift_of_tomorrow",
@@ -433,7 +1219,21 @@
     "delibird",
     "ironbundle"
    ],
-   "blurb": "Penguin deliverer and its machine descendant."
+   "blurb": "Penguin deliverer and its machine descendant.",
+   "twist": {
+    "name": "Gift of Tomorrow",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "sumo_machine",
@@ -443,7 +1243,21 @@
     "hariyama",
     "ironhands"
    ],
-   "blurb": "Rikishi and its future palm-striker."
+   "blurb": "Rikishi and its future palm-striker.",
+   "twist": {
+    "name": "Piston Slap",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "iron_hydra",
@@ -453,7 +1267,19 @@
     "hydreigon",
     "ironjugulis"
    ],
-   "blurb": "Three-headed brute and its iron successor."
+   "blurb": "Three-headed brute and its iron successor.",
+   "twist": {
+    "name": "Three Heads Online",
+    "effects": [
+     {
+      "op": "chip",
+      "pct": 3
+     },
+     {
+      "op": "strip"
+     }
+    ]
+   }
   },
   {
    "id": "foo_fighter",
@@ -463,7 +1289,22 @@
     "volcarona",
     "ironmoth"
    ],
-   "blurb": "Sun moth and its UFO descendant."
+   "blurb": "Sun moth and its UFO descendant.",
+   "twist": {
+    "name": "Sun Probe",
+    "effects": [
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 30
+     },
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "dawn_of_moths",
@@ -473,7 +1314,21 @@
     "volcarona",
     "slitherwing"
    ],
-   "blurb": "Sun moth and its primeval ancestor."
+   "blurb": "Sun moth and its primeval ancestor.",
+   "twist": {
+    "name": "Sun Dust",
+    "effects": [
+     {
+      "op": "chip",
+      "pct": 3
+     },
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 20
+     }
+    ]
+   }
   },
   {
    "id": "moth_across_ages",
@@ -483,7 +1338,22 @@
     "slitherwing",
     "ironmoth"
    ],
-   "blurb": "Past and future of the sun moth."
+   "blurb": "Past and future of the sun moth.",
+   "twist": {
+    "name": "Dust of Ages",
+    "effects": [
+     {
+      "op": "hide",
+      "pct": 10,
+      "turns": 2
+     },
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 20
+     }
+    ]
+   }
   },
   {
    "id": "mecha_kaiju",
@@ -493,7 +1363,22 @@
     "tyranitar",
     "ironthorns"
    ],
-   "blurb": "Armoured kaiju and its mechanical echo."
+   "blurb": "Armoured kaiju and its mechanical echo.",
+   "twist": {
+    "name": "Stomp Protocol",
+    "effects": [
+     {
+      "op": "shield",
+      "pct": 15
+     },
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "paladin_oath",
@@ -503,7 +1388,19 @@
     "gardevoir",
     "ironvaliant"
    ],
-   "blurb": "The knight-dancer and a future paladin."
+   "blurb": "The knight-dancer and a future paladin.",
+   "twist": {
+    "name": "Knight's Pledge",
+    "effects": [
+     {
+      "op": "ward"
+     },
+     {
+      "op": "shield",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "paladin_blade",
@@ -513,7 +1410,19 @@
     "gallade",
     "ironvaliant"
    ],
-   "blurb": "The warrior elf and a future paladin."
+   "blurb": "The warrior elf and a future paladin.",
+   "twist": {
+    "name": "Knight's Edge",
+    "effects": [
+     {
+      "op": "ward"
+     },
+     {
+      "op": "boostNext",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "flying_head",
@@ -523,7 +1432,21 @@
     "misdreavus",
     "fluttermane"
    ],
-   "blurb": "Wailing ghost and its ancient hair-winged kin."
+   "blurb": "Wailing ghost and its ancient hair-winged kin.",
+   "twist": {
+    "name": "Wail",
+    "effects": [
+     {
+      "op": "status",
+      "status": "confusion",
+      "chance": 25
+     },
+     {
+      "op": "drain",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "ironsand_age",
@@ -533,7 +1456,22 @@
     "magneton",
     "sandyshocks"
    ],
-   "blurb": "Three magnets and ten thousand years of dust."
+   "blurb": "Three magnets and ten thousand years of dust.",
+   "twist": {
+    "name": "Magnetic Storm",
+    "effects": [
+     {
+      "op": "status",
+      "status": "par",
+      "chance": 30
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "mold_beneath",
@@ -543,7 +1481,21 @@
     "amoonguss",
     "brutebonnet"
    ],
-   "blurb": "The lure mushroom and its parasitic mold dinosaur."
+   "blurb": "The lure mushroom and its parasitic mold dinosaur.",
+   "twist": {
+    "name": "Spore Rot",
+    "effects": [
+     {
+      "op": "status",
+      "status": "psn",
+      "chance": 30
+     },
+     {
+      "op": "heal",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "dragon_of_the_dream",
@@ -553,7 +1505,22 @@
     "salamence",
     "roaringmoon"
    ],
-   "blurb": "The dream-born dragon and its ancient rampager."
+   "blurb": "The dream-born dragon and its ancient rampager.",
+   "twist": {
+    "name": "Dream Wyrm",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "boostNext",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "purifying_wake",
@@ -563,7 +1530,19 @@
     "suicune",
     "walkingwake"
    ],
-   "blurb": "Aurora beast and its ancient walking wake."
+   "blurb": "Aurora beast and its ancient walking wake.",
+   "twist": {
+    "name": "Clear Tide",
+    "effects": [
+     {
+      "op": "cleanse"
+     },
+     {
+      "op": "heal",
+      "pct": 4
+     }
+    ]
+   }
   },
   {
    "id": "shining_blades",
@@ -573,7 +1552,21 @@
     "virizion",
     "ironleaves"
    ],
-   "blurb": "Musketeer of the grass and its blade descendant."
+   "blurb": "Musketeer of the grass and its blade descendant.",
+   "twist": {
+    "name": "Julienne",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 20
+     },
+     {
+      "op": "foeStage",
+      "stat": "def",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "regenerated_pyre",
@@ -583,7 +1576,21 @@
     "entei",
     "gougingfire"
    ],
-   "blurb": "Volcano lion reborn as a horned fire."
+   "blurb": "Volcano lion reborn as a horned fire.",
+   "twist": {
+    "name": "Reborn Flame",
+    "effects": [
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 30
+     },
+     {
+      "op": "heal",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "thunder_lizard",
@@ -593,7 +1600,21 @@
     "raikou",
     "ragingbolt"
    ],
-   "blurb": "Tiger of thunder and its sauropod ancestor."
+   "blurb": "Tiger of thunder and its sauropod ancestor.",
+   "twist": {
+    "name": "Thunderous Step",
+    "effects": [
+     {
+      "op": "status",
+      "status": "par",
+      "chance": 30
+     },
+     {
+      "op": "chip",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "blade_of_the_cavern",
@@ -603,7 +1624,22 @@
     "terrakion",
     "ironboulder"
    ],
-   "blurb": "Cavern charger and its spade-bladed echo."
+   "blurb": "Cavern charger and its spade-bladed echo.",
+   "twist": {
+    "name": "Spade Rush",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "boostNext",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "crown_of_iron",
@@ -613,7 +1649,19 @@
     "cobalion",
     "ironcrown"
    ],
-   "blurb": "Leader of the swords and its crowned echo."
+   "blurb": "Leader of the swords and its crowned echo.",
+   "twist": {
+    "name": "Crowned Resolve",
+    "effects": [
+     {
+      "op": "shield",
+      "pct": 15
+     },
+     {
+      "op": "strip"
+     }
+    ]
+   }
   },
   {
    "id": "prehistoric_skies",
@@ -623,7 +1671,23 @@
     "aerodactyl",
     "archeops"
    ],
-   "blurb": "Pterosaur and first bird sharing the ancient sky."
+   "blurb": "Pterosaur and first bird sharing the ancient sky.",
+   "twist": {
+    "name": "Ancient Updraft",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "hide",
+      "pct": 10,
+      "turns": 2
+     }
+    ]
+   }
   },
   {
    "id": "two_golems",
@@ -633,7 +1697,22 @@
     "golem",
     "golurk"
    ],
-   "blurb": "Earthen golem and clay automaton."
+   "blurb": "Earthen golem and clay automaton.",
+   "twist": {
+    "name": "Clay and Stone",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "shield",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "borrowed_face",
@@ -643,7 +1722,19 @@
     "pikachu",
     "mimikyu"
    ],
-   "blurb": "The mascot and the ghost who wishes to be loved like it."
+   "blurb": "The mascot and the ghost who wishes to be loved like it.",
+   "twist": {
+    "name": "Borrowed Smile",
+    "effects": [
+     {
+      "op": "mimic"
+     },
+     {
+      "op": "heal",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "blade_and_pincer",
@@ -653,7 +1744,21 @@
     "scyther",
     "scizor"
    ],
-   "blurb": "Mantis and its steel-claw successor."
+   "blurb": "Mantis and its steel-claw successor.",
+   "twist": {
+    "name": "Mantis Cut",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "foeStage",
+      "stat": "def",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "moon_shadow",
@@ -663,7 +1768,20 @@
     "gengar",
     "clefable"
    ],
-   "blurb": "The shadow that mimics a moon pixie."
+   "blurb": "The shadow that mimics a moon pixie.",
+   "twist": {
+    "name": "Moonlit Mimic",
+    "effects": [
+     {
+      "op": "mimic"
+     },
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     }
+    ]
+   }
   }
  ],
  "groups": [
@@ -676,7 +1794,19 @@
     "groudon",
     "rayquaza"
    ],
-   "blurb": "The three who shaped the sky, sea and land."
+   "blurb": "The three who shaped the sky, sea and land.",
+   "twist": {
+    "name": "Pact of Sky, Sea and Land",
+    "effects": [
+     {
+      "op": "unresistedNext"
+     },
+     {
+      "op": "chip",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "legendary_flight",
@@ -687,7 +1817,23 @@
     "zapdos",
     "moltres"
    ],
-   "blurb": "The three great birds of Kanto."
+   "blurb": "The three great birds of Kanto.",
+   "twist": {
+    "name": "Wings Unfurled",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "roaming_beasts",
@@ -698,7 +1844,22 @@
     "entei",
     "suicune"
    ],
-   "blurb": "Those revived after the Brass Tower fell."
+   "blurb": "Those revived after the Brass Tower fell.",
+   "twist": {
+    "name": "Brass Tower Rebirth",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "titan_golems",
@@ -712,7 +1873,22 @@
     "regieleki",
     "regidrago"
    ],
-   "blurb": "Golems of writing and stone."
+   "blurb": "Golems of writing and stone.",
+   "twist": {
+    "name": "Seal Unbroken",
+    "effects": [
+     {
+      "op": "shield",
+      "pct": 20
+     },
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "lake_guardians",
@@ -723,7 +1899,18 @@
     "mesprit",
     "azelf"
    ],
-   "blurb": "Knowledge, emotion and willpower."
+   "blurb": "Knowledge, emotion and willpower.",
+   "twist": {
+    "name": "Triple Lake",
+    "effects": [
+     {
+      "op": "cleanse"
+     },
+     {
+      "op": "ward"
+     }
+    ]
+   }
   },
   {
    "id": "swords_of_justice",
@@ -735,7 +1922,20 @@
     "virizion",
     "keldeo"
    ],
-   "blurb": "Knights who protected Pokemon from humans."
+   "blurb": "Knights who protected Pokemon from humans.",
+   "twist": {
+    "name": "Sworn Blades",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "shield",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "forces_of_nature",
@@ -747,7 +1947,23 @@
     "landorus",
     "enamorus"
    ],
-   "blurb": "Wind, thunder, earth and love."
+   "blurb": "Wind, thunder, earth and love.",
+   "twist": {
+    "name": "Tempest Cycle",
+    "effects": [
+     {
+      "op": "status",
+      "status": "par",
+      "chance": 25
+     },
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "guardian_deities",
@@ -759,7 +1975,19 @@
     "tapubulu",
     "tapufini"
    ],
-   "blurb": "The land spirits of Alola."
+   "blurb": "The land spirits of Alola.",
+   "twist": {
+    "name": "Island Challenge",
+    "effects": [
+     {
+      "op": "ward"
+     },
+     {
+      "op": "heal",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "treasures_of_ruin",
@@ -771,7 +1999,21 @@
     "tinglu",
     "chiyu"
    ],
-   "blurb": "Grudges bound to four sealed relics."
+   "blurb": "Grudges bound to four sealed relics.",
+   "twist": {
+    "name": "Ruinous Aura",
+    "effects": [
+     {
+      "op": "chip",
+      "pct": 3
+     },
+     {
+      "op": "foeStage",
+      "stat": "spd",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "beyond_the_wormhole",
@@ -790,7 +2032,20 @@
     "stakataka",
     "blacephalon"
    ],
-   "blurb": "Beasts that came from another world."
+   "blurb": "Beasts that came from another world.",
+   "twist": {
+    "name": "Ultra Space",
+    "effects": [
+     {
+      "op": "unresistedNext"
+     },
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "retainers_of_the_ogre",
@@ -803,7 +2058,20 @@
     "ogerpon",
     "pecharunt"
    ],
-   "blurb": "The tale of Momotaro with its heroes and villains reversed."
+   "blurb": "The tale of Momotaro with its heroes and villains reversed.",
+   "twist": {
+    "name": "Reversed Tale",
+    "effects": [
+     {
+      "op": "status",
+      "status": "psn",
+      "chance": 30
+     },
+     {
+      "op": "mimic"
+     }
+    ]
+   }
   },
   {
    "id": "pseudo_summit",
@@ -821,7 +2089,23 @@
     "dragapult",
     "baxcalibur"
    ],
-   "blurb": "The pinnacle of the three-stage dragons."
+   "blurb": "The pinnacle of the three-stage dragons.",
+   "twist": {
+    "name": "Summit Power",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "hide",
+      "pct": 10,
+      "turns": 2
+     }
+    ]
+   }
   },
   {
    "id": "kanto_triad",
@@ -832,7 +2116,22 @@
     "charizard",
     "blastoise"
    ],
-   "blurb": "The first partners."
+   "blurb": "The first partners.",
+   "twist": {
+    "name": "First Partners",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "johto_triad",
@@ -843,7 +2142,20 @@
     "typhlosion",
     "feraligatr"
    ],
-   "blurb": "The partners of Johto."
+   "blurb": "The partners of Johto.",
+   "twist": {
+    "name": "Johto Bond",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 3
+     },
+     {
+      "op": "shield",
+      "pct": 15
+     }
+    ]
+   }
   },
   {
    "id": "hoenn_triad",
@@ -854,7 +2166,22 @@
     "blaziken",
     "swampert"
    ],
-   "blurb": "The partners of Hoenn."
+   "blurb": "The partners of Hoenn.",
+   "twist": {
+    "name": "Hoenn Surge",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "boostNext",
+      "pct": 10
+     }
+    ]
+   }
   },
   {
    "id": "sinnoh_triad",
@@ -865,7 +2192,22 @@
     "infernape",
     "empoleon"
    ],
-   "blurb": "The partners of Sinnoh."
+   "blurb": "The partners of Sinnoh.",
+   "twist": {
+    "name": "Sinnoh Unity",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "heal",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "unova_triad",
@@ -876,7 +2218,19 @@
     "emboar",
     "samurott"
    ],
-   "blurb": "The partners of Unova."
+   "blurb": "The partners of Unova.",
+   "twist": {
+    "name": "Unova Resolve",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "cleanse"
+     }
+    ]
+   }
   },
   {
    "id": "kalos_triad",
@@ -887,7 +2241,23 @@
     "delphox",
     "greninja"
    ],
-   "blurb": "The partners of Kalos."
+   "blurb": "The partners of Kalos.",
+   "twist": {
+    "name": "Kalos Elegance",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "spa",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "alola_triad",
@@ -898,7 +2268,22 @@
     "incineroar",
     "primarina"
    ],
-   "blurb": "The partners of Alola."
+   "blurb": "The partners of Alola.",
+   "twist": {
+    "name": "Alola Pride",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "shield",
+      "pct": 10
+     }
+    ]
+   }
   },
   {
    "id": "galar_triad",
@@ -909,7 +2294,22 @@
     "cinderace",
     "inteleon"
    ],
-   "blurb": "The partners of Galar."
+   "blurb": "The partners of Galar.",
+   "twist": {
+    "name": "Galar Champion",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "paldea_triad",
@@ -920,7 +2320,20 @@
     "skeledirge",
     "quaquaval"
    ],
-   "blurb": "The partners of Paldea."
+   "blurb": "The partners of Paldea.",
+   "twist": {
+    "name": "Paldea Spirit",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "boostNext",
+      "pct": 10
+     }
+    ]
+   }
   },
   {
    "id": "kitsune_court",
@@ -935,7 +2348,22 @@
     "braixen",
     "delphox"
    ],
-   "blurb": "Fox spirits and their many tails."
+   "blurb": "Fox spirits and their many tails.",
+   "twist": {
+    "name": "Nine Tails",
+    "effects": [
+     {
+      "op": "status",
+      "status": "confusion",
+      "chance": 25
+     },
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 25
+     }
+    ]
+   }
   },
   {
    "id": "bushido_court",
@@ -951,7 +2379,19 @@
     "honedge",
     "aegislash"
    ],
-   "blurb": "Warriors of blade and honour."
+   "blurb": "Warriors of blade and honour.",
+   "twist": {
+    "name": "Way of the Blade",
+    "effects": [
+     {
+      "op": "boostNext",
+      "pct": 15
+     },
+     {
+      "op": "strip"
+     }
+    ]
+   }
   },
   {
    "id": "dragon_gate",
@@ -966,7 +2406,22 @@
     "feebas",
     "milotic"
    ],
-   "blurb": "The carp that leaps the falls and becomes a dragon."
+   "blurb": "The carp that leaps the falls and becomes a dragon.",
+   "twist": {
+    "name": "Leap the Falls",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "heal",
+      "pct": 4
+     }
+    ]
+   }
   },
   {
    "id": "moon_court",
@@ -982,7 +2437,21 @@
     "umbreon",
     "nidoranf"
    ],
-   "blurb": "Creatures of the moon."
+   "blurb": "Creatures of the moon.",
+   "twist": {
+    "name": "Moonlight",
+    "effects": [
+     {
+      "op": "heal",
+      "pct": 4
+     },
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "sun_court",
@@ -996,7 +2465,23 @@
     "espeon",
     "hooh"
    ],
-   "blurb": "Creatures of the sun."
+   "blurb": "Creatures of the sun.",
+   "twist": {
+    "name": "Sunlight",
+    "effects": [
+     {
+      "op": "selfStage",
+      "stat": "spa",
+      "delta": 1,
+      "cap": 2
+     },
+     {
+      "op": "status",
+      "status": "brn",
+      "chance": 20
+     }
+    ]
+   }
   },
   {
    "id": "animated_earth",
@@ -1012,7 +2497,22 @@
     "probopass",
     "sudowoodo"
    ],
-   "blurb": "Clay, stone and the golem that walks."
+   "blurb": "Clay, stone and the golem that walks.",
+   "twist": {
+    "name": "Clay Awakened",
+    "effects": [
+     {
+      "op": "shield",
+      "pct": 20
+     },
+     {
+      "op": "selfStage",
+      "stat": "def",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "halloween_hollow",
@@ -1030,7 +2530,21 @@
     "banette",
     "mimikyu"
    ],
-   "blurb": "The ghosts that gather at harvest end."
+   "blurb": "The ghosts that gather at harvest end.",
+   "twist": {
+    "name": "Trick and Treat",
+    "effects": [
+     {
+      "op": "status",
+      "status": "confusion",
+      "chance": 25
+     },
+     {
+      "op": "heal",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "tea_ceremony",
@@ -1042,7 +2556,20 @@
     "poltchageist",
     "sinistcha"
    ],
-   "blurb": "Poltergeists of the tea cup."
+   "blurb": "Poltergeists of the tea cup.",
+   "twist": {
+    "name": "Steeped",
+    "effects": [
+     {
+      "op": "healBoost",
+      "pct": 20,
+      "turns": 2
+     },
+     {
+      "op": "cleanse"
+     }
+    ]
+   }
   },
   {
    "id": "dessert_table",
@@ -1062,7 +2589,22 @@
     "appletun",
     "dipplin"
    ],
-   "blurb": "Sweet things shared."
+   "blurb": "Sweet things shared.",
+   "twist": {
+    "name": "Sweet Tooth",
+    "effects": [
+     {
+      "op": "healBoost",
+      "pct": 25,
+      "turns": 2
+     },
+     {
+      "op": "foeStage",
+      "stat": "spe",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "machine_choir",
@@ -1083,7 +2625,23 @@
     "porygonz",
     "rotom"
    ],
-   "blurb": "Gears, magnets and living circuits."
+   "blurb": "Gears, magnets and living circuits.",
+   "twist": {
+    "name": "Synchronised",
+    "effects": [
+     {
+      "op": "status",
+      "status": "par",
+      "chance": 25
+     },
+     {
+      "op": "selfStage",
+      "stat": "spe",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "three_wise_monkeys",
@@ -1097,7 +2655,20 @@
     "panpour",
     "simipour"
    ],
-   "blurb": "See, hear and speak no evil."
+   "blurb": "See, hear and speak no evil.",
+   "twist": {
+    "name": "Hear No Evil",
+    "effects": [
+     {
+      "op": "ward"
+     },
+     {
+      "op": "foeStage",
+      "stat": "spd",
+      "delta": -1
+     }
+    ]
+   }
   },
   {
    "id": "fossil_revival",
@@ -1126,7 +2697,23 @@
     "amaura",
     "aurorus"
    ],
-   "blurb": "Creatures brought back from stone."
+   "blurb": "Creatures brought back from stone.",
+   "twist": {
+    "name": "Revived Might",
+    "effects": [
+     {
+      "op": "hide",
+      "pct": 10,
+      "turns": 2
+     },
+     {
+      "op": "selfStage",
+      "stat": "atk",
+      "delta": 1,
+      "cap": 2
+     }
+    ]
+   }
   },
   {
    "id": "galar_fossils",
@@ -1138,7 +2725,19 @@
     "dracovish",
     "arctovish"
    ],
-   "blurb": "Chimeras stitched from the wrong halves."
+   "blurb": "Chimeras stitched from the wrong halves.",
+   "twist": {
+    "name": "Mismatched Parts",
+    "effects": [
+     {
+      "op": "mimic"
+     },
+     {
+      "op": "chip",
+      "pct": 3
+     }
+    ]
+   }
   },
   {
    "id": "mythical_dawn",
@@ -1166,7 +2765,20 @@
     "genesect",
     "darkrai"
    ],
-   "blurb": "The elusive Pokemon known only through rumours."
+   "blurb": "The elusive Pokemon known only through rumours.",
+   "twist": {
+    "name": "Elusive",
+    "effects": [
+     {
+      "op": "foeStage",
+      "stat": "accuracy",
+      "delta": -1
+     },
+     {
+      "op": "ward"
+     }
+    ]
+   }
   }
  ]
 }

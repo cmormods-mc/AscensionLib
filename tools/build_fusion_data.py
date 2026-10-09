@@ -6,8 +6,11 @@ import re
 import sys
 
 import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import transcendent_powers as powers
 REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'design')
-lore = json.load(open(os.path.join(REPO, 'lore', 'species-lore.json'), encoding='utf-8'))['species']
+with open(os.path.join(REPO, 'lore', 'species-lore.json'), encoding='utf-8') as handle:
+    lore = json.load(handle)['species']
 
 
 def norm(text):
@@ -216,8 +219,26 @@ ids_used = [p['id'] for p in pairs] + [g['id'] for g in groups]
 if len(set(ids_used)) != len(ids_used):
     sys.exit('duplicate recipe id')
 
+# ---------------------------------------------------------------- Transcendent powers (docs/TRANSCENDENT-POWERS.md)
+for entry in pairs + groups:
+    if entry['id'] not in powers.RECIPE_TWISTS:
+        sys.exit('curated recipe without a bespoke twist: ' + entry['id'])
+    label, ops = powers.RECIPE_TWISTS[entry['id']]
+    entry['twist'] = {'name': label, 'effects': ops}
+unused = set(powers.RECIPE_TWISTS) - {e['id'] for e in pairs + groups}
+if unused:
+    sys.exit('twists for recipes that do not exist: ' + str(sorted(unused)))
+base_ids = {i for _, _, i, _, _ in BASES}
+if set(powers.SIGNATURES) != base_ids:
+    sys.exit('signatures and bases differ: ' + str(set(powers.SIGNATURES) ^ base_ids))
+if set(powers.TWISTS) != set(MOTIFS) or set(powers.RIDERS) != set(MOTIFS):
+    sys.exit('every motif needs exactly one twist and one rider')
+signatures = [{'id': i, 'pulse': v[0], 'core': v[1], 'clutch': v[2], 'drawback': v[3]} for i, v in powers.SIGNATURES.items()]
+twists = {m: {'name': n, 'effects': ops} for m, (n, ops) in powers.TWISTS.items()}
+riders = {m: {'affix': a, 'value': v} for m, (a, v) in powers.RIDERS.items()}
+
 transcendents = {
-    'schemaVersion': 1,
+    'schemaVersion': 2,
     'status': 'provisional-research-based-recipes',
     'scales': {
         'LINEAGE': {'benefit': 85, 'drawback': 55},
@@ -227,9 +248,14 @@ transcendents = {
         'OPPOSED': {'benefit': 88, 'drawback': 78},
     },
     'bases': [{'id': i, 'name': n, 'uniques': [a, b], 'blurb': t} for a, b, i, n, t in BASES],
+    'signatures': signatures,
+    'twists': twists,
+    'riders': riders,
     'pairs': pairs,
     'groups': groups,
 }
-json.dump(motifs_json, open(REPO + '/lore/motifs.json', 'w', encoding='utf-8', newline='\n'), ensure_ascii=False, indent=1)
-json.dump(transcendents, open(REPO + '/transcendents.json', 'w', encoding='utf-8', newline='\n'), ensure_ascii=False, indent=1)
-print('pairs', len(pairs), 'groups', len(groups), 'bases', len(BASES), 'motifs', len(MOTIFS))
+with open(REPO + '/lore/motifs.json', 'w', encoding='utf-8', newline='\n') as handle:
+    json.dump(motifs_json, handle, ensure_ascii=False, indent=1)
+with open(REPO + '/transcendents.json', 'w', encoding='utf-8', newline='\n') as handle:
+    json.dump(transcendents, handle, ensure_ascii=False, indent=1)
+print('pairs', len(pairs), 'groups', len(groups), 'bases', len(BASES), 'motifs', len(MOTIFS), 'signatures', len(signatures), 'twists', len(twists), 'riders', len(riders))

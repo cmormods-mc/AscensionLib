@@ -29,13 +29,34 @@ public final class Transcendence {
 
     private record Base(String id, String name, String blurb, Set<String> uniques) {}
 
-    private record Recipe(String id, String name, Harmony harmony, String blurb) {}
+    private record Recipe(String id, String name, Harmony harmony, String blurb, Twist twist) {}
+
+    /** The pulse a signature is built around. */
+    public enum Pulse { HIT, STRUCK, KO, LAST, TICK }
+
+    /** A signature: the new power a pair of Uniques makes (its code lives in the battle module; this is its data). */
+    public record Signature(String id, Pulse pulse, String core, String clutch, String drawback) {}
+
+    /** What fires on every pulse: a name and one or two effects. {@code source} says whether it came from the host motif or a recipe. */
+    public record Twist(String name, List<PulseOp> effects, Source source) {
+        public enum Source { MOTIF, RECIPE }
+    }
+
+    /** The standing effect the donor adds: an existing affix at a small value. */
+    public record Rider(String affix, int value) {}
 
     /** A resolved fusion. {@code recipeId} is null for a derived recipe. */
     public record Transcendent(String id, String name, List<String> uniqueIds, String hostType, String donorType, Harmony harmony,
-                               int benefitPercent, int drawbackPercent, String recipeId, String blurb) {
+                               int benefitPercent, int drawbackPercent, String recipeId, String blurb,
+                               Signature signature, Twist twist, Rider rider) {
         public Transcendent {
             uniqueIds = List.copyOf(uniqueIds);
+        }
+
+        /** The frozen form a battle consumes: the signature, the twist, the rider, the shares kept, and the host and donor types. */
+        public CombatSnapshot.Fused toFused() {
+            return new CombatSnapshot.Fused(uniqueIds, benefitPercent, drawbackPercent, hostType, donorType,
+                    signature.id(), twist.effects(), rider.affix(), rider.value());
         }
     }
 
@@ -43,13 +64,16 @@ public final class Transcendence {
     private final RankedRules rules;
     private final Map<Harmony, Scale> scales = new LinkedHashMap<>();
     private final Map<String, Base> bases = new LinkedHashMap<>();
+    private final Map<String, Signature> signatures = new LinkedHashMap<>();
+    private final Map<String, Twist> motifTwists = new LinkedHashMap<>();
+    private final Map<String, Rider> motifRiders = new LinkedHashMap<>();
     private final Map<String, Recipe> pairs = new LinkedHashMap<>();
     private final List<Map.Entry<Set<String>, Recipe>> groups = new ArrayList<>();
 
     public Transcendence(LoreCatalog lore, RankedRules rules, JsonObject book) {
         this.lore = lore;
         this.rules = rules;
-        if (Json.integer(book.get("schemaVersion")) != 1) throw new IllegalArgumentException("Unknown transcendent schema");
+        if (Json.integer(book.get("schemaVersion")) != 2) throw new IllegalArgumentException("Unknown transcendent schema");
         for (var entry : Json.object(book.get("scales")).entrySet()) {
             var object = Json.object(entry.getValue());
             var scale = new Scale(Json.integer(object.get("benefit")), Json.integer(object.get("drawback")));
@@ -73,6 +97,30 @@ public final class Transcendence {
         }
         int expected = rules.uniques().size() * (rules.uniques().size() - 1) / 2;
         if (bases.size() != expected) throw new IllegalArgumentException("Every pair of Uniques needs a base: " + bases.size() + " of " + expected);
+        for (var element : Json.array(book.get("signatures"))) {
+            var object = Json.object(element);
+            var signature = new Signature(Json.string(object.get("id")), Pulse.valueOf(Json.string(object.get("pulse"))),
+                    Json.string(object.get("core")), Json.string(object.get("clutch")), Json.string(object.get("drawback")));
+            if (signatures.put(signature.id(), signature) != null) throw new IllegalArgumentException("Duplicate signature " + signature.id());
+        }
+        for (var base : bases.values()) {
+            if (!signatures.containsKey(base.id())) throw new IllegalArgumentException("Base without a signature: " + base.id());
+        }
+        if (signatures.size() != bases.size()) throw new IllegalArgumentException("Signatures and bases must match one to one");
+        for (var entry : Json.object(book.get("twists")).entrySet()) {
+            motifTwists.put(entry.getKey(), twist(Json.object(entry.getValue()), Twist.Source.MOTIF));
+        }
+        for (var entry : Json.object(book.get("riders")).entrySet()) {
+            var object = Json.object(entry.getValue());
+            var rider = new Rider(Json.string(object.get("affix")), Json.integer(object.get("value")));
+            rules.affix(rider.affix());   // throws for an affix that is not in the catalog
+            if (rider.value() < 1 || rider.value() > 20) throw new IllegalArgumentException("Rider value out of range: " + entry.getKey());
+            motifRiders.put(entry.getKey(), rider);
+        }
+        for (var motif : lore.motifs().keySet()) {
+            if (!motifTwists.containsKey(motif) || !motifRiders.containsKey(motif))
+                throw new IllegalArgumentException("Motif without a twist and a rider: " + motif);
+        }
         for (var element : Json.array(book.get("pairs"))) {
             var object = Json.object(element);
             var members = species(object.get("species"));
@@ -89,6 +137,16 @@ public final class Transcendence {
         }
     }
 
+    /** Parsed once and shared: the book is immutable and holds the lore of 1025 species, so building it per call would be wasteful. */
+    public static Transcendence shared() {
+        return Shared.INSTANCE;
+    }
+
+    private static final class Shared {
+        static final Transcendence INSTANCE = defaults();
+    }
+
+    /** A fresh parse of the bundled book (tests, tooling). Game code should use {@link #shared()}. */
     public static Transcendence defaults() {
         var stream = Transcendence.class.getResourceAsStream("/cobbleascend/transcendents.json");
         if (stream == null) throw new IllegalStateException("Missing transcendents resource");
@@ -101,7 +159,15 @@ public final class Transcendence {
 
     private Recipe recipe(JsonObject object) {
         return new Recipe(Json.string(object.get("id")), Json.string(object.get("name")),
-                Harmony.valueOf(Json.string(object.get("harmony"))), Json.string(object.get("blurb")));
+                Harmony.valueOf(Json.string(object.get("harmony"))), Json.string(object.get("blurb")),
+                twist(Json.object(object.get("twist")), Twist.Source.RECIPE));
+    }
+
+    private static Twist twist(JsonObject object, Twist.Source source) {
+        var effects = new ArrayList<PulseOp>();
+        for (var effect : Json.array(object.get("effects"))) effects.add(PulseOp.fromJson(Json.object(effect)));
+        if (effects.isEmpty() || effects.size() > 2) throw new IllegalArgumentException("A twist has one or two effects");
+        return new Twist(Json.string(object.get("name")), effects, source);
     }
 
     private List<String> species(com.google.gson.JsonElement element) {
@@ -121,6 +187,9 @@ public final class Transcendence {
     public int baseCount() { return bases.size(); }
     public int pairRecipeCount() { return pairs.size(); }
     public int groupRecipeCount() { return groups.size(); }
+    public Map<String, Signature> signatures() { return java.util.Collections.unmodifiableMap(signatures); }
+    public Map<String, Twist> motifTwists() { return java.util.Collections.unmodifiableMap(motifTwists); }
+    public Map<String, Rider> motifRiders() { return java.util.Collections.unmodifiableMap(motifRiders); }
 
     /**
      * The Transcendent made by fusing {@code donor} into {@code host}.
@@ -167,8 +236,10 @@ public final class Transcendence {
                     : hostMotif.adjective() + " " + base.name() + " of the " + donorMotif.noun();
             blurb = String.format("%s (%s) takes in %s (%s). %s", host.name(), host.basis(), donor.name(), donor.basis(), base.blurb());
         }
+        var twist = curated.map(Recipe::twist).orElseGet(() -> motifTwists.get(host.primaryMotif()));
+        var rider = motifRiders.get(donor.primaryMotif());
         return new Transcendent(base.id(), name, List.copyOf(uniqueIds), host.primaryType(), donor.primaryType(), harmony,
-                scale.benefitPercent(), scale.drawbackPercent(), recipeId, blurb);
+                scale.benefitPercent(), scale.drawbackPercent(), recipeId, blurb, signatures.get(base.id()), twist, rider);
     }
 
     /** How well two species fit by their lore alone (no curated recipe). */

@@ -38,7 +38,7 @@ function compact(payload) {
   const mons = {};
   for (const [uuid, list] of Object.entries(payload.mons)) {
     mons[uuid] = Array.isArray(list)
-      ? list.map(e => (e && typeof e === 'object' ? {i: e.id, p: e.pct, t: e.type} : e))
+      ? list.map(e => (e && typeof e === 'object' && e.i === undefined ? {i: e.id, p: e.pct, t: e.type} : e))
       : list;
   }
   return Object.assign({}, payload, {mons});
@@ -608,6 +608,253 @@ test('28. stubborn: a lethal foe move may leave 1 HP once per battle, at the rol
   }
   assert.ok(survived >= 4 && survived < SEEDS.length, `held on in ${survived} of ${SEEDS.length} seeds`);
   assert.strictEqual(again, survived, 'only once per battle');
+});
+
+// ---- transcendents (docs/FUSION-DESIGN.md): two Uniques fused into one holder, each at its harmony share ----
+const fused = (uuid, uniques, b, d, host, donor) => ({v: 1, mons: {[uuid]: [{i: 'transcendent', p: 1, u: uniques, b, d, t: host, r: donor}]}});
+const near = (actual, expected, tolerance, label) => assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} is not within ${tolerance} of ${expected}`);
+
+test('29. transcendent: both drawbacks are softened to the drawback share', async () => {
+  const plain = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});
+  const half = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: fused(U1, ['ashen_heart', 'triple_seven'], 50, 50)});
+  near(lost(half, 1) / lost(plain, 1), 0.925, 0.03, 'Ashen Heart direct damage penalty 0.85 at 50% is 0.925');
+  near(lost(half, 0) / lost(plain, 0), 1.125, 0.03, '777 damage taken 1.25 at 50% is 1.125');
+  const full = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: fused(U1, ['ashen_heart', 'triple_seven'], 100, 100)});
+  near(lost(full, 1) / lost(plain, 1), 0.85, 0.03, 'at 100% the Ashen Heart penalty is the plain one');
+  near(lost(full, 0) / lost(plain, 0), 1.25, 0.03, 'at 100% the 777 penalty is the plain one');
+});
+
+test('30. transcendent: the host type is a typed offence and the donor type a typed defence, each only on its own type', async () => {
+  const plain = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});
+  const typed = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: fused(U1, ['rupture', 'last_breath'], 100, 100, 'Water', 'Fire')});
+  near(lost(typed, 1) / lost(plain, 1), 1.10, 0.025, 'hydropump is Water, the host type: +10%');
+  near(lost(typed, 0) / lost(plain, 0), 0.90, 0.025, 'flamethrower is Fire, the donor type: -10%');
+  const wrong = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: fused(U1, ['rupture', 'last_breath'], 100, 100, 'Fire', 'Water')});
+  assert.strictEqual(lost(wrong, 1), lost(plain, 1), 'a Fire host type does not boost a Water move');
+  assert.strictEqual(lost(wrong, 0), lost(plain, 0), 'a Water donor type does not reduce a Fire move');
+  const none = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: fused(U1, ['rupture', 'last_breath'], 100, 100)});
+  assert.strictEqual(lost(none, 1), lost(plain, 1), 'no types sent, no typed bonus');
+});
+
+test('31. transcendent: composes with ordinary affixes inside the same capped channel', async () => {
+  const plain = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});
+  const payload = fused(U1, ['rupture', 'last_breath'], 100, 100, 'Water', 'Fire');
+  payload.mons[U1].push({i: 'overwhelming_force', p: 20});
+  const both = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: payload});
+  near(lost(both, 1) / lost(plain, 1), 1.32, 0.03, '+20% times +10% multiply');
+});
+
+test('32. transcendent: Last Breath keeps its benefit as a chance and softens its healing drawback', async () => {
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['dragonclaw', 'splash'])];   // no burn chance: a burn tick would faint the survivor
+  const held = fxPayload => () => ({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: fxPayload});
+  let always = 0, rarely = 0;
+  for (const s of SEEDS) {
+    const strong = await battle(Object.assign({seed: [s, 2, 3, 4]}, held(fused(U1, ['last_breath', 'rupture'], 100, 100))()));
+    const weak = await battle(Object.assign({seed: [s, 2, 3, 4]}, held(fused(U1, ['last_breath', 'rupture'], 1, 100))()));
+    if (mon(strong, 0).hp === 1) always++;
+    if (mon(weak, 0).hp === 1) rarely++;
+  }
+  assert.strictEqual(always, SEEDS.length, `at a full benefit share it always triggers: ${always} of ${SEEDS.length}`);
+  assert.ok(rarely <= 3, `at a 1% benefit share it almost never triggers: ${rarely} of ${SEEDS.length}`);
+  const hurt = [pack('Blastoise', U1, 'torrent', ['recover'], 50, '20'), pack('Charizard', U2, 'blaze', ['splash'], 50)];
+  const plain = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 1});
+  const soft = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 1, fx: fused(U1, ['last_breath', 'rupture'], 100, 50)});
+  const healedPlain = mon(plain, 0).hp - 20, healedSoft = mon(soft, 0).hp - 20;
+  near(healedSoft / healedPlain, 0.75, 0.05, 'healing x0.5 at a 50% drawback share is x0.75');
+});
+
+test('33. transcendent: Titan\'s Heart scales its extra damage and lets part of the healing through', async () => {
+  const big = [BLASTOISE(), pack('Charizard', U2, 'blaze', ['splash'], 100)];
+  const plain = await battle({teams: big, moves: ['move 1', 'move 1']});
+  const half = await battle({teams: big, moves: ['move 1', 'move 1'], fx: fused(U1, ['titans_heart', 'last_breath'], 50, 100)});
+  assert.strictEqual(lost(half, 1) - lost(plain, 1), Math.floor(mon(half, 0).maxhp * 0.10 * 0.5), 'a 50% benefit share adds 5% of max HP');
+  const hurt = [pack('Blastoise', U1, 'torrent', ['recover'], 50, '20'), pack('Charizard', U2, 'blaze', ['splash'], 50)];
+  const none = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 2, fx: on(U1, 'titans_heart')});
+  assert.strictEqual(mon(none, 0).hp, 20, 'the plain Unique heals nothing');
+  const some = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 1, fx: fused(U1, ['titans_heart', 'stormcaller'], 100, 50)});
+  const reference = await battle({teams: hurt, moves: ['move 1', 'move 1'], turns: 1});
+  near((mon(some, 0).hp - 20) / (mon(reference, 0).hp - 20), 0.5, 0.06, 'a 50% drawback share lets half the healing through');
+});
+
+test('34. transcendent: Rupture bleeds at its benefit share instead of every physical move', async () => {
+  const bleeding = payload => () => ({teams: [SOAK, INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 1, fx: payload});
+  assert.strictEqual(await across(bleeding(fused(U2, ['rupture', 'last_breath'], 100, 100)), 'is bleeding!'), SEEDS.length, 'full share: always');
+  const half = await across(bleeding(fused(U2, ['rupture', 'last_breath'], 50, 100)), 'is bleeding!');
+  assert.ok(half >= 4 && half <= SEEDS.length - 4, `a 50% share bleeds in some of the seeds, not all or none: ${half} of ${SEEDS.length}`);
+  assert.strictEqual(await across(() => ({teams: [SOAK, INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 1}), 'is bleeding!'), 0, 'no Unique, no bleed');
+});
+
+test('35. transcendent: an invalid payload does nothing and a payload cannot name the internal typed effects', async () => {
+  const same = fused(U1, ['ashen_heart', 'ashen_heart'], 50, 50, 'Water', 'Fire');
+  const unknown = fused(U1, ['ashen_heart', 'nope'], 50, 50, 'Water', 'Fire');
+  const noShare = fused(U1, ['ashen_heart', 'triple_seven'], 0, 50, 'Water', 'Fire');
+  const badType = fused(U1, ['ashen_heart', 'triple_seven'], 50, 50, 'Plasma', 'Fire');
+  const direct = {v: 1, mons: {[U1]: [{i: 'transcend_offense', p: 50, t: 'Water'}, {i: 'transcend_defense', p: 50, t: 'Fire'}]}};
+  for (const [name, payload] of Object.entries({same, unknown, noShare, badType, direct})) {
+    const b = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: payload});
+    assert.strictEqual(lost(b, 1), lost(baseline, 1), name + ' leaves outgoing damage alone');
+    assert.strictEqual(lost(b, 0), lost(baseline, 0), name + ' leaves incoming damage alone');
+  }
+  const twice = fused(U1, ['rupture', 'last_breath'], 100, 100, 'Water', 'Fire');
+  twice.mons[U1].push({i: 'transcendent', p: 1, u: ['ashen_heart', 'triple_seven'], b: 100, d: 100});
+  const once = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: twice});
+  const single = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: fused(U1, ['rupture', 'last_breath'], 100, 100, 'Water', 'Fire')});
+  assert.strictEqual(lost(once, 1), lost(single, 1), 'a second transcendent on one Pokemon is ignored');
+  assert.strictEqual(lost(once, 0), lost(single, 0));
+});
+
+// ---- Transcendent signatures, pulses and twists (docs/TRANSCENDENT-POWERS.md) ----
+const UNIQUE_PAIRS = {
+  phoenix_cinder: ['ashen_heart', 'last_breath'],
+  eye_of_the_storm: ['last_breath', 'stormcaller'],
+  jackpot_titan: ['titans_heart', 'triple_seven'],
+};
+/** A Transcendent with its own signature; the twist is a list of effects such as {op: 'heal', pct: 4}. */
+const sig = (uuid, sg, b, d, tw, host, donor) => ({v: 1, mons: {[uuid]: [{i: 'transcendent', p: 1, u: UNIQUE_PAIRS[sg], b, d, t: host, r: donor, sg, tw}]}});
+const IDLE = [{op: 'cleanse'}];   // a twist that does nothing unless the holder has a status, for comparisons
+const idleSnorlax = () => pack('Snorlax', U2, 'immunity', ['splash', 'tackle', 'bodyslam'], 100);
+const hurtBlastoise = hp => pack('Blastoise', U1, 'torrent', ['recover', 'raindance', 'splash', 'surf'], 100, String(hp));
+
+test('36. phoenix_cinder: attackers that strike a holder below half HP are burned; above half they are not', async () => {
+  const machamp = () => pack('Machamp', U2, 'guts', ['karatechop'], 30);
+  const low = await battle({teams: [hurtBlastoise(120), machamp()], moves: ['move 3', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 100, 100, IDLE)});
+  assert.strictEqual(mon(low, 1).status, 'brn', 'struck below half HP: the attacker burns');
+  const high = await battle({teams: [hurtBlastoise(300), machamp()], moves: ['move 3', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 100, 100, IDLE)});
+  assert.strictEqual(mon(high, 1).status, '', 'above half HP nothing burns');
+  const weak = await across(() => ({teams: [hurtBlastoise(120), machamp()], moves: ['move 3', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 1, 100, IDLE)}), '|-status|');
+  assert.ok(weak <= 3, `a 1% benefit share almost never burns: ${weak} of ${SEEDS.length}`);
+});
+
+test('37. phoenix_cinder: the clutch rises to a share of max HP, once; healing is capped by the drawback', async () => {
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['dragonclaw', 'splash'])];
+  const one = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 100, 100, IDLE)});
+  assert.strictEqual(mon(one, 0).hp, Math.floor(mon(one, 0).maxhp * 0.20), `survives at 20% of max HP: hp ${mon(one, 0).hp} of ${mon(one, 0).maxhp}`);
+  const half = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 50, 100, IDLE)});
+  assert.strictEqual(mon(half, 0).hp, Math.floor(mon(half, 0).maxhp * 0.10), 'at a 50% share, 10% of max HP');
+  const twice = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 2, fx: sig(U1, 'phoenix_cinder', 100, 100, IDLE)});
+  assert.strictEqual(mon(twice, 0).hp, 0, 'only once per battle');
+  const heal = shareD => battle({teams: [hurtBlastoise(140), idleSnorlax()], moves: ['move 1', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 100, shareD, IDLE)});
+  const full = await heal(100), partial = await heal(50);
+  assert.strictEqual(mon(full, 0).hp, Math.floor(mon(full, 0).maxhp * 0.70), 'recover is cut off at 70% of max HP');
+  assert.strictEqual(mon(partial, 0).hp, Math.floor(mon(partial, 0).maxhp * 0.85), 'a 50% drawback share caps at 85%');
+});
+
+test('38. eye_of_the_storm: weather heals and softens damage, no weather hurts; the clutch holds at 1 HP', async () => {
+  const hit = (script, payload) => battle({teams: [hurtBlastoise(300), pack('Machamp', U2, 'guts', ['karatechop', 'splash'], 50)],
+    moves: turn => script[turn], turns: script.length, fx: payload});
+  const dry = [['move 3', 'move 2'], ['move 3', 'move 1']];                       // splash, then karate chop
+  const rain = [['move 2', 'move 2'], ['move 3', 'move 2'], ['move 3', 'move 1']]; // rain dance, splash, then karate chop
+  const struck = b => mon(b, 0).maxhp - hpTrail(b, 'p1a: ' + U1, mon(b, 0).maxhp)[0];   // the hit itself, before any end-of-turn heal
+  const plainDry = await hit(dry, undefined), fxDry = await hit(dry, sig(U1, 'eye_of_the_storm', 100, 100, IDLE));
+  near(struck(fxDry) / struck(plainDry), 1.12, 0.06, `no weather: 12% more damage (${struck(fxDry)} against ${struck(plainDry)})`);
+  const plainRain = await hit(rain, undefined), fxRain = await hit(rain, sig(U1, 'eye_of_the_storm', 100, 100, IDLE));
+  near(struck(fxRain) / struck(plainRain), 0.88, 0.06, `weather: 12% less damage (${struck(fxRain)} against ${struck(plainRain)})`);
+  const wet = await battle({teams: [hurtBlastoise(100), idleSnorlax()], moves: turn => [['move 2', 'move 1'], ['move 3', 'move 1'], ['move 3', 'move 1']][turn],
+    turns: 3, fx: sig(U1, 'eye_of_the_storm', 100, 100, IDLE)});
+  const none = await battle({teams: [hurtBlastoise(100), idleSnorlax()], moves: turn => [['move 3', 'move 1']][0], turns: 3, fx: sig(U1, 'eye_of_the_storm', 100, 100, IDLE)});
+  assert.strictEqual(mon(wet, 0).hp - 100, 3 * Math.floor(mon(wet, 0).maxhp * 0.03), 'three turns of rain heal 3% each');
+  assert.strictEqual(mon(none, 0).hp, 100, 'without weather nothing heals');
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['dragonclaw', 'splash'])];
+  const held = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: sig(U1, 'eye_of_the_storm', 100, 100, IDLE)});
+  assert.strictEqual(mon(held, 0).hp, 1, 'the clutch leaves 1 HP');
+});
+
+test('39. jackpot_titan: super-effective hits add max HP damage, the drawback costs damage taken, a KO is a pulse', async () => {
+  const big = [BLASTOISE(), pack('Charizard', U2, 'blaze', ['splash', 'flamethrower'], 100)];
+  const plain = await battle({teams: big, moves: ['move 3', 'move 1']});
+  const half = await battle({teams: big, moves: ['move 3', 'move 1'], fx: sig(U1, 'jackpot_titan', 50, 100, IDLE)});
+  assert.strictEqual(lost(half, 1) - lost(plain, 1), Math.floor(mon(half, 0).maxhp * 0.10 * 0.5), 'a 50% benefit share adds 5% of max HP');
+  const burn = await battle({teams: big, moves: ['move 4', 'move 2'], fx: sig(U1, 'jackpot_titan', 100, 50, IDLE)});
+  const burnPlain = await battle({teams: big, moves: ['move 4', 'move 2']});
+  near(lost(burn, 0) / lost(burnPlain, 0), 1.11, 0.04, 'a 50% drawback share is 11% more damage taken');
+  const prey = [pack('Magikarp', U2, 'swiftswim', ['splash'], 5), idleSnorlax()].join(']');
+  const reward = trailing => battle({teams: [hurtBlastoise(100), prey], moves: ['move 4', 'move 1'], turns: 1, fx: trailing});
+  const plainKo = await reward(undefined), fxKo = await reward(sig(U1, 'jackpot_titan', 100, 100, [{op: 'heal', pct: 4}]));
+  assert.strictEqual(mon(plainKo, 0).hp, 100, 'no heal without the pulse');
+  assert.strictEqual(mon(fxKo, 0).hp, 100 + Math.floor(mon(fxKo, 0).maxhp * 0.04), 'the KO pulse fires the twist (heal 4%)');
+});
+
+test('40. twist effects: each of the sixteen does what it says, scaled by the benefit share', async () => {
+  const run = (tw, extra = {}) => battle(Object.assign({teams: [hurtBlastoise(150), pack('Machamp', U2, 'guts', ['splash', 'swordsdance', 'irondefense', 'poisongas'], 50)],
+    moves: ['move 3', 'move 1'], turns: 1, fx: sig(U1, 'eye_of_the_storm', 100, 100, tw)}, extra));
+  const foe = b => mon(b, 1), me = b => mon(b, 0);
+  assert.strictEqual(foe(await run([{op: 'status', status: 'brn', chance: 100}])).status, 'brn', 'status');
+  assert.strictEqual(foe(await run([{op: 'foeStage', stat: 'spe', delta: -1}])).boosts.spe, -1, 'foeStage');
+  assert.strictEqual(me(await run([{op: 'selfStage', stat: 'atk', delta: 1, cap: 2}])).boosts.atk, 1, 'selfStage');
+  const capped = await run([{op: 'selfStage', stat: 'atk', delta: 2, cap: 2}], {turns: 3});
+  assert.strictEqual(me(capped).boosts.atk, 2, 'selfStage stops at its cap');
+  const chip = await run([{op: 'chip', pct: 4}]);
+  assert.strictEqual(lost(chip, 1), Math.floor(foe(chip).maxhp * 0.04), 'chip');
+  const drain = await run([{op: 'drain', pct: 4}]);
+  assert.strictEqual(lost(drain, 1), Math.floor(foe(drain).maxhp * 0.04), 'drain hurts the foe ...');
+  assert.strictEqual(me(drain).hp, 150 + lost(drain, 1), '... and heals the holder by what it took');
+  assert.strictEqual(me(await run([{op: 'heal', pct: 4}])).hp, 150 + Math.floor(me(await run([{op: 'heal', pct: 4}])).maxhp * 0.04), 'heal');
+  const half = await battle({teams: [hurtBlastoise(150), pack('Machamp', U2, 'guts', ['splash'], 50)], moves: ['move 3', 'move 1'], turns: 1,
+    fx: sig(U1, 'eye_of_the_storm', 50, 100, [{op: 'heal', pct: 4}])});
+  assert.strictEqual(me(half).hp, 150 + Math.floor(me(half).maxhp * 0.04 * 0.5), 'a 50% share halves the twist');
+  // Machamp sets up (+2 Atk, +2 Def) and the holder copies or strips.
+  const setUp = (tw) => battle({teams: [hurtBlastoise(150), pack('Machamp', U2, 'guts', ['swordsdance', 'irondefense'], 50)], moves: ['move 3', 'move 1'], turns: 1,
+    fx: sig(U1, 'eye_of_the_storm', 100, 100, tw)});
+  assert.strictEqual(me(await setUp([{op: 'mimic'}])).boosts.atk, 2, 'mimic copies the highest positive stage');
+  const strip = await battle({teams: [hurtBlastoise(150), pack('Machamp', U2, 'guts', ['irondefense'], 50)], moves: ['move 3', 'move 1'], turns: 1,
+    fx: sig(U1, 'eye_of_the_storm', 100, 100, [{op: 'strip'}])});
+  assert.strictEqual(foe(strip).boosts.def, 0, 'strip removes the foe\'s raised Defense');
+  const ill = tw => battle({teams: [hurtBlastoise(150), pack('Machamp', U2, 'guts', ['poisongas', 'toxic'], 50)], moves: ['move 3', 'move 1'], turns: 1, seed: [3, 2, 3, 4],
+    fx: sig(U1, 'eye_of_the_storm', 100, 100, tw)});
+  assert.strictEqual(me(await ill([{op: 'cleanse'}])).status, '', 'cleanse removes a status at the end of the turn');
+});
+
+test('41. twist states: shield, boost, unresisted, hide, heal boost, refine and ward act on the next exchange only', async () => {
+  const twoTurns = (tw, script, teams) => battle({teams, moves: turn => script[turn], turns: script.length, fx: sig(U1, 'eye_of_the_storm', 100, 100, tw)});
+  const machamp = () => pack('Machamp', U2, 'guts', ['splash', 'karatechop'], 50);
+  const dmgTaken = async tw => lost(await twoTurns(tw, [['move 3', 'move 1'], ['move 3', 'move 2']], [hurtBlastoise(300), machamp()]), 0);
+  const control = await dmgTaken(IDLE);
+  near((await dmgTaken([{op: 'shield', pct: 50}])) / control, 0.5, 0.06, 'shield 50% on the next hit taken');
+  near((await dmgTaken([{op: 'hide', pct: 30, turns: 2}])) / control, 0.7, 0.06, `hide 30% (control ${control})`);
+  near((await dmgTaken([{op: 'refine', pct: 50, turns: 2}])) / control, 1.06 / 1.12, 0.04, 'refine halves the no-weather drawback');
+  const dealt = async tw => lost(await twoTurns(tw, [['move 3', 'move 1'], ['move 4', 'move 1']], [hurtBlastoise(300), idleSnorlax()]), 1);
+  const dealtControl = await dealt(IDLE);
+  near((await dealt([{op: 'boostNext', pct: 50}])) / dealtControl, 1.5, 0.08, 'boostNext 50% on the next damaging move');
+  const resisted = async tw => lost(await twoTurns(tw, [['move 3', 'move 1'], ['move 4', 'move 1']],
+    [hurtBlastoise(300), pack('Dragonite', U2, 'innerfocus', ['splash'], 100)]), 1);
+  near((await resisted([{op: 'unresistedNext'}])) / (await resisted(IDLE)), 2, 0.2, 'unresisted: a resisted hit lands as neutral');
+  const healed = async tw => (mon(await twoTurns(tw, [['move 3', 'move 1'], ['move 1', 'move 1']], [hurtBlastoise(40), idleSnorlax()]), 0).hp);
+  const healedBase = (await healed(IDLE)) - 40, healedBoost = (await healed([{op: 'healBoost', pct: 50, turns: 2}])) - 40;
+  assert.ok(healedBoost > healedBase * 1.3, `heal boost: ${healedBoost} against ${healedBase}`);
+  const ward = tw => across(() => ({teams: [hurtBlastoise(300), pack('Machamp', U2, 'guts', ['splash', 'toxic'], 50)], moves: turn => [['move 3', 'move 1'], ['move 3', 'move 2']][turn],
+    turns: 2, fx: sig(U1, 'eye_of_the_storm', 100, 100, tw)}), '|-status|');
+  assert.ok((await ward(IDLE)) >= 10, 'toxic lands without a ward');
+  assert.ok((await ward([{op: 'ward'}])) <= 2, 'a ward turns the next status aside');
+});
+
+test('42. twist pulse: a twist fires at most once per turn, however many hits the pulse sees', async () => {
+  const multi = [hurtBlastoise(300), pack('Hitmonlee', U2, 'limber', ['doublekick'], 50)];
+  const b = await battle({teams: multi, moves: ['move 3', 'move 1'], turns: 1, fx: sig(U1, 'phoenix_cinder', 100, 100, [{op: 'selfStage', stat: 'atk', delta: 1, cap: 6}])});
+  assert.strictEqual(mon(b, 0).boosts.atk, 1, 'Double Kick hits twice but pulses once');
+});
+
+test('43. transcendent payloads: a bad twist ignores the whole effect; an unknown signature falls back to the two Uniques', async () => {
+  const badOps = [[{op: 'explode', pct: 5}], [{op: 'heal', pct: 99}], [{op: 'heal'}], [{op: 'heal', pct: 4, extra: 1}], [], [IDLE[0], IDLE[0], IDLE[0]], 'heal'];
+  for (const tw of badOps) {
+    const b = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: sig(U1, 'jackpot_titan', 100, 100, tw)});
+    assert.strictEqual(lost(b, 1), lost(baseline, 1), 'a bad twist leaves damage alone: ' + JSON.stringify(tw));
+    assert.strictEqual(lost(b, 0), lost(baseline, 0));
+  }
+  const payload = fused(U1, ['ashen_heart', 'triple_seven'], 50, 50);
+  payload.mons[U1][0].sg = 'not_implemented_yet';
+  payload.mons[U1][0].tw = IDLE;
+  const plain = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});
+  const fallback = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: payload});
+  near(lost(fallback, 1) / lost(plain, 1), 0.925, 0.03, 'the fallback is the scaled composition (Ashen Heart penalty at 50%)');
+});
+
+test('44. twist states: an effect armed by a move\'s own first hit does not touch that move\'s later hits', async () => {
+  // Hitmonlee's Double Kick hits twice. A STRUCK pulse after hit one arms a shield; "the next hit taken" means the next MOVE, so
+  // both hits of this move must land exactly as they do under a twist that arms nothing.
+  const kick = tw => battle({teams: [hurtBlastoise(300), pack('Hitmonlee', U2, 'limber', ['doublekick'], 50)], moves: ['move 3', 'move 1'], turns: 1,
+    fx: sig(U1, 'phoenix_cinder', 100, 100, tw)});
+  const control = await kick(IDLE), shielded = await kick([{op: 'shield', pct: 50}]);
+  assert.strictEqual(lost(shielded, 0), lost(control, 0), 'the shield armed by hit one does not reduce hit two');
 });
 
 (async () => {

@@ -21,7 +21,15 @@ public final class BattleFx {
     /** What fits in one format field, with room to spare for the field's own quoting. */
     public static final int MAX_PAYLOAD_CHARS = 8000;
 
-    public record Effect(String affixId, int percent, String type) {}
+    /** One effect; {@code fused} is set only for a Transcendent, which travels as one effect and is expanded by the module. */
+    public record Effect(String affixId, int percent, String type, CombatSnapshot.Fused fused) {
+        public Effect(String affixId, int percent, String type) {
+            this(affixId, percent, type, null);
+        }
+    }
+
+    /** The wire id of a Transcendent effect. */
+    public static final String TRANSCENDENT = "transcendent";
 
     private BattleFx() {}
 
@@ -34,6 +42,12 @@ public final class BattleFx {
             effects.add(new Effect(slot.affixId(), Resonance.apply(slot.affixId(), slot.rolledValue(), pieces), showdownType(slot.type())));
         }
         if (snapshot.uniqueId() != null) effects.add(new Effect(snapshot.uniqueId(), 1, null));
+        var fused = snapshot.transcendent();
+        if (fused != null) {
+            // The rider is an ordinary affix at a small value, scaled by the benefit share like the rest of the Transcendent.
+            if (fused.riderAffix() != null) effects.add(new Effect(fused.riderAffix(), Math.max(1, Math.round(fused.riderValue() * fused.benefitPercent() / 100f)), null));
+            effects.add(new Effect(TRANSCENDENT, 1, showdownType(fused.hostType()), fused));
+        }
         return effects;
     }
 
@@ -59,6 +73,20 @@ public final class BattleFx {
                 json.addProperty("i", effect.affixId());
                 json.addProperty("p", effect.percent());
                 if (effect.type() != null) json.addProperty("t", effect.type());
+                if (effect.fused() != null) {
+                    var uniques = new JsonArray();
+                    effect.fused().uniqueIds().forEach(uniques::add);
+                    json.add("u", uniques);
+                    json.addProperty("b", effect.fused().benefitPercent());
+                    json.addProperty("d", effect.fused().drawbackPercent());
+                    if (effect.fused().donorType() != null) json.addProperty("r", showdownType(effect.fused().donorType()));
+                    if (effect.fused().signature() != null) json.addProperty("sg", effect.fused().signature());
+                    if (!effect.fused().twist().isEmpty()) {
+                        var twist = new JsonArray();
+                        effect.fused().twist().forEach(op -> twist.add(op.toJson()));
+                        json.add("tw", twist);
+                    }
+                }
                 list.add(json);
             }
             mons.add(entry.getKey(), list);
