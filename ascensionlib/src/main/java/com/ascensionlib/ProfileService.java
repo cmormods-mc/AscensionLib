@@ -259,6 +259,89 @@ public final class ProfileService {
         return credited;
     }
 
+    /** The species id the fusion book knows (the Cobblemon id without its namespace), such as {@code charizard}. */
+    static String speciesId(Pokemon pokemon) { return pokemon.getSpecies().getResourceIdentifier().getPath(); }
+
+    /**
+     * The frozen combat form of a Pokemon: its committed profile, with the Transcendent in place of the Unique when it was fused.
+     * Empty when it has no profile or a stored fusion cannot be resolved (it then fights without a Unique, never with a guess).
+     */
+    public Optional<CombatSnapshot> snapshot(UUID pokemonId) {
+        var profile = store.profile(pokemonId);
+        if (profile.isEmpty()) return Optional.empty();
+        var fusion = store.fusion(pokemonId);
+        if (fusion.isEmpty()) return Optional.of(CombatSnapshot.ofProfile(profile.get()));
+        try {
+            var fused = Transcendence.shared().resolve(fusion.get().hostSpecies(), fusion.get().hostUnique(),
+                    fusion.get().donorSpecies(), fusion.get().donorUnique()).toFused();
+            return Optional.of(CombatSnapshot.ofFusedProfile(profile.get(), fused));
+        } catch (RuntimeException exception) {
+            LOG.error("Fusion of Pokemon {} cannot be resolved; it fights without a Unique", pokemonId, exception);
+            return Optional.of(new CombatSnapshot(CombatSnapshot.Source.PLAYER, pokemonId.toString(), profile.get().rarity(),
+                    profile.get().catalogVersion(), profile.get().ordinarySlots(), null));
+        }
+    }
+
+    /**
+     * The best item-reward bonus in the player's party, in percent: the plain 777 Unique gives its fixed percent, a Transcendent
+     * built on 777 gives its signature's percent times its benefit share. Read from the canonical store.
+     */
+    public int itemRewardPercent(ServerPlayer player) {
+        int best = 0;
+        for (var pokemon : Cobblemon.INSTANCE.getStorage().getParty(player)) {
+            var profile = store.profile(pokemon.getUuid());
+            if (profile.isEmpty()) continue;
+            if (store.fusion(pokemon.getUuid()).isPresent()) {
+                var fused = snapshot(pokemon.getUuid()).map(CombatSnapshot::transcendent);
+                if (fused.isPresent() && fused.get() != null && fused.get().signature() != null)
+                    best = Math.max(best, ItemQuantityBonus.percentFor(fused.get().signature(), fused.get().benefitPercent()));
+            } else if (profile.get().unique() != null && profile.get().unique().uniqueId().equals("triple_seven")) {
+                best = Math.max(best, ItemQuantityBonus.PERCENT);
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Fuses {@code donor} into {@code host} for the player: the host is kept and becomes a Transcendent, the donor is consumed.
+     * Ownership, the craft lock and "not in a battle" are checked here; the rules, revisions and price are the store's, in one
+     * transaction. The donor Pokemon is removed after the commit, and the login sweep finishes that if the server stopped in
+     * between. Returns the Transcendent that was made.
+     */
+    public Transcendence.Transcendent fuse(ServerPlayer player, Pokemon host, Pokemon donor, long hostRevision, long donorRevision, long walletRevision) {
+        for (var pokemon : List.of(host, donor)) {
+            if (pokemon.isBattleClone() || !player.getUUID().equals(pokemon.getOwnerUUID()) || !owns(player, pokemon))
+                throw new IllegalArgumentException("Both Pokemon must be yours");
+            if (CraftLocks.locked(pokemon)) throw new IllegalStateException(CraftLocks.REASON);
+        }
+        if (com.cobblemon.mod.common.battles.BattleRegistry.INSTANCE.getBattleByParticipatingPlayer(player) != null)
+            throw new IllegalStateException("Not during a battle");
+        var hostProfile = store.profile(host.getUuid()).orElseThrow(() -> new IllegalArgumentException("The host has no profile"));
+        var donorProfile = store.profile(donor.getUuid()).orElseThrow(() -> new IllegalArgumentException("The donor has no profile"));
+        if (hostProfile.unique() == null || donorProfile.unique() == null)
+            throw new CraftException(CraftException.Reason.NO_UNIQUE, "Both Pokemon must hold a Unique");
+        var transcendent = Transcendence.shared().resolve(speciesId(host), hostProfile.unique().uniqueId(),
+                speciesId(donor), donorProfile.unique().uniqueId());
+        var outcome = store.fuse(new com.cobbleascend.store.FuseRequest(
+                operationId("fuse", host.getUuid() + ":" + donor.getUuid()), player.getUUID(), host.getUuid(), donor.getUuid(),
+                speciesId(host), speciesId(donor), hostRevision, donorRevision, walletRevision));
+        removeFromStorage(player, donor);
+        project(host, outcome.profile());
+        return transcendent;
+    }
+
+    private static boolean owns(ServerPlayer player, Pokemon pokemon) {
+        var storage = Cobblemon.INSTANCE.getStorage();
+        for (var owned : storage.getParty(player)) if (owned == pokemon) return true;
+        for (var owned : storage.getPC(player)) if (owned == pokemon) return true;
+        return false;
+    }
+
+    private static void removeFromStorage(ServerPlayer player, Pokemon pokemon) {
+        var storage = Cobblemon.INSTANCE.getStorage();
+        if (!storage.getParty(player).remove(pokemon)) storage.getPC(player).remove(pokemon);
+    }
+
     /** Whether any Pokemon in the player's party holds this Unique (read from the canonical store, never the Pokemon's own data). */
     public boolean partyHoldsUnique(ServerPlayer player, String uniqueId) {
         for (var pokemon : Cobblemon.INSTANCE.getStorage().getParty(player)) {
@@ -277,6 +360,12 @@ public final class ProfileService {
         storage.getPC(player).forEach(all::add);
         for (var pokemon : all) {
             try {
+                // A donor whose fusion committed but whose removal was cut short: finish it, never let it fight or craft again.
+                if (store.consumedBy(pokemon.getUuid()).isPresent()) {
+                    removeFromStorage(player, pokemon);
+                    LOG.info("Removed Pokemon {} consumed by an earlier fusion", pokemon.getUuid());
+                    continue;
+                }
                 if (reconcile(pokemon).isPresent()) handled++;
             } catch (RuntimeException exception) {
                 LOG.error("Reconcile failed for Pokemon {}; data preserved", pokemon.getUuid(), exception);

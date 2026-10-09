@@ -28,7 +28,7 @@ import java.util.random.RandomGenerator;
  * <p>All access is serialized through this instance. Use one instance per world.
  */
 public final class ProgressionStore implements AutoCloseable {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
     public enum OpenMode { CREATE_IF_ABSENT, REQUIRE_EXISTING }
 
@@ -158,7 +158,14 @@ public final class ProgressionStore implements AutoCloseable {
                 putMeta("authority_id", authorityId.toString());
                 putMeta("catalog_version", Integer.toString(rules.catalogVersion()));
             } else {
-                if (!version.equals(Integer.toString(SCHEMA_VERSION)))
+                if (version.equals("1")) {
+                    // Schema 2 only adds the fusions table: existing rows are untouched.
+                    createFusionsTable();
+                    try (var update = db.prepareStatement("UPDATE meta SET value = ? WHERE key = 'schema_version'")) {
+                        update.setString(1, Integer.toString(SCHEMA_VERSION));
+                        update.executeUpdate();
+                    }
+                } else if (!version.equals(Integer.toString(SCHEMA_VERSION)))
                     throw new StoreException(Code.STORE_SCHEMA_UNKNOWN, "Unsupported store schema " + version);
                 if (!authorityId.toString().equals(meta("authority_id")))
                     throw new StoreException(Code.AUTHORITY_MISMATCH, "Store belongs to a different progression authority");
@@ -178,7 +185,23 @@ public final class ProgressionStore implements AutoCloseable {
         }
     }
 
+    private void createFusionsTable() throws SQLException {
+        try (var statement = db.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS fusions(
+                        host_pokemon_id TEXT PRIMARY KEY,
+                        donor_pokemon_id TEXT NOT NULL UNIQUE,
+                        host_species TEXT NOT NULL,
+                        donor_species TEXT NOT NULL,
+                        host_unique TEXT NOT NULL,
+                        donor_unique TEXT NOT NULL,
+                        operation_id TEXT NOT NULL,
+                        fused_at INTEGER NOT NULL) STRICT""");
+        }
+    }
+
     private void createSchema() throws SQLException {
+        createFusionsTable();
         try (var statement = db.createStatement()) {
             statement.execute("""
                     CREATE TABLE profiles(
@@ -456,6 +479,70 @@ public final class ProgressionStore implements AutoCloseable {
             }
             if (after != null && after != before) saveWallet(request.playerId(), before, after);
             return new Fresh(request.kind(), request.playerId(), request.pokemonId(), next, after, cost, credits);
+        });
+    }
+
+    /** The fusion that made this Pokemon a Transcendent, if any. */
+    public synchronized Optional<Fusion> fusion(UUID hostId) {
+        return read(() -> loadFusion("host_pokemon_id", hostId));
+    }
+
+    /** The fusion that consumed this Pokemon as a donor, if any: the Pokemon must be gone, and the caller finishes removing it. */
+    public synchronized Optional<Fusion> consumedBy(UUID donorId) {
+        return read(() -> loadFusion("donor_pokemon_id", donorId));
+    }
+
+    private Optional<Fusion> loadFusion(String column, UUID id) throws SQLException {
+        try (var statement = db.prepareStatement("SELECT host_pokemon_id, donor_pokemon_id, host_species, donor_species, host_unique,"
+                + " donor_unique, operation_id, fused_at FROM fusions WHERE " + column + " = ?")) {
+            statement.setString(1, id.toString());
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) return Optional.empty();
+                return Optional.of(new Fusion(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)), rows.getString(3),
+                        rows.getString(4), rows.getString(5), rows.getString(6), UUID.fromString(rows.getString(7)), rows.getLong(8)));
+            }
+        }
+    }
+
+    /**
+     * Executes one confirmed fusion in one transaction: both revisions and the wallet are checked, {@link FusionRules} decides, the
+     * price is debited, the fusion is recorded and the host revision advances. The donor profile row is left in place (like a
+     * released Pokemon); the application service removes the donor Pokemon after this commits, and a replay of the same operation
+     * ID returns the first result so an interrupted removal can be finished.
+     */
+    public synchronized Outcome fuse(FuseRequest request) {
+        return run(request.operationId(), request.canonical(), () -> {
+            var host = loadProfile(request.hostId())
+                    .orElseThrow(() -> new StoreException(Code.UNKNOWN_PROFILE, "No profile for the host"));
+            var donor = loadProfile(request.donorId())
+                    .orElseThrow(() -> new StoreException(Code.UNKNOWN_PROFILE, "No profile for the donor"));
+            if (host.revision() != request.expectedHostRevision() || donor.revision() != request.expectedDonorRevision())
+                throw new StoreException(Code.STALE_PROFILE, "A profile changed since it was shown");
+            var before = loadWallet(request.playerId());
+            if (request.expectedWalletRevision() != CraftRequest.ANY_REVISION && before.revision() != request.expectedWalletRevision())
+                throw new StoreException(Code.STALE_WALLET, "Wallet changed since it was shown");
+            boolean hostFused = loadFusion("host_pokemon_id", request.hostId()).isPresent() || loadFusion("donor_pokemon_id", request.hostId()).isPresent();
+            boolean donorFused = loadFusion("host_pokemon_id", request.donorId()).isPresent() || loadFusion("donor_pokemon_id", request.donorId()).isPresent();
+            FusionRules.check(host, hostFused, donor, donorFused, before);
+            var cost = FusionRules.cost();
+            var after = before.debit(cost);
+            options.faults().at(Faults.Point.AFTER_VALIDATION);
+            try (var statement = db.prepareStatement("INSERT INTO fusions(host_pokemon_id, donor_pokemon_id, host_species, donor_species,"
+                    + " host_unique, donor_unique, operation_id, fused_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)")) {
+                statement.setString(1, request.hostId().toString());
+                statement.setString(2, request.donorId().toString());
+                statement.setString(3, request.hostSpecies());
+                statement.setString(4, request.donorSpecies());
+                statement.setString(5, host.unique().uniqueId());
+                statement.setString(6, donor.unique().uniqueId());
+                statement.setString(7, request.operationId().toString());
+                statement.setLong(8, options.clock().millis());
+                statement.executeUpdate();
+            }
+            var next = host.bumped();
+            updateProfile(next, host.revision());
+            saveWallet(request.playerId(), before, after);
+            return new Fresh(Kind.FUSE, request.playerId(), request.hostId(), next, after, cost, 0);
         });
     }
 

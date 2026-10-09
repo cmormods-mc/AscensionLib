@@ -160,7 +160,7 @@ class ProgressionStoreTest {
         open().close();
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
              var statement = connection.createStatement()) {
-            statement.executeUpdate("UPDATE meta SET value = '2' WHERE key = 'schema_version'");
+            statement.executeUpdate("UPDATE meta SET value = '3' WHERE key = 'schema_version'");
         }
         assertEquals(Code.STORE_SCHEMA_UNKNOWN, codeOf(() -> ProgressionStore.open(file(), rules, AUTH)));
     }
@@ -639,6 +639,119 @@ class ProgressionStoreTest {
                     "UPDATE wallet_balances SET amount = -1 WHERE material_id = 'facet'"));
             assertThrows(java.sql.SQLException.class, () -> statement.executeUpdate(
                     "INSERT INTO profiles(profile_id, pokemon_id, revision, body) VALUES('z', '" + pokemon + "', 1, '{}')"));
+        }
+    }
+
+    // --- fusion ---------------------------------------------------------------------------------------
+
+    /** A ready host or donor: the ranks and attunement the fusion rules look at, set directly (acquire accepts any valid profile). */
+    private ProfileV1 fusable(UUID pokemon, Rarity rarity, boolean spent, int attunement, String unique) {
+        var base = progression.create(pokemon, AUTH, rarity, Origin.of("wild_capture"), 100, types, new Random(5));
+        int[] spread = {5, 4, 3, 2, 1, 1};
+        var slots = new ArrayList<OrdinarySlot>();
+        int i = 0;
+        for (var slot : base.ordinarySlots())
+            {
+            int rank = spent ? spread[i++] : 1;
+            slots.add(new OrdinarySlot(slot.slotId(), slot.category(), rank, slot.affixId(), slot.parameters(),
+                    rules.affix(slot.affixId()).band(rank).min(), slot.definitionVersion()));
+        }
+        int credits = slots.stream().mapToInt(slot -> slot.rank() - 1).sum();
+        var awarded = new TreeSet<Integer>();
+        for (int level = Milestones.STEP; awarded.size() < Math.max(credits, 10); level += Milestones.STEP) awarded.add(level);
+        return new ProfileV1(1, base.profileId(), pokemon, AUTH, 1, rarity, base.initialRarity(), base.origin(), base.catalogVersion(),
+                attunement, 100, awarded, credits, slots, new UniqueInstance(unique, 1, UUID.randomUUID()));
+    }
+
+    private FuseRequest fuseRequest(UUID op, UUID host, UUID donor, ProgressionStore store) {
+        return new FuseRequest(op, player, host, donor, "charizard", "lucario", store.profile(host).orElseThrow().revision(),
+                store.profile(donor).orElseThrow().revision(), store.wallet(player).revision());
+    }
+
+    private ProgressionStore fusionStore(UUID host, UUID donor) {
+        var store = open();
+        store.acquire(UUID.randomUUID(), host, () -> fusable(host, Rarity.MYTHICAL, true, 150, "ashen_heart"));
+        store.acquire(UUID.randomUUID(), donor, () -> fusable(donor, Rarity.EPIC, false, 0, "rupture"));
+        store.grant(UUID.randomUUID(), player, new java.util.EnumMap<>(FusionRules.cost()), "test");
+        return store;
+    }
+
+    @Test void aFusionDebitsTheWalletRecordsTheFusionAndReplaysExactly() {
+        var host = UUID.randomUUID(); var donor = UUID.randomUUID(); var op = UUID.randomUUID();
+        var store = fusionStore(host, donor);
+        var request = fuseRequest(op, host, donor, store);
+        var first = store.fuse(request);
+        assertEquals(FusionRules.cost(), first.cost());
+        assertEquals(0, first.wallet().balance(MaterialId.RESONANCE_DUST));
+        assertEquals(2, first.profile().revision(), "the host revision advanced");
+        var fusion = store.fusion(host).orElseThrow();
+        assertEquals("ashen_heart", fusion.hostUnique());
+        assertEquals("rupture", fusion.donorUnique());
+        assertEquals(donor, fusion.donorId());
+        assertTrue(store.consumedBy(donor).isPresent());
+        var replay = store.fuse(request);
+        assertTrue(replay.replayed());
+        assertEquals(first.profile(), replay.profile());
+        assertEquals(0, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "a replay does not debit twice");
+    }
+
+    @Test void aTranscendentCannotFuseAgainAndADonorIsOnlyConsumedOnce() {
+        var host = UUID.randomUUID(); var donor = UUID.randomUUID(); var other = UUID.randomUUID();
+        var store = fusionStore(host, donor);
+        store.acquire(UUID.randomUUID(), other, () -> fusable(other, Rarity.EPIC, false, 0, "stormcaller"));
+        store.grant(UUID.randomUUID(), player, new java.util.EnumMap<>(FusionRules.cost()), "again");
+        store.fuse(fuseRequest(UUID.randomUUID(), host, donor, store));
+        var again = fuseRequest(UUID.randomUUID(), host, other, store);
+        assertEquals(Reason.ALREADY_TRANSCENDENT, reasonOf(() -> store.fuse(again)));
+        assertTrue(store.fusion(other).isEmpty());
+    }
+
+    @Test void aRefusedFusionChangesNothing() {
+        var host = UUID.randomUUID(); var donor = UUID.randomUUID();
+        var store = fusionStore(host, donor);
+        var stale = new FuseRequest(UUID.randomUUID(), player, host, donor, "charizard", "lucario", 9, 1, store.wallet(player).revision());
+        assertEquals(Code.STALE_PROFILE, codeOf(() -> store.fuse(stale)));
+        store.spend(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 1L), "make short");
+        var short_ = fuseRequest(UUID.randomUUID(), host, donor, store);
+        assertEquals(Reason.INSUFFICIENT_FUNDS, reasonOf(() -> store.fuse(short_)));
+        assertTrue(store.fusion(host).isEmpty());
+        assertEquals(1, store.profile(host).orElseThrow().revision());
+        assertEquals(599, store.wallet(player).balance(MaterialId.RESONANCE_DUST));
+    }
+
+    @Test void aCrashBeforeCommitLeavesNoFusion() {
+        var host = UUID.randomUUID(); var donor = UUID.randomUUID();
+        var crash = new CrashAt();
+        var store = open(rules, ProgressionStore.Options.defaults().withRandom(new Random(1)).withFaults(crash));
+        store.acquire(UUID.randomUUID(), host, () -> fusable(host, Rarity.MYTHICAL, true, 150, "ashen_heart"));
+        store.acquire(UUID.randomUUID(), donor, () -> fusable(donor, Rarity.EPIC, false, 0, "rupture"));
+        store.grant(UUID.randomUUID(), player, new java.util.EnumMap<>(FusionRules.cost()), "test");
+        var request = fuseRequest(UUID.randomUUID(), host, donor, store);
+        crash.armed = Faults.Point.BEFORE_COMMIT;
+        assertThrows(SimulatedCrash.class, () -> store.fuse(request));
+        assertTrue(store.fusion(host).isEmpty());
+        assertEquals(600, store.wallet(player).balance(MaterialId.RESONANCE_DUST));
+        assertFalse(store.fuse(request).replayed(), "the retried operation commits once");
+    }
+
+    @Test void aSchemaOneStoreIsUpgradedInPlace() throws Exception {
+        var pokemon = UUID.randomUUID();
+        var before = open();
+        acquire(before, pokemon, Rarity.RARE, 20);
+        before.close();
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("DROP TABLE fusions");
+            statement.executeUpdate("UPDATE meta SET value = '1' WHERE key = 'schema_version'");
+        }
+        var upgraded = open();
+        assertTrue(upgraded.profile(pokemon).isPresent(), "existing rows survive");
+        assertTrue(upgraded.fusion(pokemon).isEmpty());
+        upgraded.close();
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
+             var rows = connection.createStatement().executeQuery("SELECT value FROM meta WHERE key = 'schema_version'")) {
+            assertTrue(rows.next());
+            assertEquals("2", rows.getString(1));
         }
     }
 }

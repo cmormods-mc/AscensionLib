@@ -11,6 +11,14 @@ The remaining 18 signatures are implemented in the simulator (`ascension-fx.js`,
 - Harness tests 45 to 62 added; 79 of 79 pass against the real unbundled simulator. No Java changed (the resolver already named all 21 signatures); item-reward bonuses (#6, #11, #15, #18, #20, #21) are still Java-side to do.
 - Not verified: any live battle with these signatures, and the 21 x 25 signature-by-twist matrix test.
 
+## Fusion in the store and service — 2026-10-09
+
+- **Decision:** a Transcendent is a separate canonical record, not a new profile schema. `ProfileV1` and its codec are unchanged (so every existing hash, replay and projection stays valid). The store is schema 2: one added `fusions` table (host, donor, both species, both Uniques, operation, time); a schema-1 store is upgraded in place on open and a test proves its rows survive.
+- `ProgressionStore.fuse(FuseRequest)` is one transaction: revisions of both profiles and the wallet, `FusionRules.check`, price debit, the fusion row, the host revision bump, and the operation record. A replay returns the first result and debits nothing more. The donor profile row stays (like a released Pokemon); `fusion(host)` and `consumedBy(donor)` read the record.
+- `ProfileService.fuse(...)` checks ownership, craft lock and "not in a battle", resolves the Transcendent, commits, then removes the donor from party or PC (`PartyStore.remove` and `PCStore.remove`, confirmed present in Cobblemon 1.8.1 with javap) and projects the host. The login sweep finishes removing a donor whose removal was cut short.
+- `ProfileService.snapshot` now gives a fused Pokemon its Transcendent in `AscensionBattles`, so a real fusion reaches the simulator. `itemRewardPercent` gives `AscensionRewards.scaleItemQuantity` the best bonus in the party (plain 777 = 20%, a 777 Transcendent = signature percent x benefit share).
+- Store tests 5 added (success and exact replay, no second fusion, refused fusion changes nothing, crash before commit, schema-1 upgrade); everything builds and passes. **Not built:** the network request and confirmation, the fusion screen and hover, the Transcendent's display in the inspect screen. **Not seen live:** the donor removal, the battle snapshot, the loot scaling.
+
 ## Fusion rules and Transcendent loot bonus (domain) — 2026-10-09
 
 - `FusionRules` (domain): who may fuse and the price (600 dust, 30 facets, 10 cores, 1 Catalyst; host Mythical with all ten upgrade credits spent, 150 lifetime attunement, a Unique; donor Epic or better with a different Unique; neither already a Transcendent; not the same Pokemon). Refusals are `CraftException` reasons (`FUSION_*`, `ALREADY_TRANSCENDENT`). The approved draft "every ordinary slot at rank V" was unsatisfiable (24 credits needed, 10 earnable), so the owner chose "all credits spent". Not wired to the store or any screen yet.

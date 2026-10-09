@@ -57,7 +57,7 @@ public final class AscensionBattles {
             boolean raid = "raid".equals(battle.getFormat().getBattleType().getName());
             var rules = service.get().rules();
             var plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, ScoutEncounters.armedEnemies(playerIds),
-                    pokemonId -> AscensionApi.store().flatMap(store -> store.profile(pokemonId)).map(CombatSnapshot::ofProfile),
+                    pokemonId -> service.get().snapshot(pokemonId),
                     pokemonId -> Optional.ofNullable(wildByUuid.get(pokemonId)).map(wild -> {
                         var rating = service.get().previewWild(wild);
                         return new CombatSnapshot(CombatSnapshot.Source.ENEMY, pokemonId.toString(), rating.rarity(),

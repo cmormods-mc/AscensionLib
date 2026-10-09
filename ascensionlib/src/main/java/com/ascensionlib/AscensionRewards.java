@@ -85,7 +85,7 @@ public final class AscensionRewards {
     }
 
     /**
-     * The quantity of an item reward after the 777 Unique: +20% while any Pokemon in the player's party holds it, otherwise
+     * The quantity of an item reward after the 777 Unique (+20%) or a Transcendent built on it (its signature's percent times its benefit share): the best one in the player's party, otherwise
      * {@code count} unchanged. A fraction of an item is settled by a roll seeded by {@code key}, so a retried or repeated grant of the
      * same reward gives the same amount. For item rewards only (never materials, currency or cards). Call it when the reward is
      * handed over, with the player online; offline, disabled or without 777 it returns {@code count}.
@@ -98,8 +98,9 @@ public final class AscensionRewards {
         var server = AscensionApi.server();
         if (service == null || server == null) return count;
         var online = server.getPlayerList().getPlayer(player);
-        if (online == null || !service.partyHoldsUnique(online, "triple_seven")) return count;
-        return com.cobbleascend.domain.v1.ItemQuantityBonus.scale(count, player + "|" + key);
+        if (online == null) return count;
+        int percent = service.itemRewardPercent(online);
+        return percent <= 0 ? count : com.cobbleascend.domain.v1.ItemQuantityBonus.scale(count, player + "|" + key, percent);
     }
 
     /** Attunement a Pokemon earns per qualifying victory (ECONOMY.md: 3). */

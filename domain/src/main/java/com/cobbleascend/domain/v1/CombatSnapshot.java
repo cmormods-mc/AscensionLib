@@ -77,6 +77,12 @@ public record CombatSnapshot(Source source, String subjectId, Rarity rarity, int
                 profile.unique() == null ? null : profile.unique().uniqueId());
     }
 
+    /** A player's Transcendent: the committed profile with its Unique replaced by the fusion (a snapshot holds one or the other). */
+    public static CombatSnapshot ofFusedProfile(ProfileV1 profile, Fused fused) {
+        return new CombatSnapshot(Source.PLAYER, profile.pokemonId().toString(), profile.rarity(),
+                profile.catalogVersion(), profile.ordinarySlots(), null, fused);
+    }
+
     /** Stable fingerprint, so a battle can prove its modifiers stayed frozen from start to finish. */
     public String contentHash() {
         var text = new StringJoiner("\n");

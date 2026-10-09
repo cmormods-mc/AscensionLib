@@ -75,6 +75,11 @@ public record ProfileV1(int schemaVersion, UUID profileId, UUID pokemonId, UUID 
                 nextMilestones, nextSpent, nextSlots, nextUnique);
     }
 
+    /** The next revision with nothing else changed: a Pokemon whose canonical state moved elsewhere (a fusion) announces it so caches refresh. */
+    public ProfileV1 bumped() {
+        return advance(rarity, highestLevelObserved, awardedMilestones, spentUpgradeCredits, ordinarySlots, unique);
+    }
+
     /** The next committed revision with {@code points} more lifetime attunement; everything else carries over. */
     ProfileV1 advanceAttunement(int points) {
         return new ProfileV1(schemaVersion, profileId, pokemonId, authorityId, Math.addExact(revision, 1), rarity, initialRarity,
