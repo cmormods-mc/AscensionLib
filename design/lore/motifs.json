@@ -1,0 +1,206 @@
+{
+ "schemaVersion": 1,
+ "motifs": [
+  {
+   "id": "EMBER",
+   "adjective": "Cinder",
+   "noun": "Ember",
+   "summary": "fire, volcano, forge and the legend of the fire salamander"
+  },
+  {
+   "id": "TIDE",
+   "adjective": "Tidal",
+   "noun": "Tide",
+   "summary": "sea, river and rain, from kappa to leviathan"
+  },
+  {
+   "id": "GALE",
+   "adjective": "Gale",
+   "noun": "Gale",
+   "summary": "wind, wings and sky, from sparrows to thunderbirds"
+  },
+  {
+   "id": "VERDANT",
+   "adjective": "Verdant",
+   "noun": "Grove",
+   "summary": "plants, fungi, kodama and the world tree"
+  },
+  {
+   "id": "FROST",
+   "adjective": "Frozen",
+   "noun": "Frost",
+   "summary": "snow, ice and winter spirits like yuki-onna"
+  },
+  {
+   "id": "STORM",
+   "adjective": "Storm",
+   "noun": "Tempest",
+   "summary": "lightning, thunder gods and the raiju"
+  },
+  {
+   "id": "STONE",
+   "adjective": "Granite",
+   "noun": "Mountain",
+   "summary": "rock, earth, caves and golems of clay"
+  },
+  {
+   "id": "IRON",
+   "adjective": "Iron",
+   "noun": "Forge",
+   "summary": "steel, machines, armour and the bulgasari"
+  },
+  {
+   "id": "VENOM",
+   "adjective": "Blighted",
+   "noun": "Blight",
+   "summary": "poison, sludge and venomous beasts"
+  },
+  {
+   "id": "SPIRIT",
+   "adjective": "Spectral",
+   "noun": "Veil",
+   "summary": "ghosts, tsukumogami and what lingers after death"
+  },
+  {
+   "id": "DREAM",
+   "adjective": "Dreaming",
+   "noun": "Dream",
+   "summary": "minds, sleep, baku and psychic mystics"
+  },
+  {
+   "id": "WILD",
+   "adjective": "Feral",
+   "noun": "Wilds",
+   "summary": "predators and pack hunters of the wild"
+  },
+  {
+   "id": "HIVE",
+   "adjective": "Swarming",
+   "noun": "Hive",
+   "summary": "insects, spiders and the life of the colony"
+  },
+  {
+   "id": "FAE",
+   "adjective": "Fey",
+   "noun": "Glade",
+   "summary": "fairies, moon rabbits and gentle charm"
+  },
+  {
+   "id": "WYRM",
+   "adjective": "Draconic",
+   "noun": "Wyrm",
+   "summary": "dragons, sea serpents and dragon gates"
+  },
+  {
+   "id": "SHADE",
+   "adjective": "Shadowed",
+   "noun": "Dusk",
+   "summary": "night, thieves, oni and hellhounds"
+  },
+  {
+   "id": "RADIANCE",
+   "adjective": "Radiant",
+   "noun": "Dawn",
+   "summary": "sun, stars, lights and holy glow"
+  },
+  {
+   "id": "CHIME",
+   "adjective": "Chiming",
+   "noun": "Song",
+   "summary": "music, bells, dance and voices"
+  },
+  {
+   "id": "GUARD",
+   "adjective": "Warded",
+   "noun": "Bulwark",
+   "summary": "shields, shells, guardians and protectors"
+  },
+  {
+   "id": "HARVEST",
+   "adjective": "Bountiful",
+   "noun": "Harvest",
+   "summary": "food, feasts, honey and the nurturing hand"
+  },
+  {
+   "id": "COSMOS",
+   "adjective": "Starborn",
+   "noun": "Cosmos",
+   "summary": "space, time, creation and the legendary"
+  },
+  {
+   "id": "ANCIENT",
+   "adjective": "Primeval",
+   "noun": "Ages",
+   "summary": "fossils, relics and the deep past"
+  },
+  {
+   "id": "ARTISAN",
+   "adjective": "Wrought",
+   "noun": "Craft",
+   "summary": "made things, dolls, tools and makers"
+  },
+  {
+   "id": "TRICKSTER",
+   "adjective": "Masked",
+   "noun": "Mirage",
+   "summary": "illusion, mimicry and shape-shifters"
+  },
+  {
+   "id": "BRAWL",
+   "adjective": "Mighty",
+   "noun": "Arena",
+   "summary": "martial arts, wrestlers and fighters"
+  }
+ ],
+ "kindred": [
+  "ANCIENT-WYRM",
+  "ARTISAN-SPIRIT",
+  "BRAWL-GUARD",
+  "CHIME-ARTISAN",
+  "CHIME-FAE",
+  "COSMOS-WYRM",
+  "DREAM-COSMOS",
+  "DREAM-FAE",
+  "DREAM-TRICKSTER",
+  "EMBER-STONE",
+  "EMBER-STORM",
+  "EMBER-WYRM",
+  "FROST-STONE",
+  "GALE-CHIME",
+  "GALE-STORM",
+  "GALE-WYRM",
+  "HARVEST-FAE",
+  "HIVE-VENOM",
+  "HIVE-WILD",
+  "IRON-ARTISAN",
+  "IRON-GUARD",
+  "IRON-STONE",
+  "RADIANCE-COSMOS",
+  "RADIANCE-FAE",
+  "SHADE-SPIRIT",
+  "SHADE-TRICKSTER",
+  "SHADE-WILD",
+  "SPIRIT-ANCIENT",
+  "SPIRIT-DREAM",
+  "STONE-ANCIENT",
+  "STONE-GUARD",
+  "TIDE-FROST",
+  "TIDE-STORM",
+  "TIDE-VERDANT",
+  "VENOM-SHADE",
+  "VERDANT-FAE",
+  "VERDANT-HARVEST",
+  "VERDANT-HIVE",
+  "WILD-BRAWL"
+ ],
+ "opposed": [
+  "BRAWL-DREAM",
+  "EMBER-FROST",
+  "EMBER-TIDE",
+  "RADIANCE-SHADE",
+  "SPIRIT-RADIANCE",
+  "STONE-GALE",
+  "VENOM-FAE",
+  "VERDANT-IRON"
+ ]
+}

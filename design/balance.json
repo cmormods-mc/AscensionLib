@@ -10,7 +10,7 @@
     {"id":"legendary","weight":90,"prefixSlots":3,"suffixSlots":2},
     {"id":"mythical","weight":10,"prefixSlots":3,"suffixSlots":3}
   ],
-  "capsPercent": {"outgoingDamage":100,"incomingReduction":50,"healing":50,"residual":100},
+  "capsPercent": {"outgoingDamage":100,"incomingReduction":50,"healing":50,"residual":100,"mechanic":50},
   "crafts": {
     "refine":{"dust":12,"facets":0,"cores":0},
     "reforge":{"dust":24,"facets":1,"cores":0}

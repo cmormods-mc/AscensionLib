@@ -25,12 +25,13 @@ public final class BattleFx {
 
     private BattleFx() {}
 
-    /** The ordinary slots of a snapshot as effects, in slot order, then its Unique if it has one. */
+    /** The ordinary slots of a snapshot as effects, in slot order (rolled values after {@link Resonance}), then its Unique if it has one. */
     public static List<Effect> effectsOf(CombatSnapshot snapshot) {
         var effects = new ArrayList<Effect>();
+        var pieces = Resonance.pieces(snapshot.slots());
         for (var slot : snapshot.slots()) {
             if (slot.rolledValue() <= 0) continue;
-            effects.add(new Effect(slot.affixId(), slot.rolledValue(), showdownType(slot.type())));
+            effects.add(new Effect(slot.affixId(), Resonance.apply(slot.affixId(), slot.rolledValue(), pieces), showdownType(slot.type())));
         }
         if (snapshot.uniqueId() != null) effects.add(new Effect(snapshot.uniqueId(), 1, null));
         return effects;

@@ -1,0 +1,72 @@
+# Fusion (Transcendence): lore research and recipe book (2026-10-09)
+
+Status: **the research, the data and the recipe resolver are built (domain only). The fusion action itself is not.** Nothing here has been seen in a live game. Every number is provisional. Read with [DEPTH-DESIGN.md](DEPTH-DESIGN.md), part C.
+
+## Rules (owner decisions, 2026-10-09)
+
+- Two Pokemon that each hold a Unique are fused. The **left slot is the host and is kept; the right slot is the donor and is consumed.** The two Uniques become one **Transcendent** power in the host's Unique slot.
+- The result is shaped by both Uniques and by both Pokemon, and is **deterministic and previewed**: there is no hidden roll.
+- Recipes cover **every Cobblemon species** (1025 in Cobblemon 1.8.1), built from researched lore.
+
+Proposed, not yet decided: the host must be Mythical with every ordinary slot at rank V; the donor Epic or higher; both the player's own and not craft-locked; a Pokemon transcends once; cost 600 dust, 30 facets, 10 cores, 150 lifetime attunement on the host and one Catalyst (about 67 keyed Tower runs of cores). The donor is permanently removed behind an explicit confirmation.
+
+## The research
+
+For each of the 1025 species in the Cobblemon 1.8.1 jar, the following was gathered, as research input only (the raw text is not in the repository):
+
+1. **Species data** from the Cobblemon jar: types, labels (legendary, mythical, paradox, ultra beast, fossil, baby), evolutions.
+2. **In-universe lore** from PokeAPI: the English Pokedex entries of every game version, genus, habitat and shape.
+3. **Origin and biology** from Bulbapedia: what each Pokemon is based on (an animal, a myth, an object, a legend), pulled from each page's Origin and Biology sections.
+
+Every species was then reviewed by hand, one at a time, in 11 batches. A keyword scorer proposed motifs from the text and the types; each proposal was corrected from the origin text and general knowledge of the franchise, and a short note was written **in our own words** on what the Pokemon is based on (for example, Gyarados: "carp that climbs the falls and becomes a dragon"). Limits, stated plainly: the notes are a design summary, not citations; the sources were not cross-checked species by species beyond that reading; some origins are speculative on the wiki itself ("may be based on"), and the notes follow the most plausible one. A motif or note a designer disagrees with is an ordinary edit to `design/lore/species-lore.json`.
+
+### Motifs
+
+A species carries one to three motifs, strongest first. There are 25: EMBER, TIDE, GALE, VERDANT, FROST, STORM, STONE, IRON, VENOM, SPIRIT, DREAM, WILD, HIVE, FAE, WYRM, SHADE, RADIANCE, CHIME, GUARD, HARVEST, COSMOS, ANCIENT, ARTISAN, TRICKSTER, BRAWL (`design/lore/motifs.json`, with a name adjective and noun for each, 39 *kindred* pairs and 8 *opposed* pairs). Primary motifs lean elemental (TIDE 135 species, VERDANT 96, STONE 80, EMBER 70) because most species are; GUARD and WILD appear mostly as secondary motifs. Every motif is used.
+
+## How a result is chosen
+
+Most specific first:
+
+1. **A curated pair recipe** naming the two species (45 recipes, either order). These are the legendary and mythical rivalries and bonds (Kyogre and Groudon, Reshiram and Zekrom, Xerneas and Yveltal, Solgaleo and Lunala, ...), and the Paradox Pokemon paired with the Pokemon they are based on (Great Tusk and Donphan, Iron Moth and Volcarona, Iron Thorns and Tyranitar, ...), which comes straight from the Origin research.
+2. **A curated group** both species belong to (35 groups, any two distinct members): the legendary trios and quartets, the nine starter triads, fox spirits, samurai, the dragon gate, the moon and sun courts, haunted objects, machines, fossils, desserts and more. Lists are in `tools/build_fusion_data.py`.
+3. **A derived recipe** from the two species' lore, for everything else.
+
+About 1,976 of the 1,050,625 ordered species pairs have a curated recipe. All the rest are derived, deterministically.
+
+Every result starts from the **base Transcendent of the two Uniques** (21 of them, one per pair; `bases` in `design/transcendents.json`) and takes a **harmony**:
+
+| Harmony | When | Benefit kept | Drawback taken |
+|---|---|---:|---:|
+| LINEAGE | same evolutionary family | 85% | 55% |
+| PURE | same primary motif | 82% | 58% |
+| KINDRED | kindred primary motifs, or a shared motif | 78% | 60% |
+| NEUTRAL | no relation | 75% | 60% |
+| OPPOSED | opposed primary motifs (fire and water, sun and shadow, ...) | 88% | 78% |
+
+Better fit keeps more benefit and takes less drawback; **opposed fusions are volatile**: the most benefit and the most drawback. The principle: two benefits at about 75 to 88 percent are stronger than either Unique alone and weaker than both at full strength, and the drawbacks still bite. Across all ordered species pairs, outcomes come out about 61 percent neutral, 28 kindred, 6 pure, 5 opposed and 0.2 lineage, curated recipes included.
+
+**Names.** A derived name is `{host adjective} {base name} of the {donor noun}`, for example "Tidal Phoenix Cinder of the Tempest" when a Gyarados host takes in a Pikachu donor (Gyarados is TIDE, Pikachu is STORM). A curated name is `{base name} of {recipe name}`, for example "Phoenix Cinder of the Primordial Clash". A lineage fusion is `{base name} of the Bloodline`. The blurb quotes both species' notes.
+
+**Type shaping (proposed).** The host's primary type is the Transcendent's offence and the donor's its defence: a fixed typed damage bonus on the host's type and a fixed typed reduction on the donor's type, through the existing typed channels. The resolver already returns `hostType` and `donorType`; nothing applies them yet.
+
+## What exists
+
+- `design/lore/species-lore.json` (1025 species: Cobblemon id, evolutionary family, types, motifs, note), `design/lore/motifs.json`, `design/transcendents.json` (scales, 21 bases, 45 pairs, 35 groups).
+- `tools/build_fusion_data.py` regenerates `motifs.json` and `transcendents.json` and validates every curated species name.
+- `domain/v1`: `LoreCatalog`, `Transcendence` (the resolver), `CraftException.Reason.UNKNOWN_SPECIES`; `TranscendenceTest` has 15 tests, including a full 1025 by 1025 run (every pair resolves, every harmony occurs, neutral stays under 70 percent).
+
+## What does not exist yet
+
+- The **battle effect**: the simulator needs each Unique handler to take a benefit and a drawback scale, so a Transcendent runs both source Uniques at their harmony shares, plus the typed bonuses above. Not written.
+- The **profile and store**: a Transcendent in the Unique slot is a profile schema 2, a fusion craft kind that removes the donor in the same transaction as the host change and the material debit, and the usual operation-ID replay. Not written.
+- The **fusion screen** (left slot, right slot, preview of name, benefit, drawback and cost, confirmation), the eligibility and cost checks, and the recipe-book display.
+- Playtesting. The harmony scales, the costs and every curated recipe are untested guesses.
+
+## Open questions
+
+1. Do the proposed eligibility rules and the cost feel right, or should a donor of any rarity be allowed?
+2. Is a lineage fusion (a Pokemon and its own pre-evolution) allowed? It currently is, and is the best-fitting kind.
+3. Should discovered recipes be recorded, so the screen shows a recipe book that fills in, or should previews always be open?
+4. The 45 pair recipes and 35 groups are a first batch. Which others matter to you (rival trainers, anime pairs, regional legends)?
+5. May a Transcendent ever be fused again, as host or donor? (Proposed: no. A Pokemon transcends once and its Transcendent cannot be a donor.)

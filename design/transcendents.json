@@ -1,0 +1,1172 @@
+{
+ "schemaVersion": 1,
+ "status": "provisional-research-based-recipes",
+ "scales": {
+  "LINEAGE": {
+   "benefit": 85,
+   "drawback": 55
+  },
+  "PURE": {
+   "benefit": 82,
+   "drawback": 58
+  },
+  "KINDRED": {
+   "benefit": 78,
+   "drawback": 60
+  },
+  "NEUTRAL": {
+   "benefit": 75,
+   "drawback": 60
+  },
+  "OPPOSED": {
+   "benefit": 88,
+   "drawback": 78
+  }
+ },
+ "bases": [
+  {
+   "id": "phoenix_cinder",
+   "name": "Phoenix Cinder",
+   "uniques": [
+    "ashen_heart",
+    "last_breath"
+   ],
+   "blurb": "Embers that refuse to go out: burns hit harder and one fatal blow is survived."
+  },
+  {
+   "id": "plague_pyre",
+   "name": "Plague Pyre",
+   "uniques": [
+    "ashen_heart",
+    "creeping_venom"
+   ],
+   "blurb": "Fire and poison feed each other, each turn of a status hurts more."
+  },
+  {
+   "id": "wildfire_crown",
+   "name": "Wildfire Crown",
+   "uniques": [
+    "ashen_heart",
+    "stormcaller"
+   ],
+   "blurb": "Sunlit fire and weather-borne force burn as one."
+  },
+  {
+   "id": "brand_of_ruin",
+   "name": "Brand of Ruin",
+   "uniques": [
+    "ashen_heart",
+    "rupture"
+   ],
+   "blurb": "Burns and bleeds together, weaker but wider."
+  },
+  {
+   "id": "titans_forge",
+   "name": "Titan's Forge",
+   "uniques": [
+    "ashen_heart",
+    "titans_heart"
+   ],
+   "blurb": "A burning giant whose super-effective hits shake the ground."
+  },
+  {
+   "id": "gilded_ember",
+   "name": "Gilded Ember",
+   "uniques": [
+    "ashen_heart",
+    "triple_seven"
+   ],
+   "blurb": "Fortune and flame: richer rewards and stronger burns."
+  },
+  {
+   "id": "dying_bloom",
+   "name": "Dying Bloom",
+   "uniques": [
+    "last_breath",
+    "creeping_venom"
+   ],
+   "blurb": "Hang on at 1 HP while poison builds stronger."
+  },
+  {
+   "id": "eye_of_the_storm",
+   "name": "Eye of the Storm",
+   "uniques": [
+    "last_breath",
+    "stormcaller"
+   ],
+   "blurb": "Survive the lethal strike, then ride the weather."
+  },
+  {
+   "id": "martyrs_edge",
+   "name": "Martyr's Edge",
+   "uniques": [
+    "last_breath",
+    "rupture"
+   ],
+   "blurb": "Survive once and bleed them as they fall."
+  },
+  {
+   "id": "colossus_vow",
+   "name": "Colossus Vow",
+   "uniques": [
+    "last_breath",
+    "titans_heart"
+   ],
+   "blurb": "A colossus that refuses to fall and strikes with its full weight."
+  },
+  {
+   "id": "last_gamble",
+   "name": "Last Gamble",
+   "uniques": [
+    "last_breath",
+    "triple_seven"
+   ],
+   "blurb": "Stake everything on one more turn for richer winnings."
+  },
+  {
+   "id": "miasma_front",
+   "name": "Miasma Front",
+   "uniques": [
+    "creeping_venom",
+    "stormcaller"
+   ],
+   "blurb": "Poison carried on the weather front."
+  },
+  {
+   "id": "festering_gash",
+   "name": "Festering Gash",
+   "uniques": [
+    "creeping_venom",
+    "rupture"
+   ],
+   "blurb": "Wounds that bleed and rot at once."
+  },
+  {
+   "id": "blighted_giant",
+   "name": "Blighted Giant",
+   "uniques": [
+    "creeping_venom",
+    "titans_heart"
+   ],
+   "blurb": "A poisoned giant: hits land hard and poison ramps."
+  },
+  {
+   "id": "fortunes_rot",
+   "name": "Fortune's Rot",
+   "uniques": [
+    "creeping_venom",
+    "triple_seven"
+   ],
+   "blurb": "Prosperity that spoils its owner and its victims alike."
+  },
+  {
+   "id": "lightning_rend",
+   "name": "Lightning Rend",
+   "uniques": [
+    "stormcaller",
+    "rupture"
+   ],
+   "blurb": "Weather-fed strikes that open bleeding wounds."
+  },
+  {
+   "id": "tempest_colossus",
+   "name": "Tempest Colossus",
+   "uniques": [
+    "stormcaller",
+    "titans_heart"
+   ],
+   "blurb": "A giant under its own storm."
+  },
+  {
+   "id": "skyfall_fortune",
+   "name": "Skyfall Fortune",
+   "uniques": [
+    "stormcaller",
+    "triple_seven"
+   ],
+   "blurb": "Weather and luck falling from the same sky."
+  },
+  {
+   "id": "breakers_might",
+   "name": "Breaker's Might",
+   "uniques": [
+    "rupture",
+    "titans_heart"
+   ],
+   "blurb": "Physical strikes that bleed and super-effective strikes that hammer."
+  },
+  {
+   "id": "wager_of_blood",
+   "name": "Wager of Blood",
+   "uniques": [
+    "rupture",
+    "triple_seven"
+   ],
+   "blurb": "A bleeding bet: richer prizes for riskier fights."
+  },
+  {
+   "id": "jackpot_titan",
+   "name": "Jackpot Titan",
+   "uniques": [
+    "titans_heart",
+    "triple_seven"
+   ],
+   "blurb": "A giant paid in gold, hurt by its own weight."
+  }
+ ],
+ "pairs": [
+  {
+   "id": "primordial_clash",
+   "name": "the Primordial Clash",
+   "harmony": "OPPOSED",
+   "species": [
+    "kyogre",
+    "groudon"
+   ],
+   "blurb": "Sea and land, locked in the oldest war."
+  },
+  {
+   "id": "hand_of_creation",
+   "name": "the Hand of Creation",
+   "harmony": "PURE",
+   "species": [
+    "dialga",
+    "palkia"
+   ],
+   "blurb": "Time and space, the two halves of the world."
+  },
+  {
+   "id": "taijitu",
+   "name": "the Taijitu",
+   "harmony": "OPPOSED",
+   "species": [
+    "reshiram",
+    "zekrom"
+   ],
+   "blurb": "Truth and ideals, yang and yin turning together."
+  },
+  {
+   "id": "white_boundary",
+   "name": "the White Boundary",
+   "harmony": "PURE",
+   "species": [
+    "kyurem",
+    "reshiram"
+   ],
+   "blurb": "The empty vessel filled with truth."
+  },
+  {
+   "id": "black_boundary",
+   "name": "the Black Boundary",
+   "harmony": "PURE",
+   "species": [
+    "kyurem",
+    "zekrom"
+   ],
+   "blurb": "The empty vessel filled with ideals."
+  },
+  {
+   "id": "crowned_pair",
+   "name": "the Crowned Pair",
+   "harmony": "PURE",
+   "species": [
+    "zacian",
+    "zamazenta"
+   ],
+   "blurb": "Sword and shield of a forgotten king."
+  },
+  {
+   "id": "wheel_of_life",
+   "name": "the Wheel of Life",
+   "harmony": "OPPOSED",
+   "species": [
+    "xerneas",
+    "yveltal"
+   ],
+   "blurb": "Life and destruction, one cocoon to the next."
+  },
+  {
+   "id": "eclipse",
+   "name": "the Eclipse",
+   "harmony": "OPPOSED",
+   "species": [
+    "solgaleo",
+    "lunala"
+   ],
+   "blurb": "Sun and moon, devouring and giving light."
+  },
+  {
+   "id": "dusk_mane",
+   "name": "the Dusk Mane",
+   "harmony": "KINDRED",
+   "species": [
+    "necrozma",
+    "solgaleo"
+   ],
+   "blurb": "A prism feeding on the sun."
+  },
+  {
+   "id": "dawn_wings",
+   "name": "the Dawn Wings",
+   "harmony": "KINDRED",
+   "species": [
+    "necrozma",
+    "lunala"
+   ],
+   "blurb": "A prism feeding on the moon."
+  },
+  {
+   "id": "eon_bond",
+   "name": "the Eon Bond",
+   "harmony": "PURE",
+   "species": [
+    "latias",
+    "latios"
+   ],
+   "blurb": "Siblings who share their dreams."
+  },
+  {
+   "id": "rainbow_tower",
+   "name": "the Rainbow Tower",
+   "harmony": "KINDRED",
+   "species": [
+    "lugia",
+    "hooh"
+   ],
+   "blurb": "Guardians of the sea and the sky."
+  },
+  {
+   "id": "original_and_copy",
+   "name": "the Original and the Copy",
+   "harmony": "PURE",
+   "species": [
+    "mew",
+    "mewtwo"
+   ],
+   "blurb": "The ancestor and the mind that refused its making."
+  },
+  {
+   "id": "ice_rider",
+   "name": "the Ice Rider",
+   "harmony": "KINDRED",
+   "species": [
+    "calyrex",
+    "glastrier"
+   ],
+   "blurb": "The king upon the steed of ice."
+  },
+  {
+   "id": "shadow_rider",
+   "name": "the Shadow Rider",
+   "harmony": "KINDRED",
+   "species": [
+    "calyrex",
+    "spectrier"
+   ],
+   "blurb": "The king upon the steed of shadow."
+  },
+  {
+   "id": "past_and_future",
+   "name": "Past and Future",
+   "harmony": "OPPOSED",
+   "species": [
+    "koraidon",
+    "miraidon"
+   ],
+   "blurb": "The ancient dragon and the iron serpent."
+  },
+  {
+   "id": "origin_and_shadow",
+   "name": "the Origin and Shadow",
+   "harmony": "OPPOSED",
+   "species": [
+    "arceus",
+    "giratina"
+   ],
+   "blurb": "The creator and its banished echo."
+  },
+  {
+   "id": "elder_tusk",
+   "name": "the Elder Tusk",
+   "harmony": "PURE",
+   "species": [
+    "donphan",
+    "greattusk"
+   ],
+   "blurb": "Armoured elephant meets its primeval mammoth."
+  },
+  {
+   "id": "wheel_of_donphan",
+   "name": "the Wheeled Elder",
+   "harmony": "PURE",
+   "species": [
+    "donphan",
+    "irontreads"
+   ],
+   "blurb": "Armoured elephant meets its future machine."
+  },
+  {
+   "id": "tusk_and_tread",
+   "name": "Tusk and Tread",
+   "harmony": "OPPOSED",
+   "species": [
+    "greattusk",
+    "irontreads"
+   ],
+   "blurb": "Past and future of the same armoured giant."
+  },
+  {
+   "id": "lullaby_unbound",
+   "name": "the Unbound Lullaby",
+   "harmony": "PURE",
+   "species": [
+    "jigglypuff",
+    "screamtail"
+   ],
+   "blurb": "The gentle singer and her screaming ancestor."
+  },
+  {
+   "id": "gift_of_tomorrow",
+   "name": "the Gift of Tomorrow",
+   "harmony": "PURE",
+   "species": [
+    "delibird",
+    "ironbundle"
+   ],
+   "blurb": "Penguin deliverer and its machine descendant."
+  },
+  {
+   "id": "sumo_machine",
+   "name": "the Sumo Machine",
+   "harmony": "PURE",
+   "species": [
+    "hariyama",
+    "ironhands"
+   ],
+   "blurb": "Rikishi and its future palm-striker."
+  },
+  {
+   "id": "iron_hydra",
+   "name": "the Iron Hydra",
+   "harmony": "PURE",
+   "species": [
+    "hydreigon",
+    "ironjugulis"
+   ],
+   "blurb": "Three-headed brute and its iron successor."
+  },
+  {
+   "id": "foo_fighter",
+   "name": "the Foo Fighter",
+   "harmony": "PURE",
+   "species": [
+    "volcarona",
+    "ironmoth"
+   ],
+   "blurb": "Sun moth and its UFO descendant."
+  },
+  {
+   "id": "dawn_of_moths",
+   "name": "the Dawn of Moths",
+   "harmony": "PURE",
+   "species": [
+    "volcarona",
+    "slitherwing"
+   ],
+   "blurb": "Sun moth and its primeval ancestor."
+  },
+  {
+   "id": "moth_across_ages",
+   "name": "the Moth Across Ages",
+   "harmony": "OPPOSED",
+   "species": [
+    "slitherwing",
+    "ironmoth"
+   ],
+   "blurb": "Past and future of the sun moth."
+  },
+  {
+   "id": "mecha_kaiju",
+   "name": "the Mecha Kaiju",
+   "harmony": "PURE",
+   "species": [
+    "tyranitar",
+    "ironthorns"
+   ],
+   "blurb": "Armoured kaiju and its mechanical echo."
+  },
+  {
+   "id": "paladin_oath",
+   "name": "the Paladin's Oath",
+   "harmony": "PURE",
+   "species": [
+    "gardevoir",
+    "ironvaliant"
+   ],
+   "blurb": "The knight-dancer and a future paladin."
+  },
+  {
+   "id": "paladin_blade",
+   "name": "the Paladin's Blade",
+   "harmony": "PURE",
+   "species": [
+    "gallade",
+    "ironvaliant"
+   ],
+   "blurb": "The warrior elf and a future paladin."
+  },
+  {
+   "id": "flying_head",
+   "name": "the Flying Head",
+   "harmony": "PURE",
+   "species": [
+    "misdreavus",
+    "fluttermane"
+   ],
+   "blurb": "Wailing ghost and its ancient hair-winged kin."
+  },
+  {
+   "id": "ironsand_age",
+   "name": "the Ironsand Age",
+   "harmony": "PURE",
+   "species": [
+    "magneton",
+    "sandyshocks"
+   ],
+   "blurb": "Three magnets and ten thousand years of dust."
+  },
+  {
+   "id": "mold_beneath",
+   "name": "the Mold Beneath",
+   "harmony": "PURE",
+   "species": [
+    "amoonguss",
+    "brutebonnet"
+   ],
+   "blurb": "The lure mushroom and its parasitic mold dinosaur."
+  },
+  {
+   "id": "dragon_of_the_dream",
+   "name": "the Dragon of the Dream",
+   "harmony": "PURE",
+   "species": [
+    "salamence",
+    "roaringmoon"
+   ],
+   "blurb": "The dream-born dragon and its ancient rampager."
+  },
+  {
+   "id": "purifying_wake",
+   "name": "the Purifying Wake",
+   "harmony": "PURE",
+   "species": [
+    "suicune",
+    "walkingwake"
+   ],
+   "blurb": "Aurora beast and its ancient walking wake."
+  },
+  {
+   "id": "shining_blades",
+   "name": "the Shining Blades",
+   "harmony": "PURE",
+   "species": [
+    "virizion",
+    "ironleaves"
+   ],
+   "blurb": "Musketeer of the grass and its blade descendant."
+  },
+  {
+   "id": "regenerated_pyre",
+   "name": "the Regenerated Pyre",
+   "harmony": "PURE",
+   "species": [
+    "entei",
+    "gougingfire"
+   ],
+   "blurb": "Volcano lion reborn as a horned fire."
+  },
+  {
+   "id": "thunder_lizard",
+   "name": "the Thunder Lizard",
+   "harmony": "PURE",
+   "species": [
+    "raikou",
+    "ragingbolt"
+   ],
+   "blurb": "Tiger of thunder and its sauropod ancestor."
+  },
+  {
+   "id": "blade_of_the_cavern",
+   "name": "the Blade of the Cavern",
+   "harmony": "PURE",
+   "species": [
+    "terrakion",
+    "ironboulder"
+   ],
+   "blurb": "Cavern charger and its spade-bladed echo."
+  },
+  {
+   "id": "crown_of_iron",
+   "name": "the Crown of Iron",
+   "harmony": "PURE",
+   "species": [
+    "cobalion",
+    "ironcrown"
+   ],
+   "blurb": "Leader of the swords and its crowned echo."
+  },
+  {
+   "id": "prehistoric_skies",
+   "name": "the Prehistoric Skies",
+   "harmony": "KINDRED",
+   "species": [
+    "aerodactyl",
+    "archeops"
+   ],
+   "blurb": "Pterosaur and first bird sharing the ancient sky."
+  },
+  {
+   "id": "two_golems",
+   "name": "the Two Golems",
+   "harmony": "KINDRED",
+   "species": [
+    "golem",
+    "golurk"
+   ],
+   "blurb": "Earthen golem and clay automaton."
+  },
+  {
+   "id": "borrowed_face",
+   "name": "the Borrowed Face",
+   "harmony": "KINDRED",
+   "species": [
+    "pikachu",
+    "mimikyu"
+   ],
+   "blurb": "The mascot and the ghost who wishes to be loved like it."
+  },
+  {
+   "id": "blade_and_pincer",
+   "name": "the Blade and the Pincer",
+   "harmony": "PURE",
+   "species": [
+    "scyther",
+    "scizor"
+   ],
+   "blurb": "Mantis and its steel-claw successor."
+  },
+  {
+   "id": "moon_shadow",
+   "name": "the Moon Shadow",
+   "harmony": "OPPOSED",
+   "species": [
+    "gengar",
+    "clefable"
+   ],
+   "blurb": "The shadow that mimics a moon pixie."
+  }
+ ],
+ "groups": [
+  {
+   "id": "weather_pact",
+   "name": "the Weather Pact",
+   "harmony": "KINDRED",
+   "members": [
+    "kyogre",
+    "groudon",
+    "rayquaza"
+   ],
+   "blurb": "The three who shaped the sky, sea and land."
+  },
+  {
+   "id": "legendary_flight",
+   "name": "the Legendary Flight",
+   "harmony": "KINDRED",
+   "members": [
+    "articuno",
+    "zapdos",
+    "moltres"
+   ],
+   "blurb": "The three great birds of Kanto."
+  },
+  {
+   "id": "roaming_beasts",
+   "name": "the Roaming Beasts",
+   "harmony": "KINDRED",
+   "members": [
+    "raikou",
+    "entei",
+    "suicune"
+   ],
+   "blurb": "Those revived after the Brass Tower fell."
+  },
+  {
+   "id": "titan_golems",
+   "name": "the Titan Golems",
+   "harmony": "KINDRED",
+   "members": [
+    "regirock",
+    "regice",
+    "registeel",
+    "regigigas",
+    "regieleki",
+    "regidrago"
+   ],
+   "blurb": "Golems of writing and stone."
+  },
+  {
+   "id": "lake_guardians",
+   "name": "the Lake Guardians",
+   "harmony": "KINDRED",
+   "members": [
+    "uxie",
+    "mesprit",
+    "azelf"
+   ],
+   "blurb": "Knowledge, emotion and willpower."
+  },
+  {
+   "id": "swords_of_justice",
+   "name": "the Swords of Justice",
+   "harmony": "KINDRED",
+   "members": [
+    "cobalion",
+    "terrakion",
+    "virizion",
+    "keldeo"
+   ],
+   "blurb": "Knights who protected Pokemon from humans."
+  },
+  {
+   "id": "forces_of_nature",
+   "name": "the Forces of Nature",
+   "harmony": "KINDRED",
+   "members": [
+    "tornadus",
+    "thundurus",
+    "landorus",
+    "enamorus"
+   ],
+   "blurb": "Wind, thunder, earth and love."
+  },
+  {
+   "id": "guardian_deities",
+   "name": "the Guardian Deities",
+   "harmony": "KINDRED",
+   "members": [
+    "tapukoko",
+    "tapulele",
+    "tapubulu",
+    "tapufini"
+   ],
+   "blurb": "The land spirits of Alola."
+  },
+  {
+   "id": "treasures_of_ruin",
+   "name": "the Treasures of Ruin",
+   "harmony": "KINDRED",
+   "members": [
+    "wochien",
+    "chienpao",
+    "tinglu",
+    "chiyu"
+   ],
+   "blurb": "Grudges bound to four sealed relics."
+  },
+  {
+   "id": "beyond_the_wormhole",
+   "name": "the Wormhole",
+   "harmony": "KINDRED",
+   "members": [
+    "nihilego",
+    "buzzwole",
+    "pheromosa",
+    "xurkitree",
+    "celesteela",
+    "kartana",
+    "guzzlord",
+    "poipole",
+    "naganadel",
+    "stakataka",
+    "blacephalon"
+   ],
+   "blurb": "Beasts that came from another world."
+  },
+  {
+   "id": "retainers_of_the_ogre",
+   "name": "the Ogre Retainers",
+   "harmony": "KINDRED",
+   "members": [
+    "okidogi",
+    "munkidori",
+    "fezandipiti",
+    "ogerpon",
+    "pecharunt"
+   ],
+   "blurb": "The tale of Momotaro with its heroes and villains reversed."
+  },
+  {
+   "id": "pseudo_summit",
+   "name": "the Dragon Summit",
+   "harmony": "KINDRED",
+   "members": [
+    "dragonite",
+    "tyranitar",
+    "salamence",
+    "metagross",
+    "garchomp",
+    "hydreigon",
+    "goodra",
+    "kommoo",
+    "dragapult",
+    "baxcalibur"
+   ],
+   "blurb": "The pinnacle of the three-stage dragons."
+  },
+  {
+   "id": "kanto_triad",
+   "name": "the Kanto Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "venusaur",
+    "charizard",
+    "blastoise"
+   ],
+   "blurb": "The first partners."
+  },
+  {
+   "id": "johto_triad",
+   "name": "the Johto Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "meganium",
+    "typhlosion",
+    "feraligatr"
+   ],
+   "blurb": "The partners of Johto."
+  },
+  {
+   "id": "hoenn_triad",
+   "name": "the Hoenn Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "sceptile",
+    "blaziken",
+    "swampert"
+   ],
+   "blurb": "The partners of Hoenn."
+  },
+  {
+   "id": "sinnoh_triad",
+   "name": "the Sinnoh Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "torterra",
+    "infernape",
+    "empoleon"
+   ],
+   "blurb": "The partners of Sinnoh."
+  },
+  {
+   "id": "unova_triad",
+   "name": "the Unova Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "serperior",
+    "emboar",
+    "samurott"
+   ],
+   "blurb": "The partners of Unova."
+  },
+  {
+   "id": "kalos_triad",
+   "name": "the Kalos Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "chesnaught",
+    "delphox",
+    "greninja"
+   ],
+   "blurb": "The partners of Kalos."
+  },
+  {
+   "id": "alola_triad",
+   "name": "the Alola Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "decidueye",
+    "incineroar",
+    "primarina"
+   ],
+   "blurb": "The partners of Alola."
+  },
+  {
+   "id": "galar_triad",
+   "name": "the Galar Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "rillaboom",
+    "cinderace",
+    "inteleon"
+   ],
+   "blurb": "The partners of Galar."
+  },
+  {
+   "id": "paldea_triad",
+   "name": "the Paldea Triad",
+   "harmony": "KINDRED",
+   "members": [
+    "meowscarada",
+    "skeledirge",
+    "quaquaval"
+   ],
+   "blurb": "The partners of Paldea."
+  },
+  {
+   "id": "kitsune_court",
+   "name": "the Kitsune Court",
+   "harmony": "KINDRED",
+   "members": [
+    "vulpix",
+    "ninetales",
+    "zorua",
+    "zoroark",
+    "fennekin",
+    "braixen",
+    "delphox"
+   ],
+   "blurb": "Fox spirits and their many tails."
+  },
+  {
+   "id": "bushido_court",
+   "name": "the Bushido Court",
+   "harmony": "KINDRED",
+   "members": [
+    "samurott",
+    "bisharp",
+    "kingambit",
+    "pawniard",
+    "golisopod",
+    "kartana",
+    "honedge",
+    "aegislash"
+   ],
+   "blurb": "Warriors of blade and honour."
+  },
+  {
+   "id": "dragon_gate",
+   "name": "the Dragon Gate",
+   "harmony": "KINDRED",
+   "members": [
+    "magikarp",
+    "gyarados",
+    "dratini",
+    "dragonair",
+    "dragonite",
+    "feebas",
+    "milotic"
+   ],
+   "blurb": "The carp that leaps the falls and becomes a dragon."
+  },
+  {
+   "id": "moon_court",
+   "name": "the Moon Court",
+   "harmony": "KINDRED",
+   "members": [
+    "clefairy",
+    "clefable",
+    "cleffa",
+    "lunatone",
+    "lunala",
+    "cresselia",
+    "umbreon",
+    "nidoranf"
+   ],
+   "blurb": "Creatures of the moon."
+  },
+  {
+   "id": "sun_court",
+   "name": "the Sun Court",
+   "harmony": "KINDRED",
+   "members": [
+    "solrock",
+    "solgaleo",
+    "volcarona",
+    "sunflora",
+    "espeon",
+    "hooh"
+   ],
+   "blurb": "Creatures of the sun."
+  },
+  {
+   "id": "animated_earth",
+   "name": "the Animated Earth",
+   "harmony": "KINDRED",
+   "members": [
+    "baltoy",
+    "claydol",
+    "golett",
+    "golurk",
+    "regirock",
+    "nosepass",
+    "probopass",
+    "sudowoodo"
+   ],
+   "blurb": "Clay, stone and the golem that walks."
+  },
+  {
+   "id": "halloween_hollow",
+   "name": "the Hollow",
+   "harmony": "KINDRED",
+   "members": [
+    "pumpkaboo",
+    "gourgeist",
+    "phantump",
+    "trevenant",
+    "gastly",
+    "haunter",
+    "gengar",
+    "shuppet",
+    "banette",
+    "mimikyu"
+   ],
+   "blurb": "The ghosts that gather at harvest end."
+  },
+  {
+   "id": "tea_ceremony",
+   "name": "the Tea Ceremony",
+   "harmony": "KINDRED",
+   "members": [
+    "sinistea",
+    "polteageist",
+    "poltchageist",
+    "sinistcha"
+   ],
+   "blurb": "Poltergeists of the tea cup."
+  },
+  {
+   "id": "dessert_table",
+   "name": "the Dessert Table",
+   "harmony": "KINDRED",
+   "members": [
+    "swirlix",
+    "slurpuff",
+    "milcery",
+    "alcremie",
+    "fidough",
+    "dachsbun",
+    "vanillite",
+    "vanillish",
+    "vanilluxe",
+    "applin",
+    "appletun",
+    "dipplin"
+   ],
+   "blurb": "Sweet things shared."
+  },
+  {
+   "id": "machine_choir",
+   "name": "the Machine Choir",
+   "harmony": "KINDRED",
+   "members": [
+    "magnemite",
+    "magneton",
+    "magnezone",
+    "klink",
+    "klang",
+    "klinklang",
+    "beldum",
+    "metang",
+    "metagross",
+    "porygon",
+    "porygon2",
+    "porygonz",
+    "rotom"
+   ],
+   "blurb": "Gears, magnets and living circuits."
+  },
+  {
+   "id": "three_wise_monkeys",
+   "name": "the Three Wise Monkeys",
+   "harmony": "KINDRED",
+   "members": [
+    "pansage",
+    "simisage",
+    "pansear",
+    "simisear",
+    "panpour",
+    "simipour"
+   ],
+   "blurb": "See, hear and speak no evil."
+  },
+  {
+   "id": "fossil_revival",
+   "name": "the Fossil Revival",
+   "harmony": "KINDRED",
+   "members": [
+    "omanyte",
+    "omastar",
+    "kabuto",
+    "kabutops",
+    "aerodactyl",
+    "lileep",
+    "cradily",
+    "anorith",
+    "armaldo",
+    "cranidos",
+    "rampardos",
+    "shieldon",
+    "bastiodon",
+    "tirtouga",
+    "carracosta",
+    "archen",
+    "archeops",
+    "tyrunt",
+    "tyrantrum",
+    "amaura",
+    "aurorus"
+   ],
+   "blurb": "Creatures brought back from stone."
+  },
+  {
+   "id": "galar_fossils",
+   "name": "the Mismatched Fossils",
+   "harmony": "KINDRED",
+   "members": [
+    "dracozolt",
+    "arctozolt",
+    "dracovish",
+    "arctovish"
+   ],
+   "blurb": "Chimeras stitched from the wrong halves."
+  },
+  {
+   "id": "mythical_dawn",
+   "name": "the Mythical Dawn",
+   "harmony": "KINDRED",
+   "members": [
+    "mew",
+    "celebi",
+    "jirachi",
+    "manaphy",
+    "shaymin",
+    "victini",
+    "keldeo",
+    "meloetta",
+    "diancie",
+    "hoopa",
+    "volcanion",
+    "magearna",
+    "marshadow",
+    "zeraora",
+    "meltan",
+    "melmetal",
+    "zarude",
+    "deoxys",
+    "genesect",
+    "darkrai"
+   ],
+   "blurb": "The elusive Pokemon known only through rumours."
+  }
+ ]
+}

@@ -23,7 +23,8 @@ class BattleFxTest {
         assertEquals(snapshot.slots().size(), effects.size());
         for (int i = 0; i < effects.size(); i++) {
             assertEquals(snapshot.slots().get(i).affixId(), effects.get(i).affixId());
-            assertEquals(snapshot.slots().get(i).rolledValue(), effects.get(i).percent());
+            var slot = snapshot.slots().get(i);
+            assertEquals(Resonance.apply(slot.affixId(), slot.rolledValue(), Resonance.pieces(snapshot.slots())), effects.get(i).percent());
         }
     }
 

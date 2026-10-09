@@ -93,8 +93,16 @@ const WEATHER_TYPE = {
   sandstorm: 'Rock', snow: 'Ice', snowscape: 'Ice', hail: 'Ice',
 };
 
+// Mechanic affixes (docs/DEPTH-DESIGN.md, part A). Chance-based ones are bounded per affix, so no roll can become a guarantee.
+const PROCS = new Set(['keen_edge', 'ensnaring', 'bracing_entry', 'wardstone', 'stubborn']);
+const PROC_CAP = 50;
+const MOMENTUM = 'momentum';
+const MOMENTUM_STACKS = 3;      // each KO adds the rolled percent to outgoing damage, up to this many times
+const SWIFT = 'swift_strike';   // the holder's Speed stat is raised by the rolled percent
+const MECHANICS = new Set([...PROCS, MOMENTUM, SWIFT]);
+
 const HANDLED = new Set([...Object.keys(OUTGOING), ...Object.keys(INCOMING), ...Object.keys(HEALING),
-  ...Object.keys(POTENCY), RENDING, ...Object.keys(UNIQUES)]);
+  ...Object.keys(POTENCY), RENDING, ...Object.keys(UNIQUES), ...MECHANICS]);
 
 function clamp(value, low, high, fallback) {
   const n = Number(value);
@@ -141,7 +149,7 @@ function parse(battle, payload) {
     const effects = [];
     for (const raw of list.slice(0, MAX_EFFECTS)) {
       if (!raw || typeof raw.i !== 'string' || !HANDLED.has(raw.i)) continue;
-      const p = clamp(raw.p, 0, 100, 0);
+      const p = clamp(raw.p, 0, PROCS.has(raw.i) ? PROC_CAP : 100, 0);
       if (p <= 0) continue;
       let t;
       if (raw.t !== undefined) {
@@ -165,6 +173,7 @@ function apply(battle, payload) {
     return state.get(mon);
   };
   const of = (mon, table) => (byUuid.get(mon.uuid) || []).filter(fx => Object.prototype.hasOwnProperty.call(table, fx.i));
+  const momentum = new Map();   // holder -> KO stacks, reset when the holder leaves the field
   const titanUsed = new Set();   // titans_heart pays once per move use, however many targets or hits
   const has = (mon, id) => !!mon && (byUuid.get(mon.uuid) || []).some(fx => fx.i === id);
   /** The weather in force (Cloud Nine and Air Lock suppress it), or ''. */
@@ -188,6 +197,10 @@ function apply(battle, payload) {
         if (byUuid.has(target.uuid)) holder.hitTaken = true;   // opening_guard: only the first damaging hit of the battle
         const weather = weatherNow();
         if (has(pokemon, 'stormcaller') && WEATHER_TYPE[weather] === move.type) out.push(STORM_BONUS);
+        for (const fx of of(pokemon, {[MOMENTUM]: 1})) {
+          const stacks = momentum.get(pokemon) || 0;
+          if (stacks > 0) out.push(fx.p * stacks);
+        }
         let scaled = damage;
         if (out.length) scaled = battle.modify(scaled, Math.round(grow(out, caps.out) * 1000), 1000);
         if (inc.length) scaled = Math.max(1, battle.modify(scaled, Math.round(shrink(inc, caps.inc) * 1000), 1000));
@@ -234,18 +247,25 @@ function apply(battle, payload) {
 
   // ---- triumphant: a direct move of the holder fainted the target ----
   const originalFaint = battle.faintMessages;
-  if (typeof originalFaint === 'function' && [...byUuid.values()].some(list => list.some(fx => fx.i === 'triumphant'))) {
+  if (typeof originalFaint === 'function' && [...byUuid.values()].some(list => list.some(fx => fx.i === 'triumphant' || fx.i === MOMENTUM))) {
     battle.faintMessages = function () {
       const killers = [];
+      const scorers = [];
       try {
         for (const entry of this.faintQueue) {
           if (entry && entry.source && entry.effect && entry.effect.effectType === 'Move' && entry.source !== entry.target) {
             const heals = of(entry.source, {triumphant: 1}).map(fx => fx.p);
             if (heals.length) killers.push([entry.source, heals]);
+            if (has(entry.source, MOMENTUM)) scorers.push(entry.source);
           }
         }
       } catch (err) { /* fail open */ }
       const result = originalFaint.apply(this, arguments);
+      for (const holder of scorers) {
+        try {
+          if (holder.hp > 0 && !holder.fainted) momentum.set(holder, Math.min(MOMENTUM_STACKS, (momentum.get(holder) || 0) + 1));
+        } catch (err) { /* fail open */ }
+      }
       for (const [holder, heals] of killers) {
         try {
           if (holder.hp > 0 && !holder.fainted && !has(holder, 'titans_heart')) {
@@ -261,6 +281,7 @@ function apply(battle, payload) {
     };
   }
   applyStatusDamage(battle, byUuid, caps, of, has);
+  applyMechanics(battle, byUuid, of, has, momentum);
   return byUuid.size;
 }
 
@@ -409,6 +430,147 @@ function applyStatusDamage(battle, byUuid, caps, of, has) {
       }
       return result;
     };
+  }
+}
+
+/** Keen Edge, Ensnaring, Bracing Entry, Wardstone, Stubborn, Swift Strike and the reset half of Momentum (docs/DEPTH-DESIGN.md, A). */
+function applyMechanics(battle, byUuid, of, has, momentum) {
+  const holds = ids => [...byUuid.values()].some(list => list.some(fx => ids.includes(fx.i)));
+  const chance = fx => battle.randomChance(fx.p, 100);   // the battle's own random source, so a replay rolls the same
+  const effectOf = (id, name) => ({id, name, fullname: name, effectType: 'Status'});
+  const holders = [];
+  for (const side of battle.sides) {
+    if (!side) continue;
+    for (const holder of side.pokemon) if (byUuid.has(holder.uuid)) holders.push(holder);
+  }
+
+  // ---- keen edge: a damaging move of the holder may be forced to crit; the target's own crit rules (Battle Armor, Shell Armor, ...) still run ----
+  const actions = battle.actions;
+  if (holds(['keen_edge']) && actions && typeof actions.getDamage === 'function') {
+    const rawGetDamage = actions.getDamage;
+    actions.getDamage = function (source, target, move) {
+      let forced = false;
+      try {
+        const rolls = source && target && move && typeof move === 'object' ? of(source, {keen_edge: 1}) : [];
+        if (rolls.length && move.willCrit === undefined && !move.damage && !move.ohko && rolls.some(chance)) {
+          move.willCrit = true;
+          forced = true;
+        }
+      } catch (err) { forced = false; }
+      try {
+        return rawGetDamage.apply(this, arguments);
+      } finally {
+        if (forced) move.willCrit = undefined;
+      }
+    };
+  }
+
+  // ---- ensnaring: a damaging move that hit may lower the target's Speed by one stage, through the engine's own boost path ----
+  if (holds(['ensnaring']) && typeof battle.spreadDamage === 'function') {
+    const rawSpread = battle.spreadDamage;
+    const rolled = new Set();
+    battle.spreadDamage = function (damage, targetArray, source, effect) {
+      const result = rawSpread.apply(this, arguments);
+      try {
+        if (source && effect && typeof effect === 'object' && effect.effectType === 'Move' && Array.isArray(targetArray)) {
+          const rolls = of(source, {ensnaring: 1});
+          for (const [i, target] of targetArray.entries()) {
+            if (!rolls.length || !target || target === source || target.side === source.side || !(target.hp > 0)) continue;
+            if (!(typeof result[i] === 'number' && result[i] > 0)) continue;
+            const key = `${this.turn}:${source.uuid}:${source.activeMoveActions}:${target.uuid}`;
+            if (rolled.has(key)) continue;
+            rolled.add(key);
+            if (target.hasAbility('shielddust') || target.hasItem('covertcloak')) continue;
+            if (rolls.some(chance)) this.boost({spe: -1}, target, source, effectOf('ascensionensnare', 'Ensnaring'), true);
+          }
+        }
+      } catch (err) { /* fail open: the hit already happened */ }
+      return result;
+    };
+  }
+
+  // ---- bracing entry: on entering the field, a chance to raise Defense and Sp. Def; the leads entered before this module installed ----
+  if (holds(['bracing_entry'])) {
+    const brace = pokemon => {
+      try {
+        const rolls = of(pokemon, {bracing_entry: 1});
+        if (rolls.length && pokemon.hp > 0 && rolls.some(chance)) battle.boost({def: 1, spd: 1}, pokemon, pokemon, effectOf('ascensionbracing', 'Bracing Entry'), false, true);
+      } catch (err) { /* fail open */ }
+    };
+    if (actions && typeof actions.runSwitch === 'function') {
+      const rawRunSwitch = actions.runSwitch;
+      actions.runSwitch = function (pokemon) {
+        const result = rawRunSwitch.apply(this, arguments);
+        brace(pokemon);
+        return result;
+      };
+    }
+    for (const side of battle.sides) {
+      if (!side) continue;
+      for (const lead of side.active) if (lead && lead.isActive && battle.turn <= 1) brace(lead);
+    }
+  }
+
+  for (const holder of holders) {
+    // ---- swift strike: the holder's Speed stat (after the engine's own modifiers) is raised ----
+    const swift = of(holder, {[SWIFT]: 1}).map(fx => fx.p);
+    if (swift.length) {
+      const rawGetStat = holder.getStat;
+      holder.getStat = function (statName, unboosted, unmodified) {
+        const stat = rawGetStat.apply(this, arguments);
+        try {
+          if (statName === 'spe' && !unmodified && typeof stat === 'number') {
+            const raised = battle.modify(stat, Math.round(grow(swift, 100) * 1000), 1000);
+            return battle.format.battle && battle.format.battle.trunc ? raised : Math.min(raised, 1e4);
+          }
+        } catch (err) { /* fail open */ }
+        return stat;
+      };
+    }
+
+    // ---- wardstone: a status condition inflicted by a foe may fail ----
+    if (has(holder, 'wardstone')) {
+      const rawSetStatus = holder.setStatus;
+      holder.setStatus = function (status, source) {
+        try {
+          const id = status && typeof status === 'object' ? status.id : status;
+          const inflictor = source || (battle.event && battle.event.source);
+          if (id && this.hp > 0 && this.status !== id && inflictor && inflictor !== this && inflictor.side && inflictor.side !== this.side &&
+              of(this, {wardstone: 1}).some(chance)) {
+            note(battle, `${this.name}'s Wardstone turned the condition aside!`);
+            return false;
+          }
+        } catch (err) { /* fail open */ }
+        return rawSetStatus.apply(this, arguments);
+      };
+    }
+
+    // ---- stubborn: once per battle, a lethal foe move may leave the holder at 1 HP ----
+    if (has(holder, 'stubborn')) {
+      const state = {used: false};
+      const rawDamage = holder.damage;
+      holder.damage = function (d, source, effect) {
+        let amount = d;
+        try {
+          if (!state.used && this.hp > 0 && typeof d === 'number' && d >= this.hp && source && source !== this && source.side !== this.side &&
+              effect && typeof effect === 'object' && effect.effectType === 'Move' && of(this, {stubborn: 1}).some(chance)) {
+            state.used = true;
+            amount = this.hp - 1;
+            note(battle, `${this.name} stubbornly held on!`);
+          }
+        } catch (err) { amount = d; }
+        return rawDamage.call(this, amount, source, effect);
+      };
+    }
+
+    // ---- momentum: the stacks end when the holder leaves the field (or faints) ----
+    if (has(holder, MOMENTUM)) {
+      const rawClear = holder.clearVolatile;
+      holder.clearVolatile = function () {
+        momentum.delete(this);
+        return rawClear.apply(this, arguments);
+      };
+    }
   }
 }
 

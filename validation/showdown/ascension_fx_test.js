@@ -482,11 +482,141 @@ test('21. triple_seven: moves hurt the holder 25% more', async () => {
   assert.strictEqual(lost(bystander, 0), lost(plain, 0), 'only the holder is weakened');
 });
 
+// ---- mechanic affixes (docs/DEPTH-DESIGN.md, part A) ----
+const U3 = '33333333-3333-3333-3333-333333333333';
+const U4 = '44444444-4444-4444-4444-444444444444';
+const withPct = (uuid, id, pct) => ({v: 1, mons: {[uuid]: [{id, pct}]}});
+const SEEDS = Array.from({length: 20}, (_, i) => i + 1);
+const count = (b, needle) => b.lines.filter(line => line.includes(needle)).length;
+/** The number of runs, across seeds, in which `needle` appears in the log. */
+async function across(make, needle) {
+  let hits = 0;
+  for (const s of SEEDS) hits += count(await battle(Object.assign({seed: [s, 2, 3, 4]}, make())), needle) > 0 ? 1 : 0;
+  return hits;
+}
+/** Successive HP values the log shows for one Pokemon, e.g. '|-damage|p2a: Snorlax|312/524'. */
+const hpTrail = (b, who, maxhp) => b.lines.filter(l => l.startsWith('|-damage|' + who + '|') && l.split('|')[3].split(' ')[0].endsWith('/' + maxhp)).map(l => Number(l.split('|')[3].split('/')[0]));
+
+test('22. keen_edge: forces crits on the holder\'s hits at its rolled chance, and armour still blocks them', async () => {
+  const hydro = () => ({teams: TEAMS(), moves: ['move 1', 'move 4']});
+  const plain = await across(hydro, '|-crit|');
+  const keen = await across(() => Object.assign(hydro(), {fx: withPct(U1, 'keen_edge', 50)}), '|-crit|');
+  assert.ok(keen >= plain + 4, `crits in ${keen} of ${SEEDS.length} seeds against ${plain} native`);
+  const armoured = () => ({teams: [BLASTOISE(), pack('Omastar', U2, 'shellarmor', ['splash'], 50)], moves: ['move 1', 'move 1'],
+    fx: withPct(U1, 'keen_edge', 50)});
+  assert.strictEqual(await across(armoured, '|-crit|'), 0, 'Shell Armor still blocks a forced crit');
+});
+
+test('22b. keen_edge: a proc chance is bounded at 50 however high it is sent', async () => {
+  const parsed = fx.parse(baseline.battle, {v: 1, mons: {[U1]: [{i: 'keen_edge', p: 100}, {i: 'overwhelming_force', p: 100}]}});
+  const list = parsed.byUuid.get(U1);
+  assert.strictEqual(list.find(e => e.i === 'keen_edge').p, 50);
+  assert.strictEqual(list.find(e => e.i === 'overwhelming_force').p, 100, 'only chances are bounded');
+});
+
+test('23. swift_strike: a raised Speed stat changes who moves first', async () => {
+  const order = b => {
+    const first = b.lines.find(l => l.startsWith('|move|'));
+    return first.split('|')[2].slice(0, 3);
+  };
+  const teams = [pack('Blastoise', U1, 'torrent', ['surf'], 50), pack('Charizard', U2, 'blaze', ['flamethrower'], 50)];
+  const plain = await battle({teams, moves: ['move 1', 'move 1']});
+  assert.strictEqual(order(plain), 'p2a', 'Charizard is faster natively');
+  const swift = await battle({teams, moves: ['move 1', 'move 1'], fx: withPct(U1, 'swift_strike', 25)});
+  assert.strictEqual(order(swift), 'p1a', 'Blastoise outruns it with +25% Speed');
+  assert.ok(mon(swift, 0).getStat('spe') > mon(plain, 0).getStat('spe'));
+  const small = await battle({teams, moves: ['move 1', 'move 1'], fx: withPct(U1, 'swift_strike', 5)});
+  assert.strictEqual(order(small), 'p2a', 'a small bonus does not overtake');
+});
+
+test('24. momentum: a KO raises later damage, and leaving the field ends the stacks', async () => {
+  const foes = [pack('Magikarp', U2, 'swiftswim', ['splash'], 5), pack('Snorlax', U3, 'immunity', ['splash'], 100)].join(']');
+  const mine = [pack('Blastoise', U1, 'torrent', ['surf'], 100), pack('Charizard', U4, 'blaze', ['splash'], 100)].join(']');
+  const script = [
+    ['move 1', 'move 1'],      // KOs the Magikarp
+    ['move 1', 'switch 2'],    // Snorlax comes in (p1 has nothing to choose)
+    ['move 1', 'move 1'],      // Blastoise hits Snorlax with one stack
+    ['switch 2', 'move 1'],    // Blastoise leaves
+    ['switch 2', 'move 1'],    // and returns: no stacks
+    ['move 1', 'move 1'],      // Blastoise hits Snorlax again
+  ];
+  const sequence = turn => script[turn];
+  const run = fxPayload => battle({teams: [mine, foes], moves: sequence, turns: 6, fx: fxPayload});
+  const plainRun = await run(undefined);
+  const plainFirstHp = mon(plainRun, 1).maxhp;
+  const plain = hpTrail(plainRun, 'p2a: ' + U3, plainFirstHp);
+  const boosted = hpTrail(await run(withPct(U1, 'momentum', 20)), 'p2a: ' + U3, plainFirstHp);
+  assert.ok(plain.length >= 2 && boosted.length >= 2, `trails ${JSON.stringify(plain)} / ${JSON.stringify(boosted)} `
+    + plainRun.lines.filter(l => /Snorlax|Magikarp|error|Invalid|faint/i.test(l)).slice(0, 25).join(' // '));
+  const dealt = trail => trail.slice(1).map((hp, i) => trail[i] - hp);
+  const full = Number(plainFirstHp);
+  const dPlain = dealt([full, ...plain]), dBoost = dealt([full, ...boosted]);
+  assert.ok(dBoost[0] > dPlain[0], `one stack should hit harder: ${dBoost[0]} vs ${dPlain[0]}`);
+  assert.strictEqual(dBoost[dBoost.length - 1], dPlain[dPlain.length - 1], `after leaving the field the stacks are gone: plain ${JSON.stringify(dPlain)} boosted ${JSON.stringify(dBoost)}`);
+});
+
+test('25. ensnaring: a hit may lower Speed by one stage, and the engine\'s own protections still apply', async () => {
+  const hydro = target => () => ({teams: [BLASTOISE(), target], moves: ['move 1', 'move 1'], fx: withPct(U1, 'ensnaring', 50)});
+  const slowed = await across(hydro(pack('Charizard', U2, 'blaze', ['splash'], 50)), '|-unboost|p2a: ' + U2 + '|spe|1');
+  assert.ok(slowed >= 4, `slowed in ${slowed} of ${SEEDS.length} seeds`);
+  const dust = await across(hydro(pack('Vivillon', U2, 'shielddust', ['splash'], 50)), '|-unboost|');
+  assert.strictEqual(dust, 0, 'Shield Dust blocks it');
+  const body = await across(hydro(pack('Metagross', U2, 'clearbody', ['splash'], 50)), '|-unboost|p2a: ' + U2 + '|spe');
+  assert.strictEqual(body, 0, 'Clear Body blocks it');
+  const none = await across(() => ({teams: [BLASTOISE(), pack('Charizard', U2, 'blaze', ['splash'], 50)], moves: ['move 1', 'move 1']}), '|-unboost|');
+  assert.strictEqual(none, 0, 'native hydropump lowers nothing');
+});
+
+test('26. bracing_entry: a chance on entering the field, for the lead and for a switched-in Pokemon', async () => {
+  const lead = await across(() => ({teams: [BLASTOISE(), CHARIZARD()], moves: ['move 5', 'move 4'], fx: withPct(U1, 'bracing_entry', 50)}), '|-boost|p1a: ' + U1 + '|def|1');
+  assert.ok(lead >= 4 && lead < SEEDS.length, `lead braced in ${lead} of ${SEEDS.length} seeds`);
+  const both = await across(() => ({teams: [BLASTOISE(), CHARIZARD()], moves: ['move 5', 'move 4'], fx: withPct(U1, 'bracing_entry', 50)}), '|-boost|p1a: ' + U1 + '|spd|1');
+  assert.ok(both >= 4, 'Sp. Def is raised with Defense');
+  const reserve = () => ({teams: [[CHARIZARD_U(U3), pack('Blastoise', U1, 'torrent', ['recover'], 50)].join(']'), CHARIZARD()], moves: ['switch 2', 'move 4'], fx: withPct(U1, 'bracing_entry', 50)});
+  const switched = await across(reserve, '|-boost|p1a: ' + U1 + '|def|1');
+  assert.ok(switched >= 4, `switched-in braced in ${switched} of ${SEEDS.length} seeds`);
+  assert.strictEqual(await across(() => ({teams: [BLASTOISE(), CHARIZARD()], moves: ['move 5', 'move 4']}), '|-boost|'), 0, 'no effect, no boost');
+});
+
+function CHARIZARD_U(uuid) { return pack('Charizard', uuid, 'blaze', ['flamethrower', 'airslash', 'dragonclaw', 'roost'], 50); }
+
+test('27. wardstone: a foe\'s status may fail at the rolled chance', async () => {
+  const burn = fxPayload => () => ({teams: [BLASTOISE(), INFLICTOR(['willowisp'])], moves: ['move 5', 'move 1'], fx: fxPayload});
+  const burned = async payload => {
+    let n = 0;
+    for (const s of SEEDS) if (mon(await battle(Object.assign({seed: [s, 2, 3, 4]}, burn(payload)())), 0).status === 'brn') n++;
+    return n;
+  };
+  const plain = await burned(undefined);
+  const warded = await burned(withPct(U1, 'wardstone', 50));
+  assert.ok(plain >= 10, `native burns land in ${plain} of ${SEEDS.length}`);
+  assert.ok(warded <= plain - 4, `warded ${warded} against ${plain}`);
+  const note = await battle(Object.assign({seed: [1, 2, 3, 4]}, burn(withPct(U1, 'wardstone', 50))()));
+  assert.ok(note.lines.join('\n').length > 0);
+});
+
+test('28. stubborn: a lethal foe move may leave 1 HP once per battle, at the rolled chance', async () => {
+  const frail = [pack('Magikarp', U1, 'swiftswim', ['splash'], 50, '10'), INFLICTOR(['flamethrower', 'splash'])];
+  let survived = 0, again = 0;
+  for (const s of SEEDS) {
+    const first = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, seed: [s, 2, 3, 4], fx: withPct(U1, 'stubborn', 50)});
+    if (mon(first, 0).hp === 1) {
+      survived++;
+      const second = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 2, seed: [s, 2, 3, 4], fx: withPct(U1, 'stubborn', 50)});
+      if (mon(second, 0).hp === 0) again++;
+    }
+  }
+  assert.ok(survived >= 4 && survived < SEEDS.length, `held on in ${survived} of ${SEEDS.length} seeds`);
+  assert.strictEqual(again, survived, 'only once per battle');
+});
+
 (async () => {
   baseline = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});          // before the module is installed
   fx.install({Battle});
   let failed = 0;
+  const only = args.indexOf('--only') >= 0 ? args[args.indexOf('--only') + 1] : null;   // e.g. --only 25 runs tests whose name starts with '25'
   for (const {name, fn} of tests) {
+    if (only && !name.startsWith(only)) continue;
     try { await fn(); console.log('  ok   ' + name); } catch (err) { failed++; console.log('  FAIL ' + name + '\n       ' + (err && err.message)); }
   }
   console.log(failed ? `\n${failed} of ${tests.length} failed` : `\nall ${tests.length} passed`);

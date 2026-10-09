@@ -9,7 +9,7 @@ dependencies {
 test { useJUnitPlatform() }
 processResources {
     from(rootProject.file('design')) {
-        include 'balance.json', 'affixes.json', 'ranked-catalog.json', 'enemy-tiers.json'
+        include 'balance.json', 'affixes.json', 'ranked-catalog.json', 'enemy-tiers.json', 'transcendents.json', 'lore/*.json'
         into 'cobbleascend'
     }
 }

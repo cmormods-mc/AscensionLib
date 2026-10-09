@@ -11,3 +11,7 @@ No license for publishing the original CobbleAscend source has been selected in 
 The browser design previews, which carried an unchanged Growlithe sprite from [CobblemonCards](https://github.com/Howlite-UI/CobblemonCards), commit `c02aafb50d5915b83dafa9af28ddebd58be24b5e` (upstream CC0-1.0), were removed from the repository on 2026-10-09 together with the sprite and its license copy; they remain in git history. See [the reveal design notes](design/reveal/README.md). Pokémon is third-party franchise content.
 
 The removed browser prototype loaded Pixelify Sans through Google Fonts; no font is bundled. The native screen uses Minecraft/Cobblemon's font renderer. No generated fantasy-card concept artwork is included in the implementation.
+
+## Fusion lore research
+
+The species lore under `design/lore/` was designed after reading Pokemon data from Cobblemon's own species files, PokeAPI (Pokedex entries, genus, habitat) and Bulbapedia (Origin and Biology sections, which are available under CC BY-NC-SA 2.5). The text of those sources is not redistributed: the repository contains only short notes written in our own words about what each species is based on, and our own motif assignments. Pokemon is third-party franchise content.

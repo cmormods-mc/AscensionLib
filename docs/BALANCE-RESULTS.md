@@ -68,6 +68,13 @@ Refine draws uniformly including the current value. The table describes numerica
 | Smoldering | 10–20% | 11 | 32 |
 | Venomous | 10–20% | 11 | 32 |
 | Rending | 10–20% | 11 | 32 |
+| Keen Edge | 4–8% | 5 | 14 |
+| Ensnaring | 5–10% | 6 | 17 |
+| Momentum | 3–6% | 4 | 11 |
+| Swift Strike | 4–8% | 5 | 14 |
+| Bracing Entry | 8–16% | 9 | 26 |
+| Wardstone | 5–10% | 6 | 17 |
+| Stubborn | 3–6% | 4 | 11 |
 
 ## Damage envelope
 

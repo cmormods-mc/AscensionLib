@@ -43,7 +43,7 @@ class RankedRulesTest {
     }
 
     @Test void defaultCatalogDefinesFiveIncreasingBandsPerAffixAndMatchesSchemaZeroRankOne() {
-        assertEquals(27, rules.affixes().size());
+        assertEquals(34, rules.affixes().size());
         for (var affix : rules.affixes()) {
             assertEquals(5, affix.bands().size());
             assertEquals(new RankBand(affix.base().min(), affix.base().max()), affix.band(1),
