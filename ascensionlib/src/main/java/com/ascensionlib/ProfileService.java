@@ -379,15 +379,6 @@ public final class ProfileService {
         return store.fusion(pokemonId).isPresent() || store.consumedBy(pokemonId).isPresent();
     }
 
-    /** Whether any Pokemon in the player's party holds this Unique (read from the canonical store, never the Pokemon's own data). */
-    public boolean partyHoldsUnique(ServerPlayer player, String uniqueId) {
-        for (var pokemon : Cobblemon.INSTANCE.getStorage().getParty(player)) {
-            var profile = store.profile(pokemon.getUuid());
-            if (profile.isPresent() && profile.get().unique() != null && profile.get().unique().uniqueId().equals(uniqueId)) return true;
-        }
-        return false;
-    }
-
     /** Login sweep over the player's party and PC. Failures are isolated per Pokemon. */
     public int sweep(ServerPlayer player) {
         int handled = 0;

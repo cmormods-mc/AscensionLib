@@ -746,7 +746,7 @@ const REFINE_NONE = 0;
 const newTranscendState = () => ({
   pulseTurn: -1, armedBy: '', clutchUsed: false,
   shield: 0, shieldActive: 0, shieldKey: '', boost: 0, boostActive: 0, boostKey: '', unresisted: false, unresistedActive: false, unresistedKey: '',
-  ward: false, healBoost: 0, healBoostUntil: -1, hide: 0, hideUntil: -1, refine: REFINE_NONE, refineUntil: -1, titanKey: '',
+  ward: false, healBoost: 0, healBoostUntil: -1, hide: 0, hideUntil: -1, refine: REFINE_NONE, refineUntil: -1,
 });
 
 /** Survive a lethal foe move once per battle: at 1 HP, or brought up to remainOf(mon) HP (a plain heal that no cap refuses). */
@@ -844,6 +844,28 @@ function oncePerMove(t, field, ctx) {
   return true;
 }
 
+/** The foes of the holder that are on the field and standing. */
+const activeFoes = t => t.env.battle.sides.flatMap(side => (side ? side.active : [])).filter(foe => foe && foe.side !== t.mon.side && foe.hp > 0);
+
+/**
+ * A super-effective hit adds percent of the holder's max HP (times the benefit share) once per move use, and remembers the target so
+ * that postHit can follow up on the same hit (see {@link statusAfterSuperEffective}). Returns the flat damage to add, or 0.
+ */
+function superEffectiveAdd(t, ctx, percent) {
+  if (!(ctx.hit.typeMod > 0) || !oncePerMove(t, 'seKey', ctx)) return 0;
+  t.st.seTarget = ctx.target;
+  return Math.floor(t.mon.maxhp * percent / 100 * t.P);
+}
+
+/** After a super-effective hit that paid {@link superEffectiveAdd}: the foe may get a status, at chancePercent times the benefit share. */
+function statusAfterSuperEffective(t, role, foe, moveKey, status, chancePercent) {
+  if (role !== 'hit' || t.st.seKey !== moveKey || t.st.seTarget !== foe || !foe || foe.status || !(foe.hp > 0)) return;
+  if (t.chance(chancePercent * t.P)) foe.trySetStatus(status, t.mon, transcendEffect);
+}
+
+/** True for a landed physical hit on a foe (alive or not): the trigger of the bleeding signatures. */
+const physicalHit = (role, foe, move) => role === 'hit' && !!foe && !!move && move.category === 'Physical';
+
 const weatherMove = (ctx, move) => !!ctx.weather && WEATHER_TYPE[ctx.weather] === move.type;
 const isStatused = foe => ['brn', 'psn', 'tox'].includes(foe.status);
 
@@ -881,9 +903,7 @@ const TRANSCEND_SIGNATURES = {
     pulse: 'TICK',
     // Core: burned or poisoned foes take an extra 3% of max HP each turn.
     tick(t) {
-      for (const foe of t.env.battle.sides.flatMap(side => (side ? side.active : []))) {
-        if (foe && foe.side !== t.mon.side && foe.hp > 0 && isStatused(foe)) chipFoe(t, foe, foe.maxhp * 0.03 * t.P);
-      }
+      for (const foe of activeFoes(t)) if (isStatused(foe)) chipFoe(t, foe, foe.maxhp * 0.03 * t.P);
     },
     // Drawback: direct damage 10% lower.
     outgoing(t) { return {mult: soften(0.90, t.S)}; },
@@ -928,14 +948,10 @@ const TRANSCEND_SIGNATURES = {
     pulse: 'HIT',
     // Core: a super-effective hit adds 8% of the holder's max HP in damage and may burn.
     outgoing(t, ctx) {
-      if (!(ctx.hit.typeMod > 0) || !oncePerMove(t, 'seKey', ctx)) return null;
-      t.st.seTarget = ctx.target;
-      return {add: Math.floor(t.mon.maxhp * 0.08 * t.P)};
+      const add = superEffectiveAdd(t, ctx, 8);
+      return add ? {add} : null;
     },
-    postHit(t, role, foe, moveKey) {
-      if (role !== 'hit' || t.st.seKey !== moveKey || t.st.seTarget !== foe || !foe || foe.status || !(foe.hp > 0)) return;
-      if (t.chance(25 * t.P)) foe.trySetStatus('brn', t.mon, transcendEffect);
-    },
+    postHit(t, role, foe, moveKey) { statusAfterSuperEffective(t, role, foe, moveKey, 'brn', 25); },
     // Drawback: lose 3% of max HP each turn while above 60% HP.
     tick(t) { if (t.mon.hp > t.mon.maxhp * 0.6) selfDamage(t, t.mon.maxhp * 0.03 * t.S); },
   },
@@ -984,8 +1000,7 @@ const TRANSCEND_SIGNATURES = {
     install(t) { clutch(t, () => 1, 'fought on as a martyr!', () => { t.st.crit = true; }); },
     // Core: physical hits bleed (Rupture's weaker stacks are the drawback) and the holder deals 12% more to a bleeding foe.
     postHit(t, role, foe, moveKey, move) {
-      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move || move.category !== 'Physical') return;
-      bleedOn(t, foe, moveKey, {weights: RUPTURE_WEIGHTS.map(w => soften(w, t.S))});
+      if (physicalHit(role, foe, move) && foe.hp > 0) bleedOn(t, foe, moveKey, {weights: RUPTURE_WEIGHTS.map(w => soften(w, t.S))});
     },
     outgoing(t, ctx) { return t.env.shared.isBleeding(ctx.target) ? {mult: 1 + 0.12 * t.P} : null; },
   },
@@ -1034,9 +1049,7 @@ const TRANSCEND_SIGNATURES = {
       if (t.env.weatherNow()) {
         t.st.miasmaTurns = (t.st.miasmaTurns || 0) + 1;
         const percent = Math.min(5, 2.5 + (t.st.miasmaTurns - 1)) * t.P;
-        for (const foe of t.env.battle.sides.flatMap(side => (side ? side.active : []))) {
-          if (foe && foe.side !== t.mon.side && foe.hp > 0) chipFoe(t, foe, foe.maxhp * percent / 100);
-        }
+        for (const foe of activeFoes(t)) chipFoe(t, foe, foe.maxhp * percent / 100);
       } else {
         t.st.miasmaTurns = 0;
         selfDamage(t, t.mon.maxhp * 0.02 * t.S);
@@ -1049,8 +1062,7 @@ const TRANSCEND_SIGNATURES = {
     hooks: {bleed: true},
     // Core: physical hits bleed; the bleed grows 15% a turn (to 60%) and the holder heals 25% of the bleed damage it deals.
     postHit(t, role, foe, moveKey, move) {
-      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move || move.category !== 'Physical') return;
-      bleedOn(t, foe, moveKey, {growth: {step: 15 * t.P, max: 60 * t.P}, leech: 0.25 * t.P});
+      if (physicalHit(role, foe, move) && foe.hp > 0) bleedOn(t, foe, moveKey, {growth: {step: 15 * t.P, max: 60 * t.P}, leech: 0.25 * t.P});
     },
     // Drawback: 20% more damage from Psychic moves.
     incoming(t, ctx) { return ctx.move.type === 'Psychic' ? soften(1.20, t.S) : 1; },
@@ -1065,23 +1077,19 @@ const TRANSCEND_SIGNATURES = {
     },
     // Core: a super-effective hit adds 7% of the holder's max HP in damage and poisons the foe.
     outgoing(t, ctx) {
-      if (!(ctx.hit.typeMod > 0) || !oncePerMove(t, 'seKey', ctx)) return null;
-      t.st.seTarget = ctx.target;
-      return {add: Math.floor(t.mon.maxhp * 0.07 * t.P)};
+      const add = superEffectiveAdd(t, ctx, 7);
+      return add ? {add} : null;
     },
-    postHit(t, role, foe, moveKey) {
-      if (role !== 'hit' || t.st.seKey !== moveKey || t.st.seTarget !== foe || !foe || foe.status || !(foe.hp > 0)) return;
-      if (t.chance(100 * t.P)) foe.trySetStatus('psn', t.mon, transcendEffect);
-    },
+    postHit(t, role, foe, moveKey) { statusAfterSuperEffective(t, role, foe, moveKey, 'psn', 100); },
   },
 
   fortunes_rot: {
     pulse: 'TICK',
     // Core: foes the holder has poisoned lose an extra 3% of max HP each turn. (Item rewards +15% are Java-side.)
     tick(t) {
-      for (const foe of t.env.battle.sides.flatMap(side => (side ? side.active : []))) {
-        if (foe && foe.side !== t.mon.side && foe.hp > 0 && (foe.status === 'psn' || foe.status === 'tox') &&
-            foe.statusState && foe.statusState.source === t.mon) chipFoe(t, foe, foe.maxhp * 0.03 * t.P);
+      for (const foe of activeFoes(t)) {
+        const poisonedByHolder = (foe.status === 'psn' || foe.status === 'tox') && foe.statusState && foe.statusState.source === t.mon;
+        if (poisonedByHolder) chipFoe(t, foe, foe.maxhp * 0.03 * t.P);
       }
     },
     // Drawback: 20% more damage taken.
@@ -1111,7 +1119,7 @@ const TRANSCEND_SIGNATURES = {
     outgoing(t, ctx) {
       const out = {};
       if (weatherMove(ctx, ctx.move)) out.mult = 1 + 0.20 * t.P;
-      if (ctx.hit.typeMod > 0 && oncePerMove(t, 'seKey', ctx)) out.add = Math.floor(t.mon.maxhp * 0.07 * t.P);
+      out.add = superEffectiveAdd(t, ctx, 7);
       return out.mult || out.add ? out : null;
     },
   },
@@ -1137,15 +1145,12 @@ const TRANSCEND_SIGNATURES = {
     // Core: physical hits bleed; a super-effective hit adds 8% of the holder's max HP in damage, and 10% more against a bleeding foe.
     outgoing(t, ctx) {
       const out = {};
-      if (ctx.hit.typeMod > 0) {
-        if (oncePerMove(t, 'seKey', ctx)) out.add = Math.floor(t.mon.maxhp * 0.08 * t.P);
-        if (t.env.shared.isBleeding(ctx.target)) out.mult = 1 + 0.10 * t.P;
-      }
+      out.add = superEffectiveAdd(t, ctx, 8);
+      if (ctx.hit.typeMod > 0 && t.env.shared.isBleeding(ctx.target)) out.mult = 1 + 0.10 * t.P;
       return out.mult || out.add ? out : null;
     },
     postHit(t, role, foe, moveKey, move) {
-      if (role !== 'hit' || !foe || !(foe.hp > 0) || !move || move.category !== 'Physical') return;
-      bleedOn(t, foe, moveKey, {});
+      if (physicalHit(role, foe, move) && foe.hp > 0) bleedOn(t, foe, moveKey, {});
     },
   },
 
@@ -1154,7 +1159,7 @@ const TRANSCEND_SIGNATURES = {
     hooks: {bleed: true},
     // Core: physical hits bleed and each KO restores 10% of max HP. Drawback: every physical move that hits costs 2% of max HP.
     postHit(t, role, foe, moveKey, move) {
-      if (role !== 'hit' || !foe || !move || move.category !== 'Physical') return;
+      if (!physicalHit(role, foe, move)) return;
       if (foe.hp > 0) bleedOn(t, foe, moveKey, {});
       if (oncePerMove(t, 'costKey', {key: moveKey})) selfDamage(t, t.mon.maxhp * 0.02 * t.S);
     },
@@ -1179,9 +1184,8 @@ const TRANSCEND_SIGNATURES = {
     pulse: 'KO',
     // Core: a super-effective hit adds 10% of the holder's max HP in damage, once per move use. (Item rewards +20% are a Java-side bonus.)
     outgoing(t, ctx) {
-      if (!(ctx.hit.typeMod > 0) || t.st.titanKey === ctx.key) return null;
-      t.st.titanKey = ctx.key;
-      return {add: Math.floor(t.mon.maxhp * 0.10 * t.P)};
+      const add = superEffectiveAdd(t, ctx, 10);
+      return add ? {add} : null;
     },
     // Drawback: 22% more damage taken.
     incoming(t) { return 1 + 0.22 * t.S; },
