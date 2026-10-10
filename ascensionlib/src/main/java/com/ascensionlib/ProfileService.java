@@ -346,8 +346,18 @@ public final class ProfileService {
         var outcome = store.fuse(new com.cobbleascend.store.FuseRequest(
                 operationId("fuse", host.getUuid() + ":" + donor.getUuid()), player.getUUID(), host.getUuid(), donor.getUuid(),
                 speciesId(host), speciesId(donor), hostRevision, donorRevision, walletRevision));
-        removeFromStorage(player, donor);
-        project(host, outcome.profile());
+        // The fusion is committed and paid for: nothing after this may read as a failure. A removal or projection that goes wrong is
+        // logged, and the login sweep (donor) and the next reconcile (host) finish them from the store.
+        try {
+            removeFromStorage(player, donor);
+        } catch (RuntimeException exception) {
+            LOG.error("Fusion committed but donor {} could not be removed now; the next login sweep removes it", donor.getUuid(), exception);
+        }
+        try {
+            project(host, outcome.profile());
+        } catch (RuntimeException exception) {
+            LOG.error("Fusion committed but host {} could not be projected now; the next reconcile does it", host.getUuid(), exception);
+        }
         return transcendent;
     }
 
@@ -360,7 +370,13 @@ public final class ProfileService {
 
     private static void removeFromStorage(ServerPlayer player, Pokemon pokemon) {
         var storage = Cobblemon.INSTANCE.getStorage();
-        if (!storage.getParty(player).remove(pokemon)) storage.getPC(player).remove(pokemon);
+        if (!storage.getParty(player).remove(pokemon) && !storage.getPC(player).remove(pokemon))
+            LOG.warn("Consumed Pokemon {} was in neither party nor PC of {}", pokemon.getUuid(), player.getGameProfile().getName());
+    }
+
+    /** Whether this Pokemon is a Transcendent (its Unique cannot be replaced) or was consumed by a fusion. */
+    public boolean isFused(UUID pokemonId) {
+        return store.fusion(pokemonId).isPresent() || store.consumedBy(pokemonId).isPresent();
     }
 
     /** Whether any Pokemon in the player's party holds this Unique (read from the canonical store, never the Pokemon's own data). */

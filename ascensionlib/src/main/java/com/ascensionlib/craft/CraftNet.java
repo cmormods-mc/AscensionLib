@@ -145,7 +145,7 @@ public final class CraftNet {
         long catalysts = wallet.balance(MaterialId.UNIQUE_CATALYST);
         var uniqueState = new CraftPayloads.UniqueState(held, catalysts, wallet.balance(MaterialId.UNIQUE_FRAGMENT),
                 com.cobbleascend.store.StoreConfig.defaults().catalystFragments(), uniqueOptions,
-                catalysts < 1 ? "Needs 1 Unique Catalyst" : "");
+                service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be replaced" : catalysts < 1 ? "Needs 1 Unique Catalyst" : "");
         int nextMilestone = 0;
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
         return new CraftPayloads.View(pokemon.getUuid().toString(), pokemon.getDisplayName(false).getString(),
@@ -184,6 +184,10 @@ public final class CraftNet {
         var before = service.canonical(pokemon);
         if (before.isEmpty()) { fail(player, request, "That Pokémon has no ascension profile."); return; }
         if (request.kind().equals("assemble")) { assemble(player, service, pokemon, request, operation); return; }
+        if (request.kind().equals("unique") && service.isFused(pokemon.getUuid())) {
+            fail(player, request, "A Transcendent's power cannot be replaced.");
+            return;
+        }
         CraftRequest craft;
         switch (request.kind()) {
             case "upgrade" -> craft = CraftRequest.upgrade(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),

@@ -34,6 +34,7 @@ final class FusionScreen extends Screen {
     private String banner = "";
     private boolean bannerOk;
     private int left, top, pw, ph, listScroll, textScroll;
+    private long previewSentAt;
     private List<Line> lines = List.of();
     private int textWidth;
 
@@ -84,6 +85,11 @@ final class FusionScreen extends Screen {
         var out = new ArrayList<Line>();
         if (detail == null) { lines = out; return; }
         textWidth = pw - 16 - LIST_W - 12 - 8;
+        if (detail.name().isEmpty()) {   // a refusal with only a reason
+            add(out, detail.block(), CRIMSON);
+            lines = out;
+            return;
+        }
         add(out, detail.name(), CRIMSON);
         add(out, "Fused from: " + detail.fromUniques(), INK);
         add(out, capitalize(detail.harmony()) + " harmony: " + detail.benefit() + "% of the benefits, " + detail.drawback() + "% of the drawbacks", MUTED);
@@ -114,6 +120,9 @@ final class FusionScreen extends Screen {
         return text.isEmpty() ? text : Character.toUpperCase(text.charAt(0)) + text.substring(1).toLowerCase(Locale.ROOT);
     }
 
+    /** How many text lines fit in the right panel; one answer for drawing and for scrolling. */
+    private int visibleLines() { return Math.max(1, (ph - 8 - 24 - 8 - 24 - 8) / 10); }
+
     private FusionPayloads.Candidate current() {
         for (var c : candidates.donors()) if (c.id().equals(selected)) return c;
         return null;
@@ -130,13 +139,15 @@ final class FusionScreen extends Screen {
         int x = left + 8, y = top + 8 + 24;
         if (phase == Phase.BROWSE) {
             var donors = candidates.donors();
-            for (int i = 0; i < ROWS && listScroll + i < donors.size(); i++) {
+            int rows = Math.max(1, Math.min(ROWS, (ph - 8 - 24 - 8 - 24) / ROW_H));
+        for (int i = 0; i < rows && listScroll + i < donors.size(); i++) {
                 var donor = donors.get(listScroll + i);
                 var row = new PixelButton(x, y + i * ROW_H, LIST_W, ROW_H - 2, Component.literal(donor.name() + " · " + donor.uniqueName()), b -> {
                     selected = donor.id();
                     detail = null;
                     lines = List.of();
                     banner = "";
+                    previewSentAt = System.currentTimeMillis();
                     ClientPlayNetworking.send(new FusionPayloads.Preview(candidates.hostId(), donor.id()));
                     rebuildWidgets();
                 });
@@ -171,6 +182,12 @@ final class FusionScreen extends Screen {
     }
 
     @Override public void tick() {
+        // A preview the server never answered (a dropped packet) must not leave the panel on "Reading the pairing" for good.
+        if (phase == Phase.BROWSE && !selected.isEmpty() && detail == null && System.currentTimeMillis() - previewSentAt > 8_000L) {
+            banner = "No answer from the server. Pick the donor again.";
+            bannerOk = false;
+            selected = "";
+        }
         // An answer that never comes (the server dropped it) must not freeze the screen.
         if (phase == Phase.WAITING && System.currentTimeMillis() - waitingSince > 15_000L) {
             phase = Phase.BROWSE;
@@ -188,7 +205,7 @@ final class FusionScreen extends Screen {
             int next = Math.max(0, Math.min(max, listScroll - (int) Math.signum(vertical)));
             if (next != listScroll) { listScroll = next; rebuildWidgets(); }
         } else {
-            int visible = (ph - 8 - 24 - 8 - 26 - 14) / 10;
+            int visible = visibleLines();
             textScroll = Math.max(0, Math.min(Math.max(0, lines.size() - visible), textScroll - (int) Math.signum(vertical)));
         }
         return true;
@@ -220,7 +237,7 @@ final class FusionScreen extends Screen {
         } else if (detail == null) {
             g.drawString(font, selected.isEmpty() ? "Pick a donor from the list." : "Reading the pairing…", x + 6, y + 6, MUTED, false);
         } else {
-            int visible = (h - 8) / 10;
+            int visible = visibleLines();
             for (int i = 0; i < visible && textScroll + i < lines.size(); i++) {
                 var line = lines.get(textScroll + i);
                 g.drawString(font, line.text(), x + 6, y + 6 + i * 10, line.color(), false);

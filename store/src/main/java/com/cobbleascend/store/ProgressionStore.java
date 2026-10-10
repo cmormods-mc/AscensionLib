@@ -492,6 +492,20 @@ public final class ProgressionStore implements AutoCloseable {
         return read(() -> loadFusion("donor_pokemon_id", donorId));
     }
 
+    /** Every Pokemon that is a Transcendent host or a consumed donor, in one read: a screen listing candidates asks this once, not once each. */
+    public synchronized Set<UUID> fusedPokemon() {
+        return read(() -> {
+            var ids = new HashSet<UUID>();
+            try (var statement = db.createStatement(); var rows = statement.executeQuery("SELECT host_pokemon_id, donor_pokemon_id FROM fusions")) {
+                while (rows.next()) {
+                    ids.add(UUID.fromString(rows.getString(1)));
+                    ids.add(UUID.fromString(rows.getString(2)));
+                }
+            }
+            return ids;
+        });
+    }
+
     private Optional<Fusion> loadFusion(String column, UUID id) throws SQLException {
         try (var statement = db.prepareStatement("SELECT host_pokemon_id, donor_pokemon_id, host_species, donor_species, host_unique,"
                 + " donor_unique, operation_id, fused_at FROM fusions WHERE " + column + " = ?")) {

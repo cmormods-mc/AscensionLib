@@ -689,6 +689,7 @@ class ProgressionStoreTest {
         assertEquals("rupture", fusion.donorUnique());
         assertEquals(donor, fusion.donorId());
         assertTrue(store.consumedBy(donor).isPresent());
+        assertEquals(Set.of(host, donor), store.fusedPokemon(), "one read names every host and consumed donor");
         var replay = store.fuse(request);
         assertTrue(replay.replayed());
         assertEquals(first.profile(), replay.profile());
