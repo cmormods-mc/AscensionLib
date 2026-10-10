@@ -7,6 +7,7 @@ import com.cobbleascend.domain.v1.BattleFx;
 import com.cobbleascend.domain.v1.BattleFxPlanner;
 import com.cobbleascend.domain.v1.CombatSnapshot;
 import com.cobblemon.mod.common.api.battles.model.actor.ActorType;
+import com.cobblemon.mod.common.api.battles.model.actor.EntityBackedBattleActor;
 import com.cobblemon.mod.common.battles.BattleRegistry;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import java.util.ArrayList;
@@ -42,7 +43,12 @@ public final class AscensionBattles {
             var actors = new ArrayList<BattleFxPlanner.Actor>();
             // A wild Pokemon is rated from the Pokemon itself (its types and level), so keep it by its real uuid.
             var wildByUuid = new HashMap<UUID, Pokemon>();
+            boolean profileZone = false;
             for (var actor : battle.getActors()) {
+                // The dimension is the wild opponent's, not the player's. No entity (a scripted battle) is not a zone.
+                if (actor.getType() == ActorType.WILD && actor instanceof EntityBackedBattleActor<?> backed
+                        && backed.getEntity() != null
+                        && ProfileZones.isZone(backed.getEntity().level().dimension().location())) profileZone = true;
                 var kind = actor.getType() == ActorType.PLAYER ? BattleFxPlanner.Kind.PLAYER
                         : actor.getType() == ActorType.WILD ? BattleFxPlanner.Kind.WILD : BattleFxPlanner.Kind.NPC;
                 var combatants = new ArrayList<BattleFxPlanner.Combatant>();
@@ -56,7 +62,7 @@ public final class AscensionBattles {
 
             boolean raid = "raid".equals(battle.getFormat().getBattleType().getName());
             var rules = service.get().rules();
-            var plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, ScoutEncounters.armedEnemies(playerIds),
+            var plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, profileZone, ScoutEncounters.armedEnemies(playerIds),
                     pokemonId -> service.get().snapshot(pokemonId),
                     pokemonId -> Optional.ofNullable(wildByUuid.get(pokemonId)).map(wild -> {
                         var rating = service.get().previewWild(wild);

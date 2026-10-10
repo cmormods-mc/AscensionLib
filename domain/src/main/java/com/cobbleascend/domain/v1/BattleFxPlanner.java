@@ -14,6 +14,8 @@ import java.util.function.Function;
  *
  * <ul>
  *   <li><b>PvP</b>: nothing acts, ever.</li>
+ *   <li><b>Only in three places</b>: a raid, an armed encounter, or a profile zone (the Exiled dimension). Anywhere else
+ *       (an ordinary wild fight in any dimension) nothing acts on either side.</li>
  *   <li><b>A player's Pokemon</b> act from their stored profile; a Pokemon with no profile does not act.</li>
  *   <li><b>An armed encounter</b> (a tower opponent or floor boss, a raid boss) assigns its declared enemy snapshots, in
  *       order, to the non-player Pokemon, so what a Scouter revealed is what fights.</li>
@@ -41,6 +43,8 @@ public final class BattleFxPlanner {
      * @param actors         every actor in battle order
      * @param pvp            two or more players fighting each other
      * @param raid           a raid-format battle, whose boss is never rated as a wild Pokemon
+     * @param profileZone    the wild opponent stands in a dimension where profiles act on wild Pokemon; with no raid, no
+     *                       armed encounter and no zone, nothing acts on either side
      * @param armed          the declared enemies of an encounter armed for this battle, or {@code null} when none is armed;
      *                       an armed encounter with no enemies means "explicitly native"
      * @param playerSnapshot a player's Pokemon's stored profile as a snapshot, by original uuid
@@ -48,11 +52,14 @@ public final class BattleFxPlanner {
      * @return effects per packed uuid; Pokemon with none are absent
      */
     public static Map<String, List<BattleFx.Effect>> plan(List<Actor> actors, boolean pvp, boolean raid,
-                                                          List<CombatSnapshot> armed,
+                                                          boolean profileZone, List<CombatSnapshot> armed,
                                                           Function<UUID, Optional<CombatSnapshot>> playerSnapshot,
                                                           Function<UUID, Optional<CombatSnapshot>> wildSnapshot) {
         var result = new LinkedHashMap<String, List<BattleFx.Effect>>();
         if (pvp) return result;
+        // Profiles act only in a raid, an armed encounter (tower) or a profile zone (the Exiled dimension); an
+        // ordinary wild fight elsewhere is fully native for both sides.
+        if (armed == null && !raid && !profileZone) return result;
         var enemies = new ArrayList<Combatant>();
         var wild = new ArrayList<Combatant>();
         for (var actor : actors) {

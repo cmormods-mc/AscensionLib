@@ -30,63 +30,84 @@ class BattleFxPlannerTest {
     @Test void aPlayersPokemonActsFromItsProfileAndOneWithoutDoesNot() {
         var other = mon("other");
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine, other)));
-        var plan = BattleFxPlanner.plan(actors, false, false, null,
+        var plan = BattleFxPlanner.plan(actors, false, false, true, null,
                 id -> id.equals(mine.originalId()) ? Optional.of(snapshot("p")) : Optional.empty(), BattleFxPlannerTest::none);
         assertEquals(java.util.Set.of("mine"), plan.keySet());
     }
 
     @Test void pvpNeverActs() {
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.PLAYER, List.of(mon("foe"))));
-        var plan = BattleFxPlanner.plan(actors, true, false, null, id -> Optional.of(snapshot("p")), id -> Optional.of(snapshot("w")));
+        var plan = BattleFxPlanner.plan(actors, true, false, true, null, id -> Optional.of(snapshot("p")), id -> Optional.of(snapshot("w")));
         assertTrue(plan.isEmpty());
     }
 
-    @Test void aWildPokemonActsFromItsDerivedRating() {
+    @Test void inAProfileZoneAWildPokemonActsFromItsDerivedRating() {
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(wildOne)));
-        var plan = BattleFxPlanner.plan(actors, false, false, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w")));
+        var plan = BattleFxPlanner.plan(actors, false, false, true, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w")));
         assertEquals(java.util.Set.of("wild"), plan.keySet());
+    }
+
+    @Test void anOrdinaryWildFightOutsideAProfileZoneIsNativeForBothSides() {
+        var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(wildOne)));
+        var plan = BattleFxPlanner.plan(actors, false, false, false, null,
+                id -> Optional.of(snapshot("p")), id -> Optional.of(snapshot("w")));
+        assertTrue(plan.isEmpty(), "neither the player's profile nor a wild rating acts in an ordinary wild fight");
+    }
+
+    @Test void aRaidAndAnArmedEncounterActOutsideAProfileZone() {
+        var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(boss)));
+        var declared = snapshot("boss");
+        var raid = BattleFxPlanner.plan(actors, false, true, false, List.of(declared), id -> Optional.of(snapshot("p")), BattleFxPlannerTest::none);
+        assertEquals(java.util.Set.of("mine", "boss"), raid.keySet());
+        var tower = BattleFxPlanner.plan(actors, false, false, false, List.of(declared), id -> Optional.of(snapshot("p")), BattleFxPlannerTest::none);
+        assertEquals(java.util.Set.of("mine", "boss"), tower.keySet());
+    }
+
+    @Test void pvpStaysNativeEvenInAProfileZone() {
+        var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.PLAYER, List.of(mon("foe"))));
+        assertTrue(BattleFxPlanner.plan(actors, true, false, true, null, id -> Optional.of(snapshot("p")), BattleFxPlannerTest::none).isEmpty());
     }
 
     @Test void aTrainerIsNativeUnlessAnEncounterIsArmed() {
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.NPC, List.of(mon("trainer"))));
-        assertTrue(BattleFxPlanner.plan(actors, false, false, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w"))).isEmpty());
-        var armed = BattleFxPlanner.plan(actors, false, false, List.of(snapshot("e")), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
+        assertTrue(BattleFxPlanner.plan(actors, false, false, true, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w"))).isEmpty());
+        var armed = BattleFxPlanner.plan(actors, false, false, true, List.of(snapshot("e")), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
         assertEquals(java.util.Set.of("trainer"), armed.keySet());
     }
 
     @Test void anArmedEncounterOverridesTheWildRatingAndItsEnemyIsTheDeclaredOne() {
         var declared = snapshot("declared");
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(wildOne)));
-        var plan = BattleFxPlanner.plan(actors, false, false, List.of(declared), BattleFxPlannerTest::none,
+        var plan = BattleFxPlanner.plan(actors, false, false, true, List.of(declared), BattleFxPlannerTest::none,
                 id -> Optional.of(snapshot("not-this")));
         assertEquals(BattleFx.effectsOf(declared), plan.get("wild"));
     }
 
     @Test void anArmedEncounterWithNoEnemiesMeansExplicitlyNative() {
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(wildOne)));
-        var plan = BattleFxPlanner.plan(actors, false, false, List.of(), BattleFxPlannerTest::none, id -> Optional.of(snapshot("w")));
+        var plan = BattleFxPlanner.plan(actors, false, false, true, List.of(), BattleFxPlannerTest::none, id -> Optional.of(snapshot("w")));
         assertTrue(plan.isEmpty(), "an Echo duel armed as native gets no wild rating");
     }
 
     @Test void aRaidBossIsNeverRatedAsWildButTakesItsDeclaredEnemy() {
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(boss)));
-        assertTrue(BattleFxPlanner.plan(actors, false, true, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w"))).isEmpty());
+        assertTrue(BattleFxPlanner.plan(actors, false, true, true, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w"))).isEmpty());
         var declared = snapshot("boss");
-        var plan = BattleFxPlanner.plan(actors, false, true, List.of(declared), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
+        var plan = BattleFxPlanner.plan(actors, false, true, true, List.of(declared), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
         assertEquals(BattleFx.effectsOf(declared), plan.get("boss"));
     }
 
     @Test void fewerDeclaredEnemiesThanOpponentsLeavesTheRestNative() {
         var second = mon("second");
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.WILD, List.of(wildOne, second)));
-        var plan = BattleFxPlanner.plan(actors, false, false, List.of(snapshot("only")), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
+        var plan = BattleFxPlanner.plan(actors, false, false, true, List.of(snapshot("only")), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
         assertEquals(java.util.Set.of("wild"), plan.keySet());
     }
 
     @Test void theKeyIsThePackedUuidNotTheRealOne() {
         var clone = new Combatant("clone-uuid", UUID.randomUUID());
         var actors = List.of(new Actor(Kind.PLAYER, List.of(clone)));
-        var plan = BattleFxPlanner.plan(actors, false, true, List.of(), id -> Optional.of(snapshot("p")), BattleFxPlannerTest::none);
+        var plan = BattleFxPlanner.plan(actors, false, true, true, List.of(), id -> Optional.of(snapshot("p")), BattleFxPlannerTest::none);
         assertEquals(java.util.Set.of("clone-uuid"), plan.keySet());
     }
 }
