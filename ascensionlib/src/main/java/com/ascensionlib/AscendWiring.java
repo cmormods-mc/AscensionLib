@@ -201,6 +201,12 @@ final class AscendWiring {
                                         .then(Commands.argument("rarity", StringArgumentType.word())
                                                 .executes(ctx -> reveal(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot"),
                                                         StringArgumentType.getString(ctx, "rarity"))))))
+                        // /ascend admin attunement <slot> <points>: add lifetime attunement to one of your own party Pokemon.
+                        .then(Commands.literal("attunement")
+                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                        .then(Commands.argument("points", IntegerArgumentType.integer(1, 10_000))
+                                                .executes(ctx -> grantAttunement(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot"),
+                                                        IntegerArgumentType.getInteger(ctx, "points"))))))
                         .then(Commands.literal("grant")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .then(Commands.argument("material", StringArgumentType.word())
@@ -404,6 +410,26 @@ final class AscendWiring {
         } catch (RuntimeException exception) {
             LOG.warn("Initialization refused for {}", pokemon.getUuid(), exception);
             source.sendFailure(Component.literal("Initialization refused: " + exception.getMessage()));
+            return 0;
+        }
+    }
+
+    private int grantAttunement(CommandSourceStack source, int slot, int points) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var player = source.getPlayerOrException();
+        var pokemon = Cobblemon.INSTANCE.getStorage().getParty(player).get(slot - 1);
+        if (pokemon == null) {
+            source.sendFailure(Component.literal("That party slot is empty."));
+            return 0;
+        }
+        try {
+            var profile = service().grantAttunement(pokemon, points);
+            LOG.info("Operator {} granted {} attunement to Pokemon {} (now {})", player.getUUID(), points, pokemon.getUuid(), profile.attunement());
+            source.sendSuccess(() -> Component.literal("Slot " + slot + " gained " + points + " attunement (now " + profile.attunement() + ")."), true);
+            return 1;
+        } catch (RuntimeException exception) {
+            LOG.warn("Attunement grant refused for {}", pokemon.getUuid(), exception);
+            source.sendFailure(Component.literal("Attunement grant refused: " + exception.getMessage()));
             return 0;
         }
     }

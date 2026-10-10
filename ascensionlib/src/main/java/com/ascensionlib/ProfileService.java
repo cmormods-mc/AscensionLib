@@ -379,6 +379,18 @@ public final class ProfileService {
         return store.fusion(pokemonId).isPresent() || store.consumedBy(pokemonId).isPresent();
     }
 
+    /**
+     * Operator grant of lifetime attunement to one Pokemon. Unlike the encounter awards this is meant to be repeatable, so every call
+     * is its own operation (a fresh id): running the command twice grants twice.
+     */
+    public ProfileV1 grantAttunement(Pokemon pokemon, int points) {
+        var profile = canonical(pokemon).orElseThrow(() -> new IllegalArgumentException("That Pokemon has no ascension profile"));
+        if (pokemon.isBattleClone() || pokemon.getOwnerUUID() == null) throw new IllegalArgumentException("Only an owned, non-battle Pokemon");
+        var outcome = store.craft(CraftRequest.awardAttunement(UUID.randomUUID(), pokemon.getUuid(), points, profile.revision()));
+        project(pokemon, outcome.profile());
+        return outcome.profile();
+    }
+
     /** Login sweep over the player's party and PC. Failures are isolated per Pokemon. */
     public int sweep(ServerPlayer player) {
         int handled = 0;
