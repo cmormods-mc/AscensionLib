@@ -19,6 +19,8 @@ import java.util.UUID;
  * whoever was not yet paid and changes nothing for the rest.
  */
 public final class AscensionRewards {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(AscensionLib.MOD_ID);
+
     private AscensionRewards() {}
 
     /**
@@ -45,7 +47,26 @@ public final class AscensionRewards {
         var paid = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
         awardAttunement("tower_boss:" + encounterId, paid);
+        settleSigilDrops(encounterId, outcome, bossFloor, players);
         return result;
+    }
+
+    /**
+     * Rolls the rare Ascension Sigil drop for a won tower boss, once per participant ({@code SigilDrops}), reward kind
+     * {@code tower_sigil}. Seeded by (encounter, player), so a retry recomputes the same winners. Called by {@link #settleTowerBoss},
+     * so CobbleTowers needs no change. A failure here never changes the boss payout already made.
+     */
+    static void settleSigilDrops(UUID encounterId, String outcome, int bossFloor, java.util.Collection<UUID> players) {
+        var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
+        for (var player : players)
+            if (com.cobbleascend.domain.v1.SigilDrops.DEFAULTS.rollTower(encounterId.toString(), player, bossFloor))
+                payouts.put(player, Map.of(MaterialId.ASCENSION_SIGIL.id(), 1L));
+        if (payouts.isEmpty()) return;
+        try {
+            settle(encounterId, outcome, "tower_sigil", payouts);
+        } catch (RuntimeException exception) {
+            LOG.warn("Sigil drop for tower boss {} not recorded: {}", encounterId, exception.toString());
+        }
     }
 
     /**

@@ -65,12 +65,12 @@ All unlocked slots are filled on capture. Promotion fills exactly the newly unlo
 
 | Situation | Behavior |
 |---|---|
-| Ordinary successful wild capture | Roll once after successful ownership/storage; use normal table. |
+| Successful wild capture | **Revised 2026-10-10:** inside a profile zone (Exiled) roll once after successful ownership/storage, normal table. Anywhere else: no profile; a Sigil (wallet material, to be built) adds one. |
 | Failed catch / full-storage failure | No ownership reward, no currency, no rolled owned record. |
 | Existing ascension data | Preserve it; validate schema and revision. |
 | Evolution, form change, nickname, PC move | Preserve rarity, values and provenance. |
 | Trading | Preserve all progression; transfer authority to current owner. |
-| Hatching | Common, one random eligible prefix, no inherited ascension values. |
+| Hatching | **Revised 2026-10-10:** no profile (a Sigil adds one). Was: Common, one random eligible prefix. |
 | Admin give / imported Pokémon | Common unless explicit privileged initialization specifies otherwise. Record source. |
 | Legacy owned Pokémon | Lazy initialization as Common; an explicit logged operator migration can opt into a one-time wild-table roll. |
 | Raid boss becomes a reward Pokémon | Clear encounter-only effects; allocate a new owned identity, roll from normal capture table by default. Requires explicit integration hook. |

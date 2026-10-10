@@ -4,9 +4,9 @@ import com.cobbleascend.domain.v1.MaterialId;
 import com.cobbleascend.domain.v1.Origin;
 import com.cobbleascend.domain.v1.ProfileV1;
 import com.cobbleascend.domain.v1.RankedRules;
+import com.ascensionlib.battle.ProfileZones;
 import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.api.events.CobblemonEvents;
-import com.cobblemon.mod.common.api.events.pokemon.HatchEggEvent;
 import com.cobblemon.mod.common.api.events.pokemon.LevelUpEvent;
 import com.cobblemon.mod.common.api.events.pokemon.PokemonCapturedEvent;
 import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
@@ -57,12 +57,11 @@ final class AscendWiring {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> enqueueSweep(handler.getPlayer())));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
+            // Only a capture inside a profile zone (Exiled) rolls a profile; the ball is thrown from the dimension the wild Pokemon is in.
+            // Everywhere else the Pokemon stays unprofiled until a Sigil is used on it. Hatching is the same: eggs get no profile.
+            if (!ProfileZones.isZone(event.getPlayer().level().dimension().location())) return;
             var s = event.getPlayer().getServer();
             if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, s));
-        });
-        CobblemonEvents.HATCH_EGG_POST.subscribe((Consumer<HatchEggEvent.Post>) event -> {
-            var s = event.getPlayer().getServer();
-            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("hatch"), false, s));
         });
         CobblemonEvents.LEVEL_UP_EVENT.subscribe((Consumer<LevelUpEvent>) event -> {
             // The event can fire before the new level is applied; read the authoritative level on the next task.
@@ -75,7 +74,7 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
         ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
-        LOG.info("Capture rarity, level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
+        LOG.info("Capture rarity (Exiled captures only), level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
     }
 
     private void stop(MinecraftServer stopping) {
@@ -182,6 +181,10 @@ final class AscendWiring {
                         .executes(ctx -> fuse(ctx.getSource(), 1))
                         .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
                                 .executes(ctx -> fuse(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
+                // /ascend sigil <slot>: spend one Ascension Sigil to give a party Pokemon that has no profile one (rarity rolled).
+                .then(Commands.literal("sigil")
+                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                .executes(ctx -> sigil(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
                 .then(Commands.literal("scout")
                         .executes(ctx -> scoutList(ctx.getSource()))
                         .then(Commands.literal("use")
@@ -254,7 +257,7 @@ final class AscendWiring {
             if (profile.isEmpty()) {
                 source.sendFailure(Component.literal(service.quarantined().contains(pokemon.getUuid())
                         ? "This Pokemon's ascension data needs administrator review. It was preserved untouched."
-                        : "No ascension profile. New captures and hatches get one; an operator can initialize an existing Pokemon as Common."));
+                        : "No ascension profile. Pokemon caught in the Exiled dimension get one; an operator can initialize an existing Pokemon as Common."));
                 return 0;
             }
             describe(source, service.rules(), slot, profile.get());
@@ -279,6 +282,32 @@ final class AscendWiring {
             source.sendSuccess(() -> Component.literal(slotData.slotId() + " · " + affix.base().name() + " " + ROMAN[slotData.rank()]
                     + parameter + ": " + slotData.rolledValue() + "% [" + band.min() + "–" + band.max() + "%] · "
                     + affix.base().condition()), false);
+        }
+    }
+
+    private int sigil(CommandSourceStack source, int slot) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var service = service();
+        var player = source.getPlayerOrException();
+        var pokemon = Cobblemon.INSTANCE.getStorage().getParty(player).get(slot - 1);
+        if (pokemon == null) {
+            source.sendFailure(Component.literal("That party slot is empty."));
+            return 0;
+        }
+        try {
+            var profile = service.useSigil(player, pokemon);
+            LOG.info("Player {} used an Ascension Sigil on Pokemon {}: {}", player.getUUID(), pokemon.getUuid(), profile.rarity().id());
+            boolean revealed = com.ascensionlib.scout.CaptureRevealNet.send(player, pokemon, service, profile);
+            source.sendSuccess(() -> Component.literal("[Ascend] The Sigil is spent: slot " + slot + " is now " + title(profile)
+                    + (revealed ? "." : ". /ascend inspect " + slot)), false);
+            return 1;
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            source.sendFailure(Component.literal("Sigil not used: " + exception.getMessage()));
+            return 0;
+        } catch (RuntimeException exception) {
+            LOG.error("Sigil use failed for {}", pokemon.getUuid(), exception);
+            source.sendFailure(Component.literal("The Sigil could not be used right now. You were not charged."));
+            return 0;
         }
     }
 

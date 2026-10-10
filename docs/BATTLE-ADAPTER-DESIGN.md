@@ -9,7 +9,7 @@ immunities and failure paths; nothing invents HP changes in a second world-side 
 | Question | Answer |
 |---|---|
 | Where the simulator code lives | The owner asked whether CobbleRaids' Showdown extension can **live inside AscensionLib**, since the lib is the shared library. Answered below (section 2). |
-| Which battles | Tower and raid encounters **plus wild PvE, and wild Pokemon fight with affixes too** (corrected by the owner: "we want random Pokemon to have affixes too"). PvP stays off (the preview already shows the panel inactive). |
+| Which battles | Raid bosses, armed tower encounters, and wild PvE **only inside a profile zone** (the Exiled dimension; see `EXILED-DESIGN.md`). **Revised 2026-10-10:** an ordinary wild fight in any other dimension is native for both sides; this replaces the earlier "random Pokemon have affixes too" call. PvP stays off. |
 | Stacking in a channel | **Multiply each one** (section 5). |
 | Order | Design first, then a simulator spike, then build. Design approved 2026-10-05, including the two-step host plan (section 2) and the spike scope. |
 | Spike | **Done, section 9.** |

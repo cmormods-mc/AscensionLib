@@ -7,7 +7,7 @@ import java.util.UUID;
 /** Provenance. Kinds are the prototype's origin strings plus validated external grants. */
 public record Origin(String kind, UUID acquisitionId) {
     public static final List<String> KINDS =
-            List.of("wild_capture", "hatch", "legacy", "admin", "unknown", "external_grant");
+            List.of("wild_capture", "hatch", "legacy", "admin", "unknown", "external_grant", "sigil");
 
     public Origin {
         Objects.requireNonNull(kind);

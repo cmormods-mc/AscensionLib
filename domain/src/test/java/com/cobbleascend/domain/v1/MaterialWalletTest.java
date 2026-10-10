@@ -12,7 +12,8 @@ class MaterialWalletTest {
     @Test void newWalletHoldsEveryMaterialAtZero() {
         assertEquals(0, MaterialWallet.EMPTY.revision());
         for (var id : MaterialId.values()) assertEquals(0, MaterialWallet.EMPTY.balance(id));
-        assertEquals(6, MaterialWallet.EMPTY.balances().size());
+        assertEquals(MaterialId.values().length, MaterialWallet.EMPTY.balances().size());
+        assertEquals(MaterialId.ASCENSION_SIGIL, MaterialId.fromId("ascension_sigil"));
         assertEquals(MaterialId.SCOUTER, MaterialId.fromId("scouter"));
         assertEquals(MaterialId.UNIQUE_CATALYST, MaterialId.fromId("unique_catalyst"));
         assertThrows(IllegalArgumentException.class, () -> MaterialId.fromId("gold"));

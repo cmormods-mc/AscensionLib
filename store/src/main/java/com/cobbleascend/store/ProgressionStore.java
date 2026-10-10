@@ -389,6 +389,29 @@ public final class ProgressionStore implements AutoCloseable {
         });
     }
 
+    /**
+     * Spends one Ascension Sigil and registers the profile the generator makes, in one transaction: either both happen or neither.
+     * Refuses a Pokemon that already has a profile (the Sigil is not spent) and a wallet with no Sigil. Idempotent per operation ID.
+     */
+    public synchronized Outcome useSigil(UUID operationId, UUID playerId, UUID pokemonId, Supplier<ProfileV1> generator) {
+        return run(operationId, "SIGIL|" + playerId + "|" + pokemonId, () -> {
+            if (loadProfile(pokemonId).isPresent())
+                throw new StoreException(Code.DUPLICATE_POKEMON, "Pokemon already has a canonical profile");
+            var before = loadWallet(playerId);
+            var cost = Map.of(MaterialId.ASCENSION_SIGIL, 1L);
+            var after = before.debit(cost);
+            var profile = generator.get();
+            if (!profile.pokemonId().equals(pokemonId))
+                throw new IllegalArgumentException("Generated profile belongs to a different Pokemon");
+            codec.encode(profile);
+            options.faults().at(Faults.Point.AFTER_VALIDATION);
+            insertProfile(profile);
+            recordMilestones(profile.profileId(), profile.awardedMilestones(), operationId);
+            saveWallet(playerId, before, after);
+            return new Fresh(Kind.USE_SIGIL, playerId, pokemonId, profile, after, cost, 0);
+        });
+    }
+
     /** Credits materials (rewards, admin grants). Idempotent per operation ID. */
     public synchronized Outcome grant(UUID operationId, UUID playerId, Map<MaterialId, Long> materials, String reason) {
         Objects.requireNonNull(reason);

@@ -141,6 +141,38 @@ public final class ProfileService {
                 progression.create(id, runtime.authority(), rarity, origin, level, types, random));
     }
 
+    /**
+     * Spends one Ascension Sigil to give a Pokemon of the player's that has no profile one, with a rarity rolled from the normal table.
+     * The Sigil and the profile are one transaction, so a refusal costs nothing and a retry after a crash never charges twice.
+     * Refused: not the player's own, on loan, in a battle, already profiled, quarantined, or no Sigil in the wallet.
+     */
+    public ProfileV1 useSigil(ServerPlayer player, Pokemon pokemon) {
+        if (pokemon.isBattleClone() || !player.getUUID().equals(pokemon.getOwnerUUID()) || !owns(player, pokemon))
+            throw new IllegalArgumentException("That Pokemon is not yours");
+        if (CraftLocks.locked(pokemon)) throw new IllegalStateException(CraftLocks.REASON);
+        if (com.cobblemon.mod.common.battles.BattleRegistry.INSTANCE.getBattleByParticipatingPlayer(player) != null)
+            throw new IllegalStateException("Not during a battle");
+        // Reconcile first: it imports a prototype profile and rewrites a stale projection, so only a truly unprofiled Pokemon proceeds.
+        if (reconcile(pokemon).isPresent() || quarantined.contains(pokemon.getUuid()))
+            throw new IllegalStateException("That Pokemon already has an ascension profile");
+        UUID id = pokemon.getUuid();
+        var types = typesOf(pokemon);
+        int level = Math.max(1, pokemon.getLevel());
+        try {
+            var outcome = store.useSigil(operationId("sigil", id.toString()), player.getUUID(), id, () ->
+                    progression.create(id, runtime.authority(), rules.base().rollRarity(random), Origin.of("sigil"), level, types, random));
+            try {
+                project(pokemon, outcome.profile());
+            } catch (RuntimeException exception) {
+                LOG.error("Sigil committed but {} could not be projected now; the next reconcile does it", id, exception);
+            }
+            return outcome.profile();
+        } catch (CraftException exception) {
+            if (exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS) throw new IllegalStateException("You have no Ascension Sigil");
+            throw exception;
+        }
+    }
+
     private interface ProfileFactory { ProfileV1 create(UUID pokemonId, int level, List<String> types); }
 
     private ProfileV1 register(Pokemon pokemon, ProfileFactory factory) {

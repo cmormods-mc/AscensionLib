@@ -755,4 +755,38 @@ class ProgressionStoreTest {
             assertEquals("2", rows.getString(1));
         }
     }
+    // --- Ascension Sigil ---------------------------------------------------------------------------
+
+    @Test void aSigilIsSpentAndTheProfileCreatedInOneTransaction() {
+        var store = open();
+        var pokemon = UUID.randomUUID();
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.ASCENSION_SIGIL, 2L), "test");
+        var op = UUID.randomUUID();
+        var used = store.useSigil(op, player, pokemon, () -> generate(pokemon, Rarity.RARE, 20));
+        assertEquals(1, used.wallet().balance(MaterialId.ASCENSION_SIGIL));
+        assertEquals(Kind.USE_SIGIL, used.kind());
+        assertTrue(store.profile(pokemon).isPresent());
+        var replay = store.useSigil(op, player, pokemon, () -> { throw new AssertionError("a replay must not generate again"); });
+        assertTrue(replay.replayed());
+        assertEquals(1, store.wallet(player).balance(MaterialId.ASCENSION_SIGIL), "a replay does not charge again");
+    }
+
+    @Test void aSigilIsRefusedWithoutOneInTheWalletAndNothingIsCreated() {
+        var store = open();
+        var pokemon = UUID.randomUUID();
+        var failure = assertThrows(CraftException.class, () ->
+                store.useSigil(UUID.randomUUID(), player, pokemon, () -> generate(pokemon, Rarity.COMMON, 5)));
+        assertEquals(CraftException.Reason.INSUFFICIENT_FUNDS, failure.reason());
+        assertTrue(store.profile(pokemon).isEmpty());
+    }
+
+    @Test void aSigilIsNotSpentOnAPokemonThatAlreadyHasAProfile() {
+        var store = open();
+        var pokemon = UUID.randomUUID();
+        acquire(store, pokemon, Rarity.COMMON, 5);
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.ASCENSION_SIGIL, 1L), "test");
+        assertEquals(Code.DUPLICATE_POKEMON, codeOf(() ->
+                store.useSigil(UUID.randomUUID(), player, pokemon, () -> generate(pokemon, Rarity.EPIC, 5))));
+        assertEquals(1, store.wallet(player).balance(MaterialId.ASCENSION_SIGIL));
+    }
 }
