@@ -24,7 +24,7 @@ with zipfile.ZipFile(jar) as z:
         assert 'com/cobbleascend/store/ProgressionStore.class' in store.namelist()
     with zipfile.ZipFile(io.BytesIO(nested[sqlite_name])) as sqlite:
         assert any(n.startswith('org/sqlite/native/Windows/') for n in sqlite.namelist()), 'native libraries missing'
-    assert mod['depends']['cobblemon'] == '1.8.1'
+    assert mod['depends']['cobblemon'] == '>=1.8.1 <1.9.0'
     assert mod['id'] == 'ascensionlib' and 'cobbleraids' not in mod['depends']
     for cls in ['AscensionLib', 'AscensionApi', 'ProfileService', 'AscensionRuntime', 'AscendWiring']:
         assert f'com/ascensionlib/{cls}.class' in z.namelist(), cls
@@ -55,6 +55,6 @@ report = {'artifact': str(jar), 'sha256': hashlib.sha256(jar.read_bytes()).hexdi
           'packaging': 'Nested domain, store and sqlite-jdbc jars verified; bundled catalogs match design/',
           'loader': 'Live dev-server runs (verification/live-run-1..5.log, no player): store created on first start, reopened with the same authority after restart, progression disabled (not reset) when the database is missing or the authority mismatches, recovered when restored. SQLite native library loaded under Fabric Knot on the dev classpath (not nested jar-in-jar). No capture, hatch, level-up, PC or trade was exercised.',
           'runtime': {'minecraft': '1.21.1', 'cobblemon': '1.8.1+1.21.1', 'fabricLoader': '0.17.2', 'fabricApi': '0.116.6+1.21.1', 'java': '21.0.12'},
-          'cobblemonArtifact': {'modrinthVersion': 'gBW3vLC7', 'sha512': 'e9c475c6a8e73bfb378445944812f6e31271cdf50d3227124b44b31c295bf7e9085246ea05d005efff9b7227e7b4e3e34ff1480b1a4b3b97211b5fa127d234ed'}}
+          'cobblemonArtifact': {'modrinthVersion': 'GJ2a1b8O', 'sha512': 'fe0090aa00a010a2353b4da43693ef70b675d5255756541cd679d2cf1df077ffedb790e9de66b1bd69cc9f6336d58763aeb15f146d07420d466daaeb3d992386'}}
 (root/'verification/summary.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report, indent=2))

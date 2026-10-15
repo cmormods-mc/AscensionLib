@@ -1,15 +1,15 @@
 {
   "artifact": "L:\\Codex\\CobbleAscend\\ascensionlib\\build\\libs\\AscensionLib-0.1.0-prototype.jar",
-  "sha256": "78a3d355c7ec225efaaf4af03e651cc27430a5cbfe3a98390b3e576c2556c89c",
+  "sha256": "956bf9c4d0e06e4d11557dbd7654bb251ffd46d309c7a157b20f305dab6ae3a8",
   "tests": {
     "domain": {
-      "tests": 166,
+      "tests": 219,
       "failures": 0,
       "errors": 0,
       "skipped": 0
     },
     "store": {
-      "tests": 52,
+      "tests": 76,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -30,7 +30,7 @@
     "java": "21.0.12"
   },
   "cobblemonArtifact": {
-    "modrinthVersion": "gBW3vLC7",
-    "sha512": "e9c475c6a8e73bfb378445944812f6e31271cdf50d3227124b44b31c295bf7e9085246ea05d005efff9b7227e7b4e3e34ff1480b1a4b3b97211b5fa127d234ed"
+    "modrinthVersion": "GJ2a1b8O",
+    "sha512": "fe0090aa00a010a2353b4da43693ef70b675d5255756541cd679d2cf1df077ffedb790e9de66b1bd69cc9f6336d58763aeb15f146d07420d466daaeb3d992386"
   }
 }

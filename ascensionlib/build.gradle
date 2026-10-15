@@ -27,7 +27,7 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation 'net.fabricmc:fabric-loader:0.19.5'
     modImplementation 'net.fabricmc.fabric-api:fabric-api:0.116.6+1.21.1'
-    modImplementation 'maven.modrinth:MdwFAVRL:gBW3vLC7'
+    modImplementation 'maven.modrinth:MdwFAVRL:GJ2a1b8O'
     // WebGUI (github.com/mc-webgui/webgui, MIT) shows the server's pages on each client. Optional at runtime, so compile against it only;
     // download its v2.0.0 jar and run tools/prepare_webgui_dev_jar.py (see libs/README.md). The dev server loads it too.
     modCompileOnly files('libs/webgui-dev.jar')

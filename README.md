@@ -19,7 +19,7 @@ AscensionLib is the shared library for [CobbleRaids](https://github.com/cmormods
 
 ## Using it
 
-Requires Java 21, Fabric API and Cobblemon 1.8.1. In game:
+Requires Java 21, Fabric API and Cobblemon 1.8.1 or 1.8.2. In game:
 
 - `/ascend craft` to upgrade, refine, reforge, promote or install a Unique
 - `/ascend inspect` and `/ascend wallet` to look at a Pokémon and your materials
