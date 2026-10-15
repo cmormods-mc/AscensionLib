@@ -251,7 +251,7 @@ await check('completion: banner, pile counted up, crown rolled one at a time, co
   const p = await open(null, 'completion.html', 900, 700);
   eq((await sent(p)).map(m => m.channel), ['ascension_completion_ready'], 'asks for its data');
   const view = { tier: 'mythic', tierName: 'MYTHIC', score: 9, cycle: 1, cards: 5, flawless: true, attunement: 3, preview: false, tiers: [{ id: 'bronze', name: 'BRONZE', from: 0 }, { id: 'silver', name: 'SILVER', from: 2 }, { id: 'gold', name: 'GOLD', from: 5 }, { id: 'mythic', name: 'MYTHIC', from: 8 }],
-    pile: [{ id: 'resonance_dust', name: 'Resonance Dust', color: '#d9a441', amount: 1800 }, { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 5 }],
+    pile: [{ id: 'resonance_dust', name: 'Resonance Dust', color: '#d9a441', amount: 1800 }, { id: 'facet', name: 'Facet', color: '#4f9ad9', amount: 13 }, { id: 'unique_fragment', name: 'Unique Fragment', color: '#8c63c7', amount: 7 }, { id: 'scouter', name: 'Scouter', color: '#6f9a52', amount: 4 }, { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 5 }],
     crowns: [{ kind: 'core', id: 'ascension_core', label: 'Ascension Core', color: '#c9694f', amount: 1, big: true },
       { kind: 'armor', id: '', label: 'Tower armor piece', color: '#c9d4e0', amount: 1, big: false }] };
   await emit(p, 'completionView', view);
@@ -264,8 +264,9 @@ await check('completion: banner, pile counted up, crown rolled one at a time, co
   yes((await p.textContent('#crowns')).includes('Ascension Core'), 'the core is revealed');
   eq(await p.locator('.cr.big').count(), 1, 'only the headline item glows');
   yes((await p.textContent('#crowns')).includes('Handed over by the Tower'), 'a Tower-owned item says who hands it over');
-  eq(await p.locator('#meter .seg').count(), 4, 'a meter segment per tier');
-  eq(await p.locator('#meter .seg.on').count(), 4, 'a score of 9 lights them all');
+  await shot(p, 'completion');
+  eq(await p.locator('#meter .tier').count(), 4, 'a meter segment per tier');
+  eq(await p.locator('#meter .tier.on').count(), 4, 'a score of 9 lights them all');
   await p.click('#share');
   yes((await sent(p)).some(x => x.channel === 'ascension_completion_share'), 'Share asks the server for the chat line');
   eq(await p.isDisabled('#share'), true, 'and cannot be pressed twice');

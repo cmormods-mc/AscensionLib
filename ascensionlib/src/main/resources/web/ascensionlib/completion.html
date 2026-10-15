@@ -13,27 +13,27 @@
   .banner.on { opacity: 1; transform: scale(1); }
   .sub { text-align: center; color: var(--muted); font-size: 11px; min-height: 16px; }
   .pile { display: grid; gap: 5px; }
-  .pl { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 5px 8px; background: var(--row); border: 2px solid var(--line);
+  .pl { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 5px 8px; background: var(--row); border: 2px solid var(--line);
         opacity: 0; transform: translateX(-12px); transition: opacity .25s, transform .25s; }
   .pl.on { opacity: 1; transform: none; }
-  .pl img { width: 28px; height: 28px; image-rendering: pixelated; background: var(--well); border: 2px solid var(--line); padding: 2px; }
+  .pl img { width: 32px; height: 32px; image-rendering: pixelated; background: var(--well); border: 2px solid var(--line); padding: 2px; }
   .pl .amt { font-size: 15px; color: var(--acc); text-shadow: var(--glow); min-width: 70px; text-align: right; }
   .crownlabel { color: var(--gold); letter-spacing: .14em; text-align: center; margin-top: 4px; opacity: 0; transition: opacity .4s; }
   .crownlabel.on { opacity: 1; }
   .crowns { display: grid; gap: 8px; }
-  .cr { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; padding: 10px; background: var(--row); border: 2px solid var(--line); min-height: 64px;
+  .cr { display: grid; grid-template-columns: 80px 1fr; gap: 12px; align-items: center; padding: 10px; background: var(--row); border: 2px solid var(--line); min-height: 64px;
         opacity: 0; transform: scale(.9); transition: opacity .3s, transform .3s; }
   .cr.on { opacity: 1; transform: none; }
   .cr.big { border-color: var(--gold); box-shadow: 0 0 0 2px var(--outline), 0 0 14px rgba(242, 207, 58, .55); animation: pulse 1s steps(2) 3; }
-  .cr img { width: 48px; height: 48px; image-rendering: pixelated; background: var(--well); border: 2px solid var(--line); padding: 3px; }
-  .cr .ph { width: 48px; height: 48px; background: var(--well); border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 22px; }
+  .cr img { width: 64px; height: 64px; image-rendering: pixelated; background: var(--well); border: 2px solid var(--line); padding: 3px; }
+  .cr .ph { width: 64px; height: 64px; background: var(--well); border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 22px; }
   .cr .nm { font-size: 15px; text-shadow: var(--glow); } .cr .hint { color: var(--muted); font-size: 10px; }
   .cr.spin .nm { color: var(--muted); }
   @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
   .meter { display: flex; gap: 3px; justify-content: center; align-items: flex-end; margin-top: 2px; }
-  .meter .seg { flex: 1; max-width: 120px; text-align: center; font-size: 10px; color: var(--muted); }
-  .meter .seg .b { height: 8px; background: var(--well); border: 2px solid var(--line); margin-bottom: 3px; } .meter .seg.on .b { background: var(--tier, var(--acc)); }
-  .meter .seg.on { color: var(--ink); }
+  .meter .tier { flex: 1; max-width: 120px; text-align: center; font-size: 10px; color: var(--muted); }
+  .meter .tier .b { height: 8px; background: var(--well); border: 2px solid var(--line); margin-bottom: 3px; } .meter .tier.on .b { background: var(--tier, var(--acc)); }
+  .meter .tier.on { color: var(--ink); }
   .report { color: var(--muted); font-size: 11px; text-align: center; opacity: 0; transition: opacity .5s; }
   .report.on { opacity: 1; }
 </style>
@@ -100,7 +100,7 @@
     // The score meter: one segment per tier, lit up to the tier this run reached, so the next one to chase is plain.
     var meter = $('meter'); meter.innerHTML = '';
     (view.tiers || []).forEach(function (t) {
-      var seg = A.el('div', 'seg' + (view.score >= t.from ? ' on' : ''));
+      var seg = A.el('div', 'tier' + (view.score >= t.from ? ' on' : ''));
       seg.appendChild(A.el('div', 'b')); seg.appendChild(A.el('div', '', t.name + ' ' + t.from + '+'));
       meter.appendChild(seg);
     });

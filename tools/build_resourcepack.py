@@ -2,7 +2,7 @@
 
 usage: python -I tools/build_resourcepack.py
 
-Writes (all committed, regenerate after editing the design file or the art below):
+Writes (all committed, regenerate after editing the design file or the art (tools/pixel_art.py)):
   resourcepack/                                                  the pack sources (pack.mcmeta, textures, models, base-item overrides)
   ascensionlib/src/main/resources/web/ascensionlib/icons/*.png   the same icons for the web pages
   ascensionlib/src/main/resources/data/ascensionlib/loot_table/currency/*.json   one-item loot tables other mods and datapacks can reference
@@ -12,10 +12,8 @@ resource-pack=<url>, resource-pack-sha1=<sha1>, require-resource-pack=true).
 import hashlib
 import json
 import pathlib
-import struct
 import sys
 import zipfile
-import zlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DESIGN = json.loads((ROOT / 'design' / 'currency-items.json').read_text(encoding='utf-8'))
@@ -25,198 +23,16 @@ ICONS = ROOT / 'ascensionlib/src/main/resources/web/ascensionlib/icons'
 LOOT = ROOT / 'ascensionlib/src/main/resources/data' / NS / 'loot_table/currency'
 PACK_FORMAT = 34  # Minecraft 1.21.1
 
-OUT = '1b120d'
-ART = {
-    'resonance_dust': ({'g': 'd9a441', 'h': 'a77b2c', 'w': 'fff3b0'}, [
-        "................",
-        "................",
-        ".......o........",
-        "......owo.......",
-        ".....owgwo......",
-        "......owo..o....",
-        "...o......owo...",
-        "..owo....owgwo..",
-        ".owgwo....owo...",
-        "..owo...o..o....",
-        "...o...owo......",
-        "......owgwo.....",
-        ".....oggggho....",
-        "....ogggggho....",
-        "....oooooooo....",
-        "................",
-    ]),
-    'facet': ({'W': 'bfe3ff', 'B': '4f9ad9', 'D': '2f5f94'}, [
-        "................",
-        "................",
-        "....oooooooo....",
-        "...oWWWBBBBDo...",
-        "..oWWWBBBBBDDo..",
-        ".oooooooooooooo.",
-        ".oWWBBBBBBBDDDo.",
-        "..oWBBBBBBBDDo..",
-        "...oWBBBBBDDo...",
-        "....oWBBBBDo....",
-        ".....oWBBDo.....",
-        "......oBDo......",
-        ".......oo.......",
-        "................",
-        "................",
-        "................",
-    ]),
-    'ascension_core': ({'R': 'e0603f', 'r': '8f2f1c', 'L': 'ffb08f'}, [
-        "................",
-        ".....oooooo.....",
-        "....orRRRRro....",
-        "...orRLLRRRro...",
-        "..orRLLRRRRRro..",
-        "..orRLRRRRRRro..",
-        "..orRRRRRRRRro..",
-        "..orRRRRRRRrro..",
-        "..orRRRRRRrrro..",
-        "...orRRRRrrro...",
-        "....orrrrrro....",
-        ".....oooooo.....",
-        "................",
-        "................",
-        "................",
-        "................",
-    ]),
-    'unique_fragment': ({'P': '8c63c7', 'p': '4d2f7a', 'L': 'd4b8ff'}, [
-        "................",
-        ".........o......",
-        "........oLo.....",
-        ".......oLPPo....",
-        "......oLPPPPo...",
-        ".....oLPPPPPpo..",
-        ".....oLPPPPPpo..",
-        "......oPPPPppo..",
-        "......oPPPpppo..",
-        ".......oPPppo...",
-        ".......oPpppo...",
-        "........oppo....",
-        "........oppo....",
-        ".........oo.....",
-        "................",
-        "................",
-    ]),
-    'unique_catalyst': ({'M': 'b04fa0', 'm': '6a2a60', 'G': 'cfe9ff', 'L': 'ffd1f5'}, [
-        "................",
-        ".....oooooo.....",
-        ".....oGGGGo.....",
-        "......oGGo......",
-        "......oGGo......",
-        ".....oGMMGo.....",
-        "....oGMMMMGo....",
-        "...oGMLMMMMGo...",
-        "..oGMLMMMMMMGo..",
-        "..oGMMMMMMMMGo..",
-        "..oGMMMMMMmmGo..",
-        "..oGMMMMMmmmGo..",
-        "...oGmmmmmmGo...",
-        "....oGGGGGGo....",
-        ".....oooooo.....",
-        "................",
-    ]),
-    'scouter': ({'E': '6f9a52', 'e': '3f6130', 'L': 'c8f0a0', 'p': '1b120d', 'w': 'ffffff'}, [
-        "................",
-        "................",
-        "................",
-        "....oooooooo....",
-        "..ooLLLLLLLLoo..",
-        ".oLLLEEEEEELLLo.",
-        "oLLEEEppppEEELLo",
-        "oLEEEppwwppEEELo",
-        "oLEEEppwwppEEELo",
-        "oLLEEEppppEEELLo",
-        ".oLLLEEEEEELLLo.",
-        "..ooeeeeeeeeoo..",
-        "....oooooooo....",
-        "................",
-        "................",
-        "................",
-    ]),
-    'ascension_sigil': ({'Y': 'ffd437', 'y': 'b8890a', 'W': 'fff6c2'}, [
-        "................",
-        ".....oooooo.....",
-        "...ooYYYYYYoo...",
-        "..oYYyyyyyyYYo..",
-        ".oYYy..YY..yYYo.",
-        ".oYy..YWWY..yYo.",
-        "oYYy.YWWWWY.yYYo",
-        "oYy..YWWWWY..yYo",
-        "oYy...YWWY...yYo",
-        "oYYy..YYYY..yYYo",
-        ".oYy...YY...yYo.",
-        ".oYYyy....yyYYo.",
-        "..oYYyyyyyyYYo..",
-        "...ooYYYYYYoo...",
-        ".....oooooo.....",
-        "................",
-    ]),
-    'tower_mark': ({'S': 'e8e1c9', 's': 'a89f7e', 'K': '5b5340', 'L': 'fffbe8'}, [
-        "................",
-        "....oooooooo....",
-        "..ooLLLLSSSSoo..",
-        ".oLLSSSSSSSSsso.",
-        ".oLSSKKSSKKSsso.",
-        ".oLSSKKKKKKSsso.",
-        ".oLSSSKKKKSSsso.",
-        ".oLSSSKSSKSSsso.",
-        ".oLSSSKKKKSSsso.",
-        ".oSSSSKSSKSSsso.",
-        ".oSSSKKKKKKSsso.",
-        ".oSSSSSSSSSssso.",
-        "..ossSSSSSssso..",
-        "...ooosssssooo..",
-        ".....oooooo.....",
-        "................",
-    ]),
-}
+# The pictures are drawn in code (tools/pixel_art.py, 32x32, no libraries) so a clean checkout reproduces the same pixels. Loaded by path because
+# this script runs isolated (python -I), which does not put its own folder on the import path.
+import importlib.util
+_spec = importlib.util.spec_from_file_location('pixel_art', pathlib.Path(__file__).resolve().parent / 'pixel_art.py')
+pixel_art = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(pixel_art)
 
 
-DEX_ART = ({'R': 'd23a46', 'r': '8a1f2b', 'L': 'ff9aa0', 'B': '56c1f4', 'b': '2a79a8', 'W': 'eaf8ff', 'K': '2c2c3a', 'Y': 'f2cf3a', 'G': '52c24a'}, [
-    "................",
-    "..oooooooooooo..",
-    ".oRRRRRRRRRRRRo.",
-    ".oLRWBRRYRGRKro.",
-    ".oLRBbRRRRRRRro.",
-    ".oLRRRRRRRRRRro.",
-    ".oLRoooooooooro.",
-    ".oLRoWWBBWBBoro.",
-    ".oLRoWBBWWWBoro.",
-    ".oLRoBBBBWBBoro.",
-    ".oLRobbbbbbboro.",
-    ".oLRoooooooooro.",
-    ".oLRRKKRLRKKRro.",
-    ".oLrrrrrrrrrrro.",
-    "..oooooooooooo..",
-    "................",
-])
-
-
-def png(rows, palette):
-    colors = dict(palette)
-    colors['o'] = OUT
-    raw = bytearray()
-    for row in rows:
-        if len(row) != 16:
-            raise SystemExit(f'row is {len(row)} wide, not 16: {row!r}')
-        raw.append(0)  # filter: none
-        for ch in row:
-            if ch == '.':
-                raw += bytes((0, 0, 0, 0))
-            else:
-                h = colors[ch]
-                raw += bytes((int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255))
-    if len(rows) != 16:
-        raise SystemExit(f'{len(rows)} rows, not 16')
-
-    def chunk(kind, data):
-        body = kind + data
-        return struct.pack('>I', len(data)) + body + struct.pack('>I', zlib.crc32(body) & 0xFFFFFFFF)
-
-    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 16, 16, 8, 6, 0, 0, 0))
-            + chunk(b'IDAT', zlib.compress(bytes(raw), 9)) + chunk(b'IEND', b''))
+def icon_png(name):
+    return pixel_art.png_bytes(pixel_art.render(name))
 
 
 def write(path, data):
@@ -236,8 +52,7 @@ def main():
     write(PACK / 'pack.mcmeta', json.dumps({'pack': {'pack_format': PACK_FORMAT, 'description': 'AscensionLib wallet currency items'}}, indent=2) + '\n')
     overrides = {}
     for material, spec in items.items():
-        palette, rows = ART[material]
-        image = png(rows, palette)
+        image = icon_png(material)
         write(PACK / f'assets/{NS}/textures/item/{material}.png', image)
         write(ICONS / f'{material}.png', image)
         write(PACK / f'assets/{NS}/models/item/{material}.json',
@@ -256,8 +71,7 @@ def main():
         write(LOOT / f'{material}.json', json.dumps(table, indent=2) + '\n')
     # the AscensionDex: not a currency, so no icon list or loot table entry, but the same pack
     dex = DESIGN['dex']
-    palette, rows = DEX_ART
-    image = png(rows, palette)
+    image = icon_png('ascension_dex')
     write(PACK / f'assets/{NS}/textures/item/ascension_dex.png', image)
     write(ICONS / 'ascension_dex.png', image)
     write(PACK / f'assets/{NS}/models/item/ascension_dex.json',
