@@ -27,6 +27,7 @@
   .pips { display: inline-flex; gap: 2px; } .pips i { width: 8px; height: 8px; background: var(--well); border: 1px solid var(--line); } .pips i.on { background: var(--acc); border-color: var(--acc); }
   .theme { margin-left: 8px; font-size: 9px; letter-spacing: .08em; padding: 0 5px; border: 1px solid var(--line); color: var(--muted); text-transform: uppercase; }
   .maxed { margin-left: 6px; font-size: 9px; padding: 0 5px; background: var(--gold); color: #1b120d; }
+  .sealedtag { margin-left: 6px; font-size: 9px; padding: 0 5px; border: 1px solid var(--warn); color: var(--warn); }
   .reso { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 10px; }
   .tier { padding: 1px 8px; border: 2px solid var(--line); color: var(--muted); letter-spacing: .06em; }
   .tier.on { border-color: var(--acc); color: var(--acc); box-shadow: var(--glow); text-shadow: var(--glow); }
@@ -79,7 +80,7 @@
     var rows = [];
     if (!d) return rows;
     if (d.uniqueName) rows.push({ unique: true, name: d.uniqueName, value: '', rank: 0, min: -1, max: -1, condition: 'A Unique power: fixed tuning, no ordinary rank.', prefix: false });
-    d.slots.forEach(function (s) { rows.push({ unique: false, name: s.name, value: s.value + '%', rank: s.rank, min: s.min, max: s.max, condition: s.condition, prefix: s.category === 'prefix', theme: s.theme || '', perfected: s.rank === 5 && s.max >= 0 && s.value >= s.max }); });
+    d.slots.forEach(function (s) { rows.push({ unique: false, name: s.name, value: s.value + '%', rank: s.rank, min: s.min, max: s.max, condition: s.condition, prefix: s.category === 'prefix', theme: s.theme || '', perfected: s.rank === 5 && s.max >= 0 && s.value >= s.max && !s.sealed, sealed: !!s.sealed, over: !!s.sealed && s.max >= 0 && s.value > s.max }); });
     return rows;
   }
   function origin(k) {
@@ -90,7 +91,7 @@
   function render() {
     var d = detail();
     var name = mode === 'owned' ? (owned ? owned.name : '') : (state && state.entries[idx] ? state.entries[idx].name : '');
-    var speciesId = mode === 'owned' && owned && owned.extra ? owned.extra.speciesId : '';
+    var speciesId = mode === 'owned' && owned && owned.extra ? owned.extra.speciesId : (mode === 'enemy' && state && state.entries[idx] ? (state.entries[idx].speciesId || '') : '');
     A.text($('title'), mode === 'owned' ? 'ASCENSION DEX' : 'SCOUTING');
     A.text($('name'), name);
     var art = $('art'); art.innerHTML = '';
@@ -135,6 +136,8 @@
       var col = A.el('div'); var t1 = A.el('div', 't1', r.unique ? 'UNIQUE  ' + r.name : r.name);
       if (r.theme) t1.appendChild(A.el('span', 'theme', r.theme));
       if (r.perfected) t1.appendChild(A.el('span', 'maxed', 'MAX'));
+      if (r.over) t1.appendChild(A.el('span', 'maxed', 'OVERREACH'));
+      else if (r.sealed) t1.appendChild(A.el('span', 'sealedtag', 'SEALED'));
       col.appendChild(t1);
       if (!r.unique) {
         var t2 = A.el('div', 't2'); var pips = A.el('span', 'pips');

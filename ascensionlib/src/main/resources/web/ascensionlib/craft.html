@@ -32,7 +32,7 @@
   .cost { margin-top: auto; border-top: 2px solid var(--line); padding-top: 8px; display: flex; align-items: center; gap: 10px; }
   .cost .c { flex: 1; }
   .wallet .coin { display: flex; align-items: center; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line); }
-  .wallet .dot { width: 12px; height: 12px; border: 2px solid var(--outline); flex: none; }
+  .wallet .dot { width: 20px; height: 20px; image-rendering: pixelated; flex: none; }
   .meter { height: 10px; background: var(--well); border: 2px solid var(--line); } .meter i { display: block; height: 100%; background: var(--acc); box-shadow: var(--glow); }
 </style>
 </head>
@@ -56,6 +56,7 @@
   </div>
   <div class="foot">
     <div class="msg muted" id="next"></div>
+    <button id="bank">Wallet</button>
     <button id="fuse" style="display:none">Fuse</button>
     <button id="later">Decide later</button>
   </div>
@@ -71,14 +72,14 @@
 (function () {
   'use strict';
   var A = window.A, $ = A.$;
-  var MODES = ['upgrade', 'refine', 'reforge', 'perfect', 'promote', 'unique'];
+  var MODES = ['upgrade', 'refine', 'reforge', 'perfect', 'overreach', 'promote', 'unique'];
   var view = null, mode = 'upgrade', slotId = '', uniqueId = '', phase = 'browse', pendingOp = '', banner = '', bannerOk = false, waitTimer = 0, tries = 0;
 
   function slot() { for (var i = 0; i < view.slots.length; i++) if (view.slots[i].slotId === slotId) return view.slots[i]; return null; }
   function blockFor(s) {
     if (mode === 'promote') return view.promotion.block;
     if (mode === 'unique') return view.unique.block;
-    return !s ? '' : mode === 'upgrade' ? s.upgradeBlock : mode === 'refine' ? s.refineBlock : mode === 'perfect' ? s.perfectBlock : s.reforgeBlock;
+    return !s ? '' : mode === 'upgrade' ? s.upgradeBlock : mode === 'refine' ? s.refineBlock : mode === 'perfect' ? s.perfectBlock : mode === 'overreach' ? s.overreachBlock : s.reforgeBlock;
   }
   function validUnique(wanted) {
     var o = view.unique.options;
@@ -101,11 +102,12 @@
       case 'refine': return shortPrice(view.refine);
       case 'reforge': return shortPrice(view.reforge);
       case 'perfect': { var ps = slot(); return ps ? ps.perfectCost + ' Resonance Dust (you have ' + view.dust + ')' : '—'; }
+      case 'overreach': { var os = slot(); return os ? os.overreachDust + ' Resonance Dust + ' + os.overreachFacets + ' Facets (you have ' + view.dust + ' / ' + view.facets + ')' : '—'; }
       case 'promote': return shortPrice(view.promotion.price);
       default: return '1 Unique Catalyst (you have ' + view.unique.catalysts + ')';
     }
   }
-  function shortCost() { var ps = slot(); return mode === 'upgrade' ? '1 upgrade' : mode === 'unique' ? '1 Catalyst' : mode === 'perfect' ? (ps ? ps.perfectCost + ' Dust' : '—') : costText(); }
+  function shortCost() { var ps = slot(); return mode === 'upgrade' ? '1 upgrade' : mode === 'unique' ? '1 Catalyst' : mode === 'perfect' ? (ps ? ps.perfectCost + ' Dust' : '—') : mode === 'overreach' ? (ps ? ps.overreachDust + ' Dust + ' + ps.overreachFacets + ' Facets' : '—') : costText(); }
   function canReview() {
     var s = slot();
     if (mode === 'promote') return !view.promotion.block && !!view.promotion.toRarity;
@@ -147,7 +149,7 @@
       var r = A.el('div', 'row' + (s.slotId === slotId ? ' sel' : '') + (mode !== 'promote' && blockFor(s) ? ' off' : ''));
       var ic = A.el('div', 'ic'); ic.style.background = prefix ? '#c9694f' : '#6f9a52'; r.appendChild(ic);
       var col = A.el('div'); col.appendChild(A.el('div', 't1', s.name));
-      col.appendChild(A.el('div', 't2', (prefix ? 'Offense' : 'Defense') + ' · ' + A.roman[Math.max(1, Math.min(5, s.rank))])); r.appendChild(col);
+      col.appendChild(A.el('div', 't2', (prefix ? 'Offense' : 'Defense') + ' · ' + A.roman[Math.max(1, Math.min(5, s.rank))] + (s.sealed ? ' · sealed' : ''))); r.appendChild(col);
       r.appendChild(A.el('div', 'v', '+' + s.value + '%'));
       r.addEventListener('click', function () { slotId = s.slotId; render(); });
       box.appendChild(r);
@@ -205,15 +207,19 @@
     box.appendChild(A.el('div', 'label', A.cap(mode) + ' · ' + (prefix ? 'Offense' : 'Defense')));
     box.appendChild(A.el('div', '', s.name));
     box.appendChild(A.el('div', 'muted', s.condition || (prefix ? 'Boosts your damage.' : 'Protects or heals you.')));
-    var cur = vbox('Current · ' + A.roman[Math.max(1, Math.min(5, s.rank))], '+' + s.value + '%', 'Range ' + s.bandMin + '–' + s.bandMax + '%', false), nxt;
+    var cur = vbox('Current · ' + A.roman[Math.max(1, Math.min(5, s.rank))], '+' + s.value + '%', 'Range ' + s.floor + '–' + s.bandMax + '%', false), nxt;
     if (mode === 'upgrade') {
       var top = s.nextMin < 0;
       nxt = vbox(top ? 'Top rank' : 'Next · ' + A.roman[s.rank + 1], top ? '—' : s.nextMin + '–' + s.nextMax + '%', top ? 'Cannot rise further' : 'New roll range', true);
     } else if (mode === 'refine') {
-      nxt = vbox('Reroll', s.bandMin + '–' + s.bandMax + '%', 'Same rank, new value', true);
+      nxt = vbox('Reroll', s.floor + '–' + s.bandMax + '%', s.floor > s.bandMin ? 'Never below your floor' : 'Same rank, new value', true);
+    } else if (mode === 'overreach') {
+      cur = vbox('Current', '+' + s.value + '%', s.sealed ? 'Sealed' : 'Band top ' + s.bandMax + '%', false);
+      nxt = vbox(s.overreachChance + '% to win', '+' + s.overreachMin + '–' + s.overreachMax + '%', 'lose: it falls and seals', true);
     } else if (mode === 'perfect') {
-      var capped = s.rank < 5 || s.value >= s.bandMax;
-      nxt = vbox(capped ? 'Not available' : 'Polished', capped ? '—' : '+' + (s.value + 1) + '%', 'Band top ' + s.bandMax + '%', true);
+      var capped = s.rank < 5 || s.floor >= s.bandMax;
+      cur = vbox('Floor', '+' + s.floor + '%', 'value +' + s.value + '%', false);
+      nxt = vbox(capped ? 'Not available' : 'New floor', capped ? '—' : '+' + (s.floor + 1) + '%', capped ? 'Band top ' + s.bandMax + '%' : 'value → +' + Math.max(s.value, s.floor + 1) + '%', true);
     } else {
       cur = vbox('Current · ' + A.roman[Math.max(1, Math.min(5, s.rank))], s.name, '+' + s.value + '% · rank ' + A.roman[Math.max(1, Math.min(5, s.rank))], false);
       nxt = vbox('New affix', '?', s.reforgePool + ' eligible', true);
@@ -224,7 +230,8 @@
     box.appendChild(bar);
     box.appendChild(A.el('div', 'muted', mode === 'upgrade' ? 'Raises this affix one rank and rerolls its value. Never fails.'
       : mode === 'refine' ? "Rerolls the value inside this rank's range. It can go lower."
-      : mode === 'perfect' ? 'Raises a rank V value by one point, never past the top of its band. Each step costs more dust. A Refine rerolls it and can undo this.'
+      : mode === 'perfect' ? 'Raises the lowest value this rank V affix can roll by one point, up to the band top. A Refine can never roll below it. Each step costs more dust; a Reforge clears it.'
+      : mode === 'overreach' ? 'A gamble for a rank V affix at its band top, one attempt per affix. Win: a permanent value above the band top. Lose: the value drops into the lower half of the band, ignoring your floor. Win or lose the slot is sealed: only a Reforge can change it.'
       : 'Swaps this affix for a different one. Rank stays, value rerolls.'));
     box.appendChild(A.el('div', 'spacer'));
     costRow(box, blockFor(s));
@@ -233,10 +240,10 @@
   function drawWallet() {
     var box = $('wallet'); box.innerHTML = ''; box.appendChild(A.el('div', 'label', 'Wallet'));
     var u = view.unique;
-    [['Resonance Dust', '#d9a441', view.dust], ['Facets', '#4f9ad9', view.facets], ['Ascension Cores', '#c9694f', view.cores],
-     ['Scouters', '#6f9a52', view.scouters], ['Unique Fragments', '#8c63c7', u.fragments], ['Unique Catalysts', '#b04fa0', u.catalysts]].forEach(function (c) {
+    [['Resonance Dust', 'resonance_dust', view.dust], ['Facets', 'facet', view.facets], ['Ascension Cores', 'ascension_core', view.cores],
+     ['Scouters', 'scouter', view.scouters], ['Unique Fragments', 'unique_fragment', u.fragments], ['Unique Catalysts', 'unique_catalyst', u.catalysts]].forEach(function (c) {
       var r = A.el('div', 'coin'); r.title = c[0];
-      var d = A.el('div', 'dot'); d.style.background = c[1]; r.appendChild(d);
+      var d = new Image(); d.className = 'dot'; d.alt = ''; d.src = 'icons/' + c[1] + '.png'; r.appendChild(d);
       r.appendChild(A.el('div', c[2] > 0 ? '' : 'muted', A.num(c[2])));
       var n = A.el('div', 'muted', c[0].split(' ').pop()); n.style.fontSize = '11px'; n.style.marginLeft = 'auto'; r.appendChild(n);
       box.appendChild(r);
@@ -252,7 +259,8 @@
     var change = '';
     if (mode === 'upgrade' && s) change = s.name + ' ' + A.roman[s.rank] + ' +' + s.value + '%  →  ' + A.roman[Math.min(5, s.rank + 1)] + ', rolls ' + s.nextMin + '–' + s.nextMax + '%';
     else if (mode === 'refine' && s) change = s.name + ' +' + s.value + '%  →  a new value in ' + s.bandMin + '–' + s.bandMax + '%';
-    else if (mode === 'perfect' && s) change = s.name + ' +' + s.value + '%  →  +' + (s.value + 1) + '% (band top ' + s.bandMax + '%)';
+    else if (mode === 'overreach' && s) change = s.name + ' +' + s.value + '%  →  ' + s.overreachChance + '% chance of +' + s.overreachMin + '–' + s.overreachMax + '%; otherwise it falls to the lower half of the band. Either way the slot is sealed.';
+    else if (mode === 'perfect' && s) change = s.name + ' floor +' + s.floor + '%  →  +' + (s.floor + 1) + '% (band top ' + s.bandMax + '%), value +' + s.value + '% → +' + Math.max(s.value, s.floor + 1) + '%';
     else if (mode === 'promote') change = A.rarityName(view.rarityId) + '  →  ' + A.rarityName(view.promotion.toRarity) + ', and one new rank I modifier';
     else if (mode === 'unique') { var o = uniqueOpt(); change = o ? (view.unique.currentId ? 'Replace with ' : 'Install ') + o.name + '. Drawback: ' + o.drawback : ''; }
     else if (s) change = s.name + ' +' + s.value + '%  →  another affix (' + s.reforgePool + ' eligible), rank ' + A.roman[s.rank];
@@ -260,7 +268,8 @@
     body.appendChild(A.el('p', 'gold', 'Cost: ' + costText()));
     body.appendChild(A.el('p', 'muted', mode === 'upgrade' ? 'No failure chance. This spends one pending upgrade.'
       : mode === 'refine' ? 'The result can be lower than now. It cannot be undone.'
-      : mode === 'perfect' ? 'Always works. Each step costs 10 more dust than the last on this slot. A later Refine can reroll the value.'
+      : mode === 'perfect' ? 'Always works. Each step costs 10 more dust than the last on this slot. A Refine keeps the floor; a Reforge clears it.'
+      : mode === 'overreach' ? 'RISKY. The materials are spent win or lose. A lost attempt lowers the roll and seals the slot for good (a Reforge is the only way out). This cannot be undone.'
       : mode === 'promote' ? 'No failure chance. Existing modifiers are kept. It cannot be undone.'
       : mode === 'unique' ? 'Uses one Catalyst. A Unique already set is lost. It cannot be undone.' : 'The result is random and cannot be undone.'));
     if (phase === 'waiting') body.appendChild(A.el('p', 'muted', 'Waiting for the server…'));
@@ -314,15 +323,18 @@
       var was = A.roman[Math.max(1, Math.min(5, d.oldRank))], now = A.roman[Math.max(1, Math.min(5, d.newRank))];
       banner = mode === 'upgrade' ? d.newName + ' → ' + now + ' +' + d.newValue + '%'
         : mode === 'refine' ? 'Refined: +' + d.oldValue + '% → +' + d.newValue + '%'
-        : mode === 'perfect' ? 'Perfected: +' + d.oldValue + '% → +' + d.newValue + '%'
+        : mode === 'perfect' ? 'Floor raised: +' + d.oldValue + '% → +' + d.newValue + '%'
+        : mode === 'overreach' ? (d.newValue > d.oldValue ? 'Overreached! +' + d.oldValue + '% → +' + d.newValue + '%' : 'The gamble failed: +' + d.oldValue + '% → +' + d.newValue + '%, and the slot is sealed')
         : mode === 'reforge' ? 'Now ' + d.newName + ' +' + d.newValue + '%'
         : mode === 'promote' ? 'Promoted to ' + A.rarityName(d.newName) + ': a new modifier slot opened'
         : (d.newName === 'Unique Catalyst' ? 'Assembled a Unique Catalyst' : 'Unique set: ' + d.newName);
       if (d.replayed) banner += ' (already done)';
     } else banner = d.message;
+    if (mode === 'overreach' && d.ok) bannerOk = d.newValue > d.oldValue;
     render();
   });
 
+  $('bank').addEventListener('click', function () { if (phase === 'browse') A.send('ascension_wallet_open'); });
   $('close').addEventListener('click', function () { if (phase !== 'waiting') A.send('close'); });
   $('later').addEventListener('click', function () { if (phase !== 'waiting') A.send('close'); });
   $('fuse').addEventListener('click', function () { if (view && phase === 'browse') A.send('ascension_fusion_open', { hostId: view.pokemonId }); });

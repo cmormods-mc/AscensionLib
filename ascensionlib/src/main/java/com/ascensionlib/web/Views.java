@@ -8,7 +8,7 @@ import java.util.List;
 public final class Views {
     private Views() {}
 
-    public record EntryView(String subjectId, String name, ScoutPayloads.Detail detail) {}
+    public record EntryView(String subjectId, String name, ScoutPayloads.Detail detail, String speciesId) {}
 
     public record StateView(String encounterId, int scouters, List<EntryView> entries) {}
 
@@ -20,7 +20,7 @@ public final class Views {
 
     public static StateView state(ScoutPayloads.State state) {
         return new StateView(state.encounterId(), state.scouters(),
-                state.entries().stream().map(e -> new EntryView(e.subjectId(), e.name(), e.detail().orElse(null))).toList());
+                state.entries().stream().map(e -> new EntryView(e.subjectId(), e.name(), e.detail().orElse(null), e.speciesId())).toList());
     }
 
     public static OwnedView owned(OwnedInspectPayload.Result result) {

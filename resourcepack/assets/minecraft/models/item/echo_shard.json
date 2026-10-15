@@ -1,0 +1,14 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:item/echo_shard"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 8104
+      },
+      "model": "ascensionlib:item/unique_fragment"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "namespace": "ascensionlib",
+  "note": "Each wallet material as a vanilla item: tagged with custom_data {ascensionlib:{material, batch?}} and a custom_model_data the server resource pack maps to art. Base items are inert and stack to 64. An item with no batch is LOOT FORM (absorbed into the wallet when carried); an item with a batch is a VOUCHER (tradable, redeemed with /ascend wallet deposit).",
+  "items": {
+    "resonance_dust": {"base": "minecraft:glowstone_dust", "model": 8101, "name": "Resonance Dust", "color": "#d9a441",
+                       "lore": ["Raw resonance, spent on upgrades,", "refining and perfecting."]},
+    "facet": {"base": "minecraft:amethyst_shard", "model": 8102, "name": "Facet", "color": "#4f9ad9",
+              "lore": ["A cut crystal that sharpens an affix.", "Spent on reforging and overreaching."]},
+    "ascension_core": {"base": "minecraft:heart_of_the_sea", "model": 8103, "name": "Ascension Core", "color": "#c9694f",
+                       "lore": ["The heart of a promotion.", "Earned in the Tower."]},
+    "unique_fragment": {"base": "minecraft:echo_shard", "model": 8104, "name": "Unique Fragment", "color": "#8c63c7",
+                        "lore": ["Collect enough to assemble", "a Unique Catalyst."]},
+    "unique_catalyst": {"base": "minecraft:nether_star", "model": 8105, "name": "Unique Catalyst", "color": "#b04fa0",
+                        "lore": ["Installs or replaces a Unique power."]},
+    "scouter": {"base": "minecraft:prismarine_crystals", "model": 8106, "name": "Scouter", "color": "#6f9a52",
+                "lore": ["Reveals one enemy's rating."]},
+    "ascension_sigil": {"base": "minecraft:nautilus_shell", "model": 8107, "name": "Ascension Sigil", "color": "#ffd437",
+                        "lore": ["Gives a Pokemon with no profile", "a rolled rarity."]}
+  }
+}

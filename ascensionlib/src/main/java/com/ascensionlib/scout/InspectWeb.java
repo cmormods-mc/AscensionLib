@@ -15,7 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
  * Pokemon only after {@link OwnedInspectNet#findForInspection} confirms it is theirs, an enemy only as far as the player has scouted it.
  */
 public final class InspectWeb {
-    public enum Kind { OWNED, ENEMY }
+    public enum Kind { OWNED, ENEMY, WILD }
 
     private record Target(Kind kind, String id) {}
 
@@ -53,13 +53,29 @@ public final class InspectWeb {
             com.ascensionlib.web.WebSprites.feed(player, java.util.List.of(result.extra().speciesId()));
             WebUi.emit(player, "inspectOwned", Views.owned(result));
         }
+        else if (target.kind() == Kind.WILD) emitWild(player);
         else WebUi.emit(player, "inspectScout", Views.state(ScoutEncounters.stateFor(player.getUUID())));
+    }
+
+    private static void emitWild(ServerPlayer player) {
+        var state = ScoutEncounters.wildStateFor(player.getUUID());
+        com.ascensionlib.web.WebSprites.feed(player, state.entries().stream().map(ScoutPayloads.Entry::speciesId).toList());
+        WebUi.emit(player, "inspectScout", Views.state(state));
+    }
+
+    /** The player's wild session changed (a reveal): refresh their inspect page when that is what it shows. */
+    public static void refreshWild(ServerPlayer player) {
+        var target = PENDING.get(player.getUUID());
+        if (target != null && target.kind() == Kind.WILD) emitWild(player);
     }
 
     /** A scouting change for this player: refreshes the enemy view when that is what their inspect page shows. */
     public static void onScout(ServerPlayer player, ScoutPayloads.State state) {
         var target = PENDING.get(player.getUUID());
-        if (target != null && target.kind() == Kind.ENEMY) WebUi.emit(player, "inspectScout", Views.state(state));
+        if (target != null && target.kind() == Kind.ENEMY) {
+            com.ascensionlib.web.WebSprites.feed(player, state.entries().stream().map(ScoutPayloads.Entry::speciesId).toList());
+            WebUi.emit(player, "inspectScout", Views.state(state));
+        }
     }
 
     /** After an upgrade the owner's page asks again so it shows the new rolls. */

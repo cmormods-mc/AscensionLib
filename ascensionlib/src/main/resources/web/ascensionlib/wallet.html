@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet</title>
+<link rel="stylesheet" href="ascension.css">
+<style>
+  .frame { width: min(760px, 97vw); height: min(560px, 95vh); }
+  .main { flex: 1; min-height: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .hint { color: var(--muted); font-size: 11px; }
+  .lines { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 6px; align-content: start; }
+  .line { display: grid; grid-template-columns: 40px 1fr 120px 150px 100px; gap: 10px; align-items: center; padding: 6px 8px; background: var(--row); border: 2px solid var(--line); }
+  .line img { width: 32px; height: 32px; image-rendering: pixelated; background: var(--well); border: 2px solid var(--line); padding: 2px; }
+  .line .nm { font-size: 13px; text-shadow: var(--glow); }
+  .line .amt { text-align: right; font-size: 15px; color: var(--acc); text-shadow: var(--glow); }
+  .line .car { font-size: 10px; color: var(--muted); text-align: right; }
+  .line input { width: 74px; padding: 4px 6px; border: 2px solid var(--line); background: var(--head); color: var(--ink); font: inherit; text-align: right; }
+  .withdraw { display: flex; gap: 6px; align-items: center; }
+  .banner { padding: 6px 10px; font-size: 11px; border-left: 4px solid var(--line); background: var(--row); min-height: 28px; }
+  .banner.ok { border-color: var(--good); background: #0d2a1c; } .banner.bad { border-color: var(--warn); background: #2b1612; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="head"><span>WALLET</span><button class="x" id="close" title="Close">X</button></div>
+  <div class="main">
+    <div class="hint">Take currency out as items you can trade, then redeem them back with Deposit. Loot you pick up joins your wallet by itself.</div>
+    <div class="lines" id="lines"></div>
+    <div class="banner" id="banner"></div>
+  </div>
+  <div class="foot">
+    <div class="msg muted" id="free"></div>
+    <button class="primary" id="depositAll">Deposit all vouchers</button>
+    <button id="done">Close</button>
+  </div>
+</div>
+<script src="ui.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.A, $ = A.$;
+  var view = null, tries = 0;
+
+  function banner(ok, text) { var b = $('banner'); b.className = 'banner ' + (ok ? 'ok' : 'bad'); A.text(b, text); }
+
+  function render() {
+    if (!view) return;
+    A.setBezel('');
+    var box = $('lines'); box.innerHTML = '';
+    view.lines.forEach(function (l) {
+      var row = A.el('div', 'line');
+      var img = new Image(); img.alt = ''; img.src = 'icons/' + l.id + '.png'; row.appendChild(img);
+      var nm = A.el('div', 'nm', l.name); nm.style.color = l.color; row.appendChild(nm);
+      var amt = A.el('div', 'amt', A.num(l.amount)); row.appendChild(amt);
+      var wd = A.el('div', 'withdraw');
+      var input = A.el('input'); input.type = 'number'; input.min = '1'; input.max = '2304'; input.value = String(Math.min(64, Math.max(1, l.amount))); wd.appendChild(input);
+      var go = A.el('button', '', 'Take'); go.disabled = l.amount < 1;
+      go.addEventListener('click', function () { var n = parseInt(input.value, 10); if (n > 0) A.send('ascension_wallet_withdraw', { material: l.id, amount: n }); });
+      wd.appendChild(go); row.appendChild(wd);
+      var dep = A.el('div', 'car');
+      if (l.carried > 0) {
+        dep.appendChild(A.el('div', '', 'carrying ' + A.num(l.carried)));
+        var b = A.el('button', '', 'Deposit'); b.addEventListener('click', function () { A.send('ascension_wallet_deposit', { material: l.id }); });
+        dep.appendChild(b);
+      }
+      row.appendChild(dep);
+      box.appendChild(row);
+    });
+    A.text($('free'), view.freeSlots + ' free inventory slot' + (view.freeSlots === 1 ? '' : 's') + ' (64 units per slot)');
+    var any = view.lines.some(function (l) { return l.carried > 0; });
+    $('depositAll').disabled = !any;
+  }
+
+  A.on('walletView', function (v) { view = v; tries = 99; render(); });
+  A.on('walletResult', function (r) { banner(!!r.ok, r.message); });
+  $('close').addEventListener('click', function () { A.send('close'); });
+  $('done').addEventListener('click', function () { A.send('close'); });
+  $('depositAll').addEventListener('click', function () { A.send('ascension_wallet_deposit', {}); });
+
+  function ready() {
+    if (!A.g) { A.text($('free'), 'This page needs the WebGUI mod.'); return; }
+    A.send('ascension_wallet_ready');
+    if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
+  }
+  A.setBezel(''); ready();
+})();
+</script>
+</body>
+</html>

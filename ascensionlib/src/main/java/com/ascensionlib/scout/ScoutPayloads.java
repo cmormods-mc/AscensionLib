@@ -13,7 +13,12 @@ public final class ScoutPayloads {
     private ScoutPayloads() {}
 
     /** One modifier row of a scouted enemy; {@code category} is {@code prefix} or {@code suffix}. */
-    public record Slot(String category, String name, int rank, int value, int min, int max, String condition, String theme) {
+    public record Slot(String category, String name, int rank, int value, int min, int max, String condition, String theme, boolean sealed) {
+        /** A row with a theme and no seal. */
+        public Slot(String category, String name, int rank, int value, int min, int max, String condition, String theme) {
+            this(category, name, rank, value, min, max, condition, theme, false);
+        }
+
         /** A row with no range or effect text and no theme. */
         public Slot(String category, String name, int rank, int value) { this(category, name, rank, value, -1, -1, "", ""); }
 
@@ -49,7 +54,10 @@ public final class ScoutPayloads {
         }
     }
 
-    public record Entry(String subjectId, String name, Optional<Detail> detail) {}
+    /** One enemy: {@code speciesId} (for its picture) is empty when unknown. */
+    public record Entry(String subjectId, String name, Optional<Detail> detail, String speciesId) {
+        public Entry(String subjectId, String name, Optional<Detail> detail) { this(subjectId, name, detail, ""); }
+    }
 
     /** The player's current encounter (empty id and entries when there is none) and Scouter count. */
     public record State(String encounterId, int scouters, List<Entry> entries) {

@@ -8,6 +8,7 @@ public final class ScoutNet {
         com.ascensionlib.web.WebUi.init();
         InspectWeb.register();
         com.ascensionlib.web.HudWeb.register();
+        com.ascensionlib.wallet.WalletWeb.register();
         com.ascensionlib.craft.CraftNet.register();
         com.ascensionlib.fusion.FusionNet.register();
     }

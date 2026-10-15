@@ -62,6 +62,9 @@ public final class CraftNet {
             if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "craft.openpage", 4, 2)) return;
             findOwned(player, WebUi.id(o, "pokemonId")).ifPresent(p -> openFor(player, p));
         });
+        WebUi.listen("ascension_wallet_open", (player, o) -> {
+            if (com.ascensionlib.net.RateLimit.allow(player.getUUID(), "wallet.open", 3, 1)) com.ascensionlib.wallet.WalletWeb.open(player);
+        });
         WebUi.listen("ascension_craft_confirm", (player, o) -> {
             long profiled = com.ascensionlib.Profiler.start();
             confirm(player, new CraftPayloads.Confirm(WebUi.id(o, "operationId"), WebUi.id(o, "pokemonId"), WebUi.str(o, "kind", 16),
@@ -136,11 +139,17 @@ public final class CraftNet {
             boolean top = slot.rank() >= 5;
             var next = top ? null : affix.band(slot.rank() + 1);
             String upgradeBlock = profile.pendingCredits() < 1 ? "No pending upgrade" : top ? "Already at the top rank" : "";
-            String refineBlock = canRefine ? "" : "Needs " + describe(refineCost);
-            boolean canPerfect = slot.rank() >= 5 && slot.rolledValue() < band.max();
-            int perfectCost = canPerfect ? new com.cobbleascend.domain.v1.RankedProgression(rules).perfectCost(slot) : 0;
-            String perfectBlock = slot.rank() < 5 ? "Needs rank V" : !canPerfect ? "Already at the top of its band"
+            String refineBlock = slot.sealed() ? "Sealed: only a reforge" : canRefine ? "" : "Needs " + describe(refineCost);
+            var progressionRules = new com.cobbleascend.domain.v1.RankedProgression(rules);
+            int effectiveFloor = progressionRules.effectiveFloor(slot);
+            boolean canPerfect = !slot.sealed() && slot.rank() >= 5 && effectiveFloor < band.max();
+            int perfectCost = canPerfect ? progressionRules.perfectCost(slot) : 0;
+            String perfectBlock = slot.sealed() ? "Sealed: only a reforge" : slot.rank() < 5 ? "Needs rank V" : !canPerfect ? "The floor is already at the top of the band"
                     : wallet.balance(MaterialId.RESONANCE_DUST) < perfectCost ? "Needs " + perfectCost + " Resonance Dust" : "";
+            String overreachBlock = slot.sealed() ? "Already attempted: sealed" : slot.rank() < 5 ? "Needs rank V" : slot.rolledValue() < band.max() ? "The value must be at the band maximum"
+                    : wallet.balance(MaterialId.RESONANCE_DUST) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST
+                    || wallet.balance(MaterialId.FACET) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS
+                    ? "Needs " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST + " Resonance Dust + " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS + " Facets" : "";
             String reforgeBlock = "";
             int pool = 0;
             try {
@@ -154,7 +163,11 @@ public final class CraftNet {
             slots.add(new CraftPayloads.SlotView(slot.slotId(), slot.category().id(), slotName(service, slot),
                     affix.base().condition() == null ? "" : affix.base().condition(), slot.rank(), slot.rolledValue(), band.min(), band.max(),
                     next == null ? -1 : next.min(), next == null ? -1 : next.max(), upgradeBlock, refineBlock, reforgeBlock, pool,
-                    perfectBlock, perfectCost));
+                    perfectBlock, perfectCost, effectiveFloor, overreachBlock, slot.sealed(), com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST,
+                    com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS, com.cobbleascend.domain.v1.RankedProgression.OVERREACH_CHANCE_PERCENT,
+                    band.max() + Math.max(1, Math.round(band.max() * com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MIN_PERCENT / 100f)),
+                    Math.min(com.cobbleascend.domain.v1.RankedRules.overreachCeiling(band.max()),
+                            band.max() + Math.max(1, Math.round(band.max() * com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MAX_PERCENT / 100f)))));
         }
         CraftPayloads.Promotion promotion;
         if (profile.rarity() == Rarity.MYTHICAL) {
@@ -224,6 +237,8 @@ public final class CraftNet {
                     CraftRequest.ANY_REVISION);
             case "refine" -> craft = CraftRequest.refine(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
                     request.walletRevision());
+            case "overreach" -> craft = CraftRequest.overreach(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
+                    request.walletRevision());
             case "perfect" -> craft = CraftRequest.perfect(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
                     request.walletRevision());
             case "reforge" -> craft = CraftRequest.reforge(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), service.typesFor(pokemon),
@@ -259,8 +274,8 @@ public final class CraftNet {
             LOG.info("{} {} on Pokemon {} slot {} by {} (operation {}{})", request.kind(), "committed", pokemon.getUuid(), request.slotId(),
                     player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
             WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", request.slotId(),
-                    oldSlot.map(s -> slotName(service, s)).orElse(""), oldSlot.map(OrdinarySlot::rank).orElse(0), oldSlot.map(OrdinarySlot::rolledValue).orElse(0),
-                    newSlot.map(s -> slotName(service, s)).orElse(""), newSlot.map(OrdinarySlot::rank).orElse(0), newSlot.map(OrdinarySlot::rolledValue).orElse(0),
+                    oldSlot.map(s -> slotName(service, s)).orElse(""), oldSlot.map(OrdinarySlot::rank).orElse(0), shownValue(service, craft, oldSlot),
+                    newSlot.map(s -> slotName(service, s)).orElse(""), newSlot.map(OrdinarySlot::rank).orElse(0), shownValue(service, craft, newSlot),
                     outcome.replayed()));
             sendView(player, pokemon, false, "");
         } catch (StoreException exception) {
@@ -274,7 +289,9 @@ public final class CraftNet {
                 case NO_PENDING_CREDIT -> "No pending upgrade to spend.";
                 case MAX_RANK -> "That slot is already at the top rank.";
                 case INSUFFICIENT_FUNDS -> "You do not have enough materials.";
-                case NOT_MAX_RANK -> "Only a rank V slot can be perfected.";
+                case NOT_MAX_RANK -> "Only a rank V slot can do that.";
+                case NOT_AT_BAND_MAX -> "The value must be at the band maximum first.";
+                case SLOT_SEALED -> "That slot is sealed: only a reforge can change it.";
                 case AT_BAND_MAX -> "That slot is already at the top of its band.";
                 case NO_ELIGIBLE_AFFIX -> "No other affix can take that slot.";
                 case INSUFFICIENT_ATTUNEMENT -> "Not enough attunement to promote yet.";
@@ -286,6 +303,12 @@ public final class CraftNet {
             LOG.error("Craft {} failed for {}", request.kind(), pokemon.getUuid(), exception);
             fail(player, request, "Something went wrong; nothing was spent.");
         }
+    }
+
+    /** The number a finished craft reports for a slot: its value, or for Perfecting its floor (what the craft changed). */
+    private static int shownValue(ProfileService service, CraftRequest craft, Optional<OrdinarySlot> slot) {
+        if (slot.isEmpty()) return 0;
+        return craft.kind() == Kind.PERFECT ? new com.cobbleascend.domain.v1.RankedProgression(service.rules()).effectiveFloor(slot.get()) : slot.get().rolledValue();
     }
 
     private static String uniqueName(ProfileService service, String id) {

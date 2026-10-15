@@ -46,7 +46,7 @@ public final class ScoutEncounters {
     /** Encounters this old are dropped when a new one is declared, in case an owner never reported its end. */
     private static final long STALE_MILLIS = 2L * 60 * 60 * 1000;
 
-    private record Enemy(CombatSnapshot snapshot, String name, int level, List<String> types, List<Integer> baseStats,
+    private record Enemy(CombatSnapshot snapshot, String name, String speciesId, int level, List<String> types, List<Integer> baseStats,
                          boolean boss) {}
 
     private static final class Encounter {
@@ -102,8 +102,8 @@ public final class ScoutEncounters {
                 if (tiers == null) tiers = EnemyTiers.defaults();
                 var spec = new EnemySpec(tiers.tier(tierId), boss, uniqueId == null || uniqueId.isBlank() ? null : uniqueId);
                 var snapshot = new EnemyGenerator(service.get().rules()).generate(encounterId, enemyIndex, spec, types);
-                encounter.enemies.put(enemyIndex, new Enemy(snapshot, species.getName(), level, List.copyOf(types),
-                        baseStats(species), boss));
+                encounter.enemies.put(enemyIndex, new Enemy(snapshot, species.getName(), species.getResourceIdentifier().toString(), level,
+                        List.copyOf(types), baseStats(species), boss));
             } catch (RuntimeException exception) {
                 LOG.warn("Could not declare enemy {} of encounter {}: {}", enemyIndex, encounterId, exception.toString());
                 if (encounter.enemies.isEmpty()) ACTIVE.remove(encounterId);
@@ -173,20 +173,28 @@ public final class ScoutEncounters {
 
     // ---- what a player sees ----------------------------------------------------------------------------
 
-    /** The latest encounter this player takes part in, if any. */
+    /** The latest declared encounter this player takes part in, if any. A player's roaming-wild session is not one of these. */
     private static Optional<Encounter> currentFor(UUID player) {
         Encounter found = null;
-        for (Encounter encounter : ACTIVE.values()) if (encounter.participants.contains(player)) found = encounter;
+        for (Encounter encounter : ACTIVE.values()) if (!encounter.id.startsWith(WILD_PREFIX) && encounter.participants.contains(player)) found = encounter;
         return Optional.ofNullable(found);
     }
 
     /** The state to show this player now. Detail is attached only to enemies this player may see. */
     public static synchronized ScoutPayloads.State stateFor(UUID player) {
+        return stateOf(player, currentFor(player));
+    }
+
+    /** The player's roaming-wild session: the wild Pokemon they have looked at and scouted most recently (at most {@link #WILD_CAP}). */
+    public static synchronized ScoutPayloads.State wildStateFor(UUID player) {
+        return stateOf(player, Optional.ofNullable(ACTIVE.get(wildId(player))));
+    }
+
+    private static ScoutPayloads.State stateOf(UUID player, Optional<Encounter> current) {
         int scouters = AscensionApi.store().map(store -> (int) Math.min(Integer.MAX_VALUE,
                 store.wallet(player).balance(MaterialId.SCOUTER))).orElse(0);
         var scouting = AscensionApi.scouting();
         var rules = AscensionApi.rules();
-        Optional<Encounter> current = currentFor(player);
         if (current.isEmpty() || scouting.isEmpty() || rules.isEmpty()) return ScoutPayloads.State.none(scouters);
         Encounter encounter = current.get();
         var entries = new ArrayList<ScoutPayloads.Entry>();
@@ -200,7 +208,7 @@ public final class ScoutEncounters {
                 detail = Optional.of(new ScoutPayloads.Detail(enemy.level(), enemy.types(), enemy.baseStats(),
                         view.rarityId(), view.uniqueName(), slots));
             }
-            entries.add(new ScoutPayloads.Entry(enemy.snapshot().subjectId(), enemy.name(), detail));
+            entries.add(new ScoutPayloads.Entry(enemy.snapshot().subjectId(), enemy.name(), detail, enemy.speciesId()));
         }
         return new ScoutPayloads.State(encounter.id, scouters, entries);
     }
@@ -239,11 +247,79 @@ public final class ScoutEncounters {
         switch (result.status()) {
             case REVEALED -> {
                 if (scope == ScoutingService.Scope.SHARED) encounter.participants.forEach(ScoutEncounters::push);
+                else if (encounterId.startsWith(WILD_PREFIX)) refreshWild(player);
                 else push(player);
                 return "Scouted " + enemy.name() + (scope == ScoutingService.Scope.SHARED ? " for your whole party." : ".");
             }
-            case ALREADY_SCOUTED -> { push(player); return enemy.name() + " is already scouted."; }
-            default -> { push(player); return "You have no Scouters."; }
+            case ALREADY_SCOUTED -> { if (encounterId.startsWith(WILD_PREFIX)) refreshWild(player); else push(player); return enemy.name() + " is already scouted."; }
+            default -> { if (encounterId.startsWith(WILD_PREFIX)) refreshWild(player); else push(player); return "You have no Scouters."; }
         }
+    }
+
+    // ---- roaming wild Pokemon ------------------------------------------------------------------------------
+
+    /** Wild sessions are encounters of this prefix, one per player: an enemy per wild Pokemon they have looked at. */
+    static final String WILD_PREFIX = "wild:";
+    /** How many wild Pokemon one player's session remembers; looking at a seventh forgets the oldest. */
+    public static final int WILD_CAP = 6;
+
+    private static String wildId(UUID player) { return WILD_PREFIX + player; }
+
+    /** The outcome of putting a wild Pokemon into a player's session: {@code ok}, a line for the player, and the ids to scout it with. */
+    public record WildDeclared(boolean ok, String message, String encounterId, String subjectId, String name) {
+        static WildDeclared no(String message) { return new WildDeclared(false, message, "", "", ""); }
+    }
+
+    /**
+     * Puts the wild Pokemon the player is looking at into their wild session, so a Scouter can reveal it ({@link #use}): the rating shown is
+     * the one it will have in a battle and when caught, at its zone's tier. Only an unowned Pokemon standing in a profile zone has a rating;
+     * anywhere else wild Pokemon are native and there is nothing to scout. Nothing is spent here. Server thread.
+     */
+    public static synchronized WildDeclared declareWild(net.minecraft.server.level.ServerPlayer player,
+                                                        com.cobblemon.mod.common.entity.pokemon.PokemonEntity entity) {
+        var service = AscensionApi.service();
+        if (service.isEmpty() || AscensionApi.scouting().isEmpty() || server == null) return WildDeclared.no("Ascension progression is not running.");
+        var pokemon = entity.getPokemon();
+        if (pokemon.getOwnerUUID() != null) return WildDeclared.no("That Pokémon belongs to someone.");
+        int tier = com.ascensionlib.battle.ProfileZones.tierOf(entity.level().dimension().location());
+        if (tier < 1) return WildDeclared.no("Wild Pokémon only have an Ascension rating inside a profile zone, such as a dungeon.");
+        var species = pokemon.getSpecies();
+        var types = new ArrayList<String>();
+        types.add(species.getPrimaryType().getName().toLowerCase(java.util.Locale.ROOT));
+        if (species.getSecondaryType() != null) types.add(species.getSecondaryType().getName().toLowerCase(java.util.Locale.ROOT));
+        if (!Rules.TYPES.containsAll(types)) return WildDeclared.no("That Pokémon cannot be rated.");
+        String id = wildId(player.getUUID());
+        String subject = pokemon.getUuid().toString();
+        Encounter session = ACTIVE.computeIfAbsent(id, Encounter::new);
+        session.participants.add(player.getUUID());
+        boolean known = session.enemies.values().stream().anyMatch(enemy -> enemy.snapshot().subjectId().equals(subject));
+        if (!known) {
+            try {
+                var rating = service.get().previewWild(pokemon, tier);
+                var snapshot = new CombatSnapshot(CombatSnapshot.Source.ENEMY, subject, rating.rarity(), service.get().rules().catalogVersion(), rating.slots(), null);
+                int index = session.enemies.isEmpty() ? 0 : ((TreeMap<Integer, Enemy>) session.enemies).lastKey() + 1;
+                session.enemies.put(index, new Enemy(snapshot, species.getName(), species.getResourceIdentifier().toString(), Math.max(1, pokemon.getLevel()),
+                        List.copyOf(types), baseStats(species), false));
+                while (session.enemies.size() > WILD_CAP) session.enemies.remove(((TreeMap<Integer, Enemy>) session.enemies).firstKey());
+            } catch (RuntimeException exception) {
+                LOG.warn("Could not rate wild {} for {}: {}", subject, player.getUUID(), exception.toString());
+                return WildDeclared.no("That Pokémon cannot be rated right now.");
+            }
+        }
+        return new WildDeclared(true, "", id, subject, species.getName());
+    }
+
+    /** Sends the player's wild session to their open inspect page. */
+    private static void refreshWild(UUID player) {
+        var running = server;
+        if (running == null) return;
+        var online = running.getPlayerList().getPlayer(player);
+        if (online != null) InspectWeb.refreshWild(online);
+    }
+
+    /** Forgets a player's wild session and its reveals (they left). Safe when there is none. */
+    public static synchronized void endWild(UUID player) {
+        String id = wildId(player);
+        if (ACTIVE.remove(id) != null) AscensionApi.scouting().ifPresent(scouting -> scouting.endEncounter(id));
     }
 }

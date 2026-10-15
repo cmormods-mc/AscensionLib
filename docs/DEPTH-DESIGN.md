@@ -64,9 +64,38 @@ A **maxed** Pokemon is Mythical with every ordinary slot at rank V.
 3. **Not proposed:** a rank VI (it raises the ceiling the stacked-team test has not yet validated) and any new material (the five existing ones suffice).
 
 
-### Part C, item 1 as built (2026-10-15, uncommitted, awaiting owner review)
+### Part C, item 1 as built: Perfecting raises a stored floor (2026-10-16, uncommitted, awaiting owner review)
 
-Perfecting is built, simpler than proposed so it needs no schema change: it raises a **rank V** slot's rolled value by **one point per use, up to the band maximum**, for Resonance Dust only. The price is `30 + 10 x (value - band minimum)`, so it is a function of the slot and nothing is stored (the "steps bought" are how far the value stands above the band floor). It is deterministic (no roll), previewable, and a later Refine rerolls the value anywhere in the band, which is the deliberate trade (re-polish costs dust again). `RankedProgression.perfect` / `perfectCost`, `Kind.PERFECT`, `CraftRequest.perfect`; a Perfect tab on the craft page; a MAX badge on a perfected slot in the inspector. Open question 5 (limit per slot) is answered by the band: at most `band max - band min` steps per slot per roll. The proposed per-slot *floor* (so a Refine could not undo it) was not built; say if you want that instead (it needs a stored floor per slot).
+Perfecting is built as the floor variant the proposal asked for. On a **rank V** slot it raises the slot's **floor** (the lowest value it can roll) by one
+point per use, up to the band maximum, for Resonance Dust only. The value lifts to the new floor if it was below it and stays if it was above. A **Refine** then
+rolls between the floor and the band maximum, so polish is never undone by rerolling; only a **Reforge**, which replaces the affix, clears it. Fully raised, a
+slot always holds its band maximum, so there are exactly `band max - band min` steps per slot per affix.
+
+- **Price:** `30 + 10 x (floor - band minimum)` dust per step: the first step costs 30, the second 40, and so on (about 30 x width + 5 x width x (width-1) in all).
+- **Storage:** `OrdinarySlot.floor` (0 means none; only valid on rank V, inside the band, never above the value; validated by `RankedRules`). The profile JSON writes a
+  `floor` key only when it is set, so an unperfected profile encodes exactly as before. **Compatibility is forward-only:** a build older than this one rejects a profile
+  that carries a `floor` key (unknown key), so roll back only before anyone has perfected a slot.
+- **Code:** `RankedProgression.perfect / perfectCost / effectiveFloor`, `refine` honours the floor, `Kind.PERFECT`, `CraftRequest.perfect`; the craft page's Perfect tab
+  shows the floor and the value it will lift to; the inspector's "rolls a-b%" line starts at the floor and a MAX badge marks a slot at its band top.
+- **Open:** whether a Reforge should keep half the floor (it clears it entirely now, which makes a Reforge of a perfected slot a deliberate, expensive decision).
+  Perfecting still needs a balance pass: a full polish of one slot costs 30 x width + 5 x width x (width-1) dust, for a typical band width of 6-12 that is 400-1000.
+
+### Overreach: the endgame gamble (2026-10-16, uncommitted, awaiting owner review)
+
+Owner idea, agreed defaults: a risky craft that can raise one affix above its band. **Overreach** is offered on a rank V slot whose value sits at its band maximum
+(reachable by Perfecting or a lucky Refine), once per slot.
+
+- **Win (45 percent):** the value rises above the band maximum by a rolled 10 to 25 percent of that maximum (at least one point), a permanent gain. A sealed slot may hold at
+  most `RankedRules.overreachCeiling` = band maximum + a quarter of it, never over 100. **Loss (55 percent):** the value falls to a random point in the lower half of the band,
+  **ignoring any floor**.
+- **Seal:** win or lose the slot is sealed (`OrdinarySlot.sealed`): no more Refine or Perfecting, only a Reforge, which makes a fresh unsealed slot. A sealed slot has no floor.
+  This is what makes a loss hurt, since a Refine could otherwise just reroll the lowered value.
+- **Cost:** 60 dust and 2 facets per attempt, spent win or lose; never cores (the Tower stays the only core source). Provisional.
+- **Ceiling and caps:** this is the first thing in the catalog that raises a slot above its band. The combat channel caps (100 / 50 / 50) and the per-affix proc ceiling of 50
+  percent still bind, and Resonance multiplies after the roll, so a resonant overreached slot gains the most. Start modest and widen only after a stacked-team live test.
+- **Storage and compatibility:** an optional `sealed` key (value 1) on the slot, written only when set. Forward-only: an older build rejects a profile with that key.
+- **Code:** `RankedProgression.overreach` (+ `overreachCost`, the percent constants), `Kind.OVERREACH`, `CraftRequest.overreach`, a 7th craft tab with the odds and a RISKY confirmation,
+  and SEALED / OVERREACH badges in the inspector. Tests: 4 domain, 1 store, page checks for the win and loss paths.
 
 ### Resonance in the inspector (2026-10-15, uncommitted)
 

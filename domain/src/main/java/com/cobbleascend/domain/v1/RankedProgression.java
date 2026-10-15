@@ -143,51 +143,112 @@ public final class RankedProgression {
         return new CraftResult(next, MaterialId.of(rules.base().craftCost("reforge")), 0);
     }
 
-    /** Rerolls only the selected slot's value within its current rank band. */
+    /** Rerolls only the selected slot's value within its current rank band, above its raised floor if it has one. */
     public CraftResult refine(ProfileV1 profile, String slotId, RandomGenerator random) {
         rules.validate(profile);
         var old = requireSlot(profile, slotId);
-        int value = rules.affix(old.affixId()).band(old.rank()).roll(random);
+        if (old.sealed()) throw new CraftException(Reason.SLOT_SEALED, "A sealed slot can only be reforged");
+        var band = rules.affix(old.affixId()).band(old.rank());
+        // A perfected slot rolls between its floor and the band maximum: the polish is never undone.
+        int value = random.nextInt(Math.max(band.min(), old.floor()), band.max() + 1);
         var refined = new OrdinarySlot(old.slotId(), old.category(), old.rank(), old.affixId(), old.parameters(),
-                value, old.definitionVersion());
+                value, old.definitionVersion(), old.floor());
         var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(),
                 profile.spentUpgradeCredits(), replace(profile, refined), profile.unique());
         rules.validate(next);
         return new CraftResult(next, MaterialId.of(rules.base().craftCost("refine")), 0);
     }
 
-    /** Dust for the first Perfecting step on a slot; each step already taken on it adds {@link #PERFECT_STEP_DUST}. */
+    /** Dust for the first Perfecting step on a slot; each step already bought on it adds {@link #PERFECT_STEP_DUST}. */
     public static final int PERFECT_BASE_DUST = 30;
     public static final int PERFECT_STEP_DUST = 10;
 
+    /** The lowest value a slot can roll now: its raised floor, else its band's minimum. */
+    public int effectiveFloor(OrdinarySlot slot) {
+        return Math.max(slot.floor(), rules.affix(slot.affixId()).band(slot.rank()).min());
+    }
+
     /**
-     * What polishing this slot one more point costs in Resonance Dust: the steps already bought are how far the value stands above the
-     * band's minimum, so the price is a function of the slot alone and needs nothing stored. Only meaningful for a slot that can be perfected.
+     * What raising this slot's floor one more point costs in Resonance Dust: the steps already bought are how far the floor stands above the
+     * band's minimum, so the price rises by {@link #PERFECT_STEP_DUST} with each one. Only meaningful for a slot that can be perfected.
      */
     public int perfectCost(OrdinarySlot slot) {
-        int steps = Math.max(0, slot.rolledValue() - rules.affix(slot.affixId()).band(slot.rank()).min());
+        int steps = Math.max(0, effectiveFloor(slot) - rules.affix(slot.affixId()).band(slot.rank()).min());
         return PERFECT_BASE_DUST + PERFECT_STEP_DUST * steps;
     }
 
     /**
-     * Endgame polish: raises a rank V slot's value by one point, up to its band maximum, for Resonance Dust only. It is the one deliberate
-     * way to turn a middling roll into a top one; a Refine afterwards rerolls the value and can undo it, which is the trade. Never leaves the band.
+     * Endgame polish: raises a rank V slot's <b>floor</b> (the lowest value it can roll) by one point, up to the band maximum, for Resonance
+     * Dust only. If the value was below the new floor it rises to it; if it was already higher it stays. The floor is stored on the slot and a
+     * Refine rolls between it and the band maximum, so polish is never undone by rerolling (only a Reforge, which replaces the affix, clears it).
+     * Fully raised, the slot always holds its band maximum. No roll, previewable, and never leaves the rank's band, so it adds depth without
+     * raising the power ceiling.
      */
     public CraftResult perfect(ProfileV1 profile, String slotId) {
         rules.validate(profile);
         var old = requireSlot(profile, slotId);
+        if (old.sealed()) throw new CraftException(Reason.SLOT_SEALED, "A sealed slot can only be reforged");
         if (old.rank() < RankedAffix.RANKS)
             throw new CraftException(Reason.NOT_MAX_RANK, "Only a rank V slot can be perfected");
         var band = rules.affix(old.affixId()).band(old.rank());
-        if (old.rolledValue() >= band.max())
-            throw new CraftException(Reason.AT_BAND_MAX, "This slot is already at the top of its band");
+        int current = effectiveFloor(old);
+        if (current >= band.max())
+            throw new CraftException(Reason.AT_BAND_MAX, "This slot's floor is already at the top of its band");
         long cost = perfectCost(old);
+        int floor = current + 1;
         var polished = new OrdinarySlot(old.slotId(), old.category(), old.rank(), old.affixId(), old.parameters(),
-                old.rolledValue() + 1, old.definitionVersion());
+                Math.max(old.rolledValue(), floor), old.definitionVersion(), floor);
         var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(),
                 profile.spentUpgradeCredits(), replace(profile, polished), profile.unique());
         rules.validate(next);
         return new CraftResult(next, Map.of(MaterialId.RESONANCE_DUST, cost), 0);
+    }
+
+    // ---- Overreach: the one gamble ----------------------------------------------------------------------
+
+    /** Chance in percent that an Overreach succeeds. */
+    public static final int OVERREACH_CHANCE_PERCENT = 45;
+    /** A successful Overreach adds between these percentages of the band maximum (at least 1 point) above it. */
+    public static final int OVERREACH_MIN_PERCENT = 10;
+    public static final int OVERREACH_MAX_PERCENT = 25;
+    /** What one attempt costs: dust and facets, never cores (the Tower stays the only core source). */
+    public static final int OVERREACH_DUST = 60;
+    public static final int OVERREACH_FACETS = 2;
+
+    /** The materials one Overreach attempt costs. */
+    public static Map<MaterialId, Long> overreachCost() {
+        return Map.of(MaterialId.RESONANCE_DUST, (long) OVERREACH_DUST, MaterialId.FACET, (long) OVERREACH_FACETS);
+    }
+
+    /**
+     * The endgame gamble. A rank V slot sitting at its band maximum, with no attempt made on it yet, can Overreach: with
+     * {@link #OVERREACH_CHANCE_PERCENT} percent chance its value rises above the band maximum by 10 to 25 percent of that maximum (at least one
+     * point), a permanent gain; otherwise the value falls to a random point in the lower half of the band, ignoring any floor. Win or lose the slot
+     * is <b>sealed</b>: it can no longer be Refined or Perfected, only Reforged, and it has no floor. One attempt per slot per affix (a Reforge makes
+     * a fresh slot). The ceiling it raises is bounded by {@link RankedRules#overreachCeiling}, and the combat channel caps still apply.
+     * The caller supplies the random source; the outcome is the difference between the old and the new value.
+     */
+    public CraftResult overreach(ProfileV1 profile, String slotId, RandomGenerator random) {
+        rules.validate(profile);
+        var old = requireSlot(profile, slotId);
+        if (old.sealed()) throw new CraftException(Reason.SLOT_SEALED, "This slot has already had its attempt");
+        if (old.rank() < RankedAffix.RANKS) throw new CraftException(Reason.NOT_MAX_RANK, "Only a rank V slot can overreach");
+        var band = rules.affix(old.affixId()).band(old.rank());
+        if (old.rolledValue() < band.max()) throw new CraftException(Reason.NOT_AT_BAND_MAX, "The slot must be at its band maximum");
+        int value;
+        if (random.nextInt(100) < OVERREACH_CHANCE_PERCENT) {
+            int percent = random.nextInt(OVERREACH_MIN_PERCENT, OVERREACH_MAX_PERCENT + 1);
+            int bonus = Math.max(1, Math.round(band.max() * percent / 100f));
+            value = Math.min(RankedRules.overreachCeiling(band.max()), band.max() + bonus);
+        } else {
+            int top = band.min() + (band.max() - band.min()) / 2;
+            value = random.nextInt(band.min(), top + 1);
+        }
+        var sealed = new OrdinarySlot(old.slotId(), old.category(), old.rank(), old.affixId(), old.parameters(), value, old.definitionVersion(), 0, true);
+        var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(),
+                profile.spentUpgradeCredits(), replace(profile, sealed), profile.unique());
+        rules.validate(next);
+        return new CraftResult(next, overreachCost(), 0);
     }
 
     /** Adds lifetime attunement (a Pokemon's battle-earned progress toward promotion). Free; the caller guarantees once-per-encounter. */

@@ -160,7 +160,7 @@ class ProgressionStoreTest {
         open().close();
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
              var statement = connection.createStatement()) {
-            statement.executeUpdate("UPDATE meta SET value = '3' WHERE key = 'schema_version'");
+            statement.executeUpdate("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
         }
         assertEquals(Code.STORE_SCHEMA_UNKNOWN, codeOf(() -> ProgressionStore.open(file(), rules, AUTH)));
     }
@@ -316,12 +316,11 @@ class ProgressionStoreTest {
         assertEquals(0, outcome.wallet().balance(MaterialId.RESONANCE_DUST));
     }
 
-    @Test void perfectingDebitsOnlyDustReplaysByOperationAndRefusesBelowRankFive() {
+    @Test void perfectingDebitsOnlyDustStoresTheFloorReplaysByOperationAndRefusesBelowRankFive() {
         var store = open();
         var pokemon = UUID.randomUUID();
         var profile = acquire(store, pokemon, Rarity.RARE, 100);
         store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 500L, MaterialId.FACET, 7L), "test");
-        // not yet rank V
         assertEquals(Reason.NOT_MAX_RANK, reasonOf(() -> store.craft(CraftRequest.perfect(UUID.randomUUID(), player, pokemon, "prefix:0",
                 profile.revision(), CraftRequest.ANY_REVISION))));
         var current = profile;
@@ -333,16 +332,54 @@ class ProgressionStoreTest {
         var op = UUID.randomUUID();
         var request = CraftRequest.perfect(op, player, pokemon, "prefix:0", current.revision(), wallet.revision());
         var outcome = store.craft(request);
-        long price = new RankedProgression(rules).perfectCost(before);
-        assertEquals(before.rolledValue() + 1, outcome.profile().slot("prefix:0").orElseThrow().rolledValue());
+        var progression = new RankedProgression(rules);
+        long price = progression.perfectCost(before);
+        var after = outcome.profile().slot("prefix:0").orElseThrow();
+        assertEquals(progression.effectiveFloor(before) + 1, after.floor());
         assertEquals(500 - price, outcome.wallet().balance(MaterialId.RESONANCE_DUST));
         assertEquals(7, outcome.wallet().balance(MaterialId.FACET), "Perfecting touches nothing but dust");
         var replay = store.craft(request);
         assertTrue(replay.replayed());
         assertEquals(outcome.profile(), replay.profile());
         assertEquals(500 - price, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "A replay does not charge twice");
+        assertEquals(after, store.profile(pokemon).orElseThrow().slot("prefix:0").orElseThrow(), "The floor is what the store holds");
         assertEquals(Code.STALE_PROFILE, codeOf(() -> store.craft(CraftRequest.perfect(UUID.randomUUID(), player, pokemon, "prefix:0",
                 staleRevision, CraftRequest.ANY_REVISION))));
+        var refined = store.craft(CraftRequest.refine(UUID.randomUUID(), player, pokemon, "prefix:0", outcome.profile().revision(), CraftRequest.ANY_REVISION)).profile();
+        assertEquals(after.floor(), refined.slot("prefix:0").orElseThrow().floor());
+        assertTrue(refined.slot("prefix:0").orElseThrow().rolledValue() >= after.floor());
+    }
+
+    @Test void overreachSpendsDustAndFacetsOncePersistsTheOutcomeAndSealsTheSlot() {
+        var store = open();
+        var pokemon = UUID.randomUUID();
+        var profile = acquire(store, pokemon, Rarity.RARE, 100);
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 5000L, MaterialId.FACET, 20L), "test");
+        var progression = new RankedProgression(rules);
+        var current = profile;
+        for (int n = 0; n < 4; n++)
+            current = store.craft(CraftRequest.upgrade(UUID.randomUUID(), player, pokemon, "prefix:0", current.revision(), CraftRequest.ANY_REVISION)).profile();
+        // raise the floor to the top so the value is at the band maximum
+        while (true) {
+            try { current = store.craft(CraftRequest.perfect(UUID.randomUUID(), player, pokemon, "prefix:0", current.revision(), CraftRequest.ANY_REVISION)).profile(); }
+            catch (CraftException done) { break; }
+        }
+        var before = store.wallet(player);
+        var op = UUID.randomUUID();
+        var request = CraftRequest.overreach(op, player, pokemon, "prefix:0", current.revision(), before.revision());
+        var outcome = store.craft(request);
+        var slot = outcome.profile().slot("prefix:0").orElseThrow();
+        assertTrue(slot.sealed());
+        assertEquals(before.balance(MaterialId.RESONANCE_DUST) - 60, outcome.wallet().balance(MaterialId.RESONANCE_DUST));
+        assertEquals(before.balance(MaterialId.FACET) - 2, outcome.wallet().balance(MaterialId.FACET));
+        var replay = store.craft(request);
+        assertTrue(replay.replayed());
+        assertEquals(slot, replay.profile().slot("prefix:0").orElseThrow(), "A replay returns the same outcome");
+        assertEquals(before.balance(MaterialId.FACET) - 2, store.wallet(player).balance(MaterialId.FACET), "A replay does not charge twice");
+        assertEquals(slot, store.profile(pokemon).orElseThrow().slot("prefix:0").orElseThrow(), "The store holds the sealed slot");
+        final var sealedRevision = outcome.profile().revision();
+        assertEquals(Reason.SLOT_SEALED, reasonOf(() -> store.craft(CraftRequest.refine(UUID.randomUUID(), player, pokemon, "prefix:0", sealedRevision, CraftRequest.ANY_REVISION))));
+        assertEquals(Reason.SLOT_SEALED, reasonOf(() -> store.craft(CraftRequest.overreach(UUID.randomUUID(), player, pokemon, "prefix:0", sealedRevision, CraftRequest.ANY_REVISION))));
     }
 
     @Test void promotionAndUniqueInstallationSpendTheirMaterials() {
@@ -772,6 +809,7 @@ class ProgressionStoreTest {
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
              var statement = connection.createStatement()) {
             statement.executeUpdate("DROP TABLE fusions");
+            statement.executeUpdate("DROP TABLE vouchers");
             statement.executeUpdate("UPDATE meta SET value = '1' WHERE key = 'schema_version'");
         }
         var upgraded = open();
@@ -781,9 +819,122 @@ class ProgressionStoreTest {
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
              var rows = connection.createStatement().executeQuery("SELECT value FROM meta WHERE key = 'schema_version'")) {
             assertTrue(rows.next());
-            assertEquals("2", rows.getString(1));
+            assertEquals("3", rows.getString(1));
         }
     }
+
+    @Test void aSchemaTwoStoreGainsTheVouchersTableAndKeepsEverything() throws Exception {
+        var pokemon = UUID.randomUUID();
+        var before = open();
+        acquire(before, pokemon, Rarity.RARE, 20);
+        before.grant(UUID.randomUUID(), player, Map.of(MaterialId.FACET, 3L), "test");
+        before.close();
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("DROP TABLE vouchers");
+            statement.executeUpdate("UPDATE meta SET value = '2' WHERE key = 'schema_version'");
+        }
+        var upgraded = open();
+        assertTrue(upgraded.profile(pokemon).isPresent());
+        assertEquals(3, upgraded.wallet(player).balance(MaterialId.FACET));
+        assertTrue(upgraded.undeliveredVouchers(player).isEmpty());
+        upgraded.close();
+    }
+
+    // --- vouchers: wallet currency as tradable items -------------------------------------------------
+
+    private ProgressionStore fundedStore() {
+        var store = open();
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 500L, MaterialId.FACET, 10L), "test");
+        return store;
+    }
+
+    @Test void aWithdrawalDebitsTheWalletAndOpensABatchInOneTransactionAndReplaysOnce() {
+        var store = fundedStore();
+        var op = UUID.randomUUID();
+        var wallet = store.wallet(player);
+        var minted = store.mintVoucher(op, player, MaterialId.RESONANCE_DUST, 120, wallet.revision());
+        assertEquals(380, minted.wallet().balance(MaterialId.RESONANCE_DUST));
+        var batch = ProgressionStore.voucherBatchId(op);
+        var voucher = store.voucher(batch).orElseThrow();
+        assertEquals(120, voucher.minted());
+        assertEquals(120, voucher.outstanding());
+        assertFalse(voucher.delivered());
+        assertEquals(MaterialId.RESONANCE_DUST, voucher.material());
+        assertEquals(List.of(voucher), store.undeliveredVouchers(player));
+        assertTrue(store.mintVoucher(op, player, MaterialId.RESONANCE_DUST, 120, wallet.revision()).replayed());
+        assertEquals(380, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "A replay does not charge twice");
+        store.markVoucherDelivered(batch);
+        store.markVoucherDelivered(batch);
+        assertTrue(store.undeliveredVouchers(player).isEmpty());
+        assertTrue(store.voucher(batch).orElseThrow().delivered());
+    }
+
+    @Test void aWithdrawalRefusesOverdraftsBadAmountsAndAStaleWalletAndRecordsNothing() {
+        var store = fundedStore();
+        var op = UUID.randomUUID();
+        var revision = store.wallet(player).revision();
+        assertEquals(Reason.INSUFFICIENT_FUNDS, reasonOf(() -> store.mintVoucher(op, player, MaterialId.FACET, 11, revision)));
+        assertFalse(store.hasOperation(op));
+        assertTrue(store.voucher(ProgressionStore.voucherBatchId(op)).isEmpty());
+        assertEquals(Reason.INVALID_AMOUNT, reasonOf(() -> store.mintVoucher(UUID.randomUUID(), player, MaterialId.FACET, 0, revision)));
+        assertEquals(Reason.INVALID_AMOUNT, reasonOf(() -> store.mintVoucher(UUID.randomUUID(), player, MaterialId.FACET, ProgressionStore.MAX_MINT + 1, revision)));
+        assertEquals(Code.STALE_WALLET, codeOf(() -> store.mintVoucher(UUID.randomUUID(), player, MaterialId.FACET, 1, revision + 5)));
+        assertEquals(10, store.wallet(player).balance(MaterialId.FACET));
+    }
+
+    @Test void aRedemptionCreditsOnlyWhatIsOutstandingSoADuplicatedStackCannotInflateTheCurrency() {
+        var store = fundedStore();
+        var mintOp = UUID.randomUUID();
+        store.mintVoucher(mintOp, player, MaterialId.RESONANCE_DUST, 100, CraftRequest.ANY_REVISION);
+        var batch = ProgressionStore.voucherBatchId(mintOp);
+        var thief = UUID.randomUUID();
+        // an honest holder redeems part of the batch (a bearer instrument: it need not be the minter)
+        var first = store.redeemVoucher(UUID.randomUUID(), thief, batch, 60);
+        assertEquals(Map.of(MaterialId.RESONANCE_DUST, 60L), first.cost());
+        assertEquals(60, store.wallet(thief).balance(MaterialId.RESONANCE_DUST));
+        // a duplicated stack of 100 only finds 40 left
+        var dupe = store.redeemVoucher(UUID.randomUUID(), player, batch, 100);
+        assertEquals(Map.of(MaterialId.RESONANCE_DUST, 40L), dupe.cost());
+        assertEquals(0, store.voucher(batch).orElseThrow().outstanding());
+        // everything after that is worth nothing, and says so without an error
+        var worthless = store.redeemVoucher(UUID.randomUUID(), player, batch, 64);
+        assertTrue(worthless.cost().isEmpty());
+        long total = store.wallet(player).balance(MaterialId.RESONANCE_DUST) + store.wallet(thief).balance(MaterialId.RESONANCE_DUST);
+        assertEquals(500, total, "The currency in existence is exactly what it was before the withdrawal");
+    }
+
+    @Test void aRedemptionReplaysByOperationAndAnUnknownBatchIsRefusedWithoutARecord() {
+        var store = fundedStore();
+        var mintOp = UUID.randomUUID();
+        store.mintVoucher(mintOp, player, MaterialId.FACET, 4, CraftRequest.ANY_REVISION);
+        var batch = ProgressionStore.voucherBatchId(mintOp);
+        var op = UUID.randomUUID();
+        var first = store.redeemVoucher(op, player, batch, 4);
+        assertEquals(10, first.wallet().balance(MaterialId.FACET));
+        var replay = store.redeemVoucher(op, player, batch, 4);
+        assertTrue(replay.replayed());
+        assertEquals(Map.of(MaterialId.FACET, 4L), replay.cost(), "A replay reports the same credit");
+        assertEquals(10, store.wallet(player).balance(MaterialId.FACET), "A replay does not credit twice");
+        var forged = UUID.randomUUID();
+        var forgedOp = UUID.randomUUID();
+        assertEquals(Code.UNKNOWN_VOUCHER, codeOf(() -> store.redeemVoucher(forgedOp, player, forged, 64)));
+        assertFalse(store.hasOperation(forgedOp));
+    }
+
+    @Test void vouchersSurviveARestart() {
+        var mintOp = UUID.randomUUID();
+        try (var store = ProgressionStore.open(file(), rules, AUTH)) {
+            store.grant(UUID.randomUUID(), player, Map.of(MaterialId.UNIQUE_FRAGMENT, 9L), "test");
+            store.mintVoucher(mintOp, player, MaterialId.UNIQUE_FRAGMENT, 9, CraftRequest.ANY_REVISION);
+        }
+        try (var store = ProgressionStore.open(file(), rules, AUTH)) {
+            var voucher = store.voucher(ProgressionStore.voucherBatchId(mintOp)).orElseThrow();
+            assertEquals(9, voucher.outstanding());
+            assertEquals(1, store.undeliveredVouchers(player).size());
+        }
+    }
+
     // --- Ascension Sigil ---------------------------------------------------------------------------
 
     @Test void aSigilIsSpentAndTheProfileCreatedInOneTransaction() {

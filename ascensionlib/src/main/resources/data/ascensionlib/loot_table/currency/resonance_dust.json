@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:glowstone_dust",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "resonance_dust"
+                  }
+                },
+                "minecraft:custom_model_data": 8101,
+                "minecraft:custom_name": "{\"text\":\"Resonance Dust\",\"color\":\"#d9a441\",\"italic\":false}",
+                "minecraft:lore": [
+                  "{\"text\":\"Raw resonance, spent on upgrades,\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"refining and perfecting.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:echo_shard",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "unique_fragment"
+                  }
+                },
+                "minecraft:custom_model_data": 8104,
+                "minecraft:custom_name": "{\"text\":\"Unique Fragment\",\"color\":\"#8c63c7\",\"italic\":false}",
+                "minecraft:lore": [
+                  "{\"text\":\"Collect enough to assemble\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"a Unique Catalyst.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -49,6 +49,8 @@ public final class ProfileV1Codec {
             object.add("parameters", parameters);
             object.addProperty("rolledValue", slot.rolledValue());
             object.addProperty("definitionVersion", slot.definitionVersion());
+            if (slot.floor() > 0) object.addProperty("floor", slot.floor());
+            if (slot.sealed()) object.addProperty("sealed", 1);
             slots.add(object);
         }
         root.add("ordinarySlots", slots);
@@ -82,14 +84,15 @@ public final class ProfileV1Codec {
         for (var element : Json.array(root.get("ordinarySlots"))) {
             var object = Json.object(element);
             Json.keys(object, Set.of("slotId", "category", "rank", "affixId", "parameters", "rolledValue",
-                    "definitionVersion"), Set.of());
+                    "definitionVersion"), Set.of("floor", "sealed"));
             var parameters = new TreeMap<String, String>();
             Json.object(object.get("parameters")).entrySet()
                     .forEach(e -> parameters.put(e.getKey(), Json.string(e.getValue())));
             slots.add(new OrdinarySlot(Json.string(object.get("slotId")),
                     Category.fromId(Json.string(object.get("category"))), Json.integer(object.get("rank")),
                     Json.string(object.get("affixId")), parameters, Json.integer(object.get("rolledValue")),
-                    Json.integer(object.get("definitionVersion"))));
+                    Json.integer(object.get("definitionVersion")), object.has("floor") ? Json.integer(object.get("floor")) : 0,
+                    object.has("sealed") && Json.integer(object.get("sealed")) == 1));
         }
         UniqueInstance unique = null;
         if (root.has("unique")) {

@@ -14,8 +14,11 @@ reaches CobbleRaids). Call them on the server thread.
    so tier 4 and above are equally generous in rarity, and each Pokemon's rating is fixed (HMAC of its ID, the tier and the server secret).
 2. **Run rewards.** One call pays a finished run from the library's own bands: dust for depth and arena wins, Facets, Unique Fragments from a boss,
    +3 attunement for each paid player's party, and a chance at an Ascension Sigil. Exactly once per (run, player): retrying is the intended recovery.
-3. **Not provided yet:** scouting a roaming wild Pokemon (the Scouter works on declared encounters only), per-district tiers inside one run, and
-   dungeon-specific affixes. The dungeon's raid bosses are declared the way CobbleRaids does it (`AscensionEncounters`, see its Javadoc).
+3. **Scouting a roaming wild Pokemon (built 2026-10-16, no dungeon work needed).** A player runs `/ascend scout look` while looking at a wild Pokemon
+   (within 32 blocks) in an open zone: one Scouter is spent and the inspect page shows its rarity and modifiers at the zone's tier, the rating it will have in a
+   battle and when caught. Outside a zone it says there is nothing to scout. Each player remembers the last six they scouted. It assumes a wild Pokemon keeps its
+   UUID through capture, which is still to be confirmed in a live world.
+4. **Not provided yet:** per-district tiers inside one run, and dungeon-specific affixes. The dungeon's raid bosses are declared the way CobbleRaids does it (`AscensionEncounters`, see its Javadoc).
 
 ## `com.ascensionlib.AscensionZones`
 

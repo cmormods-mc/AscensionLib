@@ -54,7 +54,11 @@ final class AscendWiring {
     void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(started -> server = started);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> enqueueSweep(handler.getPlayer())));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> {
+            enqueueSweep(handler.getPlayer());
+            safely("voucher delivery", () -> com.ascensionlib.wallet.WalletItems.deliverPending(handler.getPlayer()));
+        }));
+        ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.wallet.WalletItems::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
             // Only a capture inside a profile zone rolls a profile; the ball is thrown from the dimension the wild Pokemon is in.
@@ -171,7 +175,20 @@ final class AscendWiring {
                         .executes(ctx -> inspect(ctx.getSource(), 1))
                         .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
                                 .executes(ctx -> inspect(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
-                .then(Commands.literal("wallet").executes(ctx -> wallet(ctx.getSource())))
+                .then(Commands.literal("wallet").executes(ctx -> wallet(ctx.getSource()))
+                        .then(Commands.literal("gui").executes(ctx -> walletGui(ctx.getSource())))
+                        // /ascend wallet withdraw <material> <amount>: turn wallet balance into tradable voucher items.
+                        .then(Commands.literal("withdraw")
+                                .then(Commands.argument("material", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1, (int) com.cobbleascend.store.ProgressionStore.MAX_MINT))
+                                                .executes(ctx -> walletWithdraw(ctx.getSource(), StringArgumentType.getString(ctx, "material"),
+                                                        IntegerArgumentType.getInteger(ctx, "amount"))))))
+                        // /ascend wallet deposit [material]: redeem the voucher items you carry.
+                        .then(Commands.literal("deposit").executes(ctx -> walletDeposit(ctx.getSource(), null))
+                                .then(Commands.argument("material", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
+                                        .executes(ctx -> walletDeposit(ctx.getSource(), StringArgumentType.getString(ctx, "material"))))))
                 // /ascend craft [slot]: open the upgrade / refine / reforge screen for a party Pokemon (slot 1 by default).
                 .then(Commands.literal("craft")
                         .executes(ctx -> craft(ctx.getSource(), 1))
@@ -188,6 +205,7 @@ final class AscendWiring {
                                 .executes(ctx -> sigil(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
                 .then(Commands.literal("scout")
                         .executes(ctx -> scoutList(ctx.getSource()))
+                        .then(Commands.literal("look").executes(ctx -> scoutLook(ctx.getSource())))
                         .then(Commands.literal("use")
                                 .then(Commands.argument("enemy", IntegerArgumentType.integer(1, 16))
                                         .executes(ctx -> scoutUse(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "enemy"))))))
@@ -317,6 +335,41 @@ final class AscendWiring {
         }
     }
 
+    private int walletGui(CommandSourceStack source) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var player = source.getPlayerOrException();
+        if (!com.ascensionlib.wallet.WalletWeb.open(player)) return 0;
+        return 1;
+    }
+
+    private int walletWithdraw(CommandSourceStack source, String materialId, int amount) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        MaterialId material;
+        try { material = MaterialId.fromId(materialId); } catch (IllegalArgumentException unknown) {
+            source.sendFailure(Component.literal("Unknown material. Try " + Stream.of(MaterialId.values()).map(MaterialId::id).toList()));
+            return 0;
+        }
+        var result = com.ascensionlib.wallet.WalletItems.withdraw(source.getPlayerOrException(), material, amount);
+        if (result.ok()) source.sendSuccess(() -> Component.literal("[Wallet] " + result.message()), false);
+        else source.sendFailure(Component.literal("[Wallet] " + result.message()));
+        return result.ok() ? 1 : 0;
+    }
+
+    private int walletDeposit(CommandSourceStack source, String materialId) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        java.util.Optional<MaterialId> only = java.util.Optional.empty();
+        if (materialId != null) {
+            try { only = java.util.Optional.of(MaterialId.fromId(materialId)); } catch (IllegalArgumentException unknown) {
+                source.sendFailure(Component.literal("Unknown material."));
+                return 0;
+            }
+        }
+        var result = com.ascensionlib.wallet.WalletItems.deposit(source.getPlayerOrException(), only);
+        if (result.ok()) source.sendSuccess(() -> Component.literal("[Wallet] " + result.message()), false);
+        else source.sendFailure(Component.literal("[Wallet] " + result.message()));
+        return result.ok() ? 1 : 0;
+    }
+
     private int wallet(CommandSourceStack source) throws CommandSyntaxException {
         if (!ready(source)) return 0;
         var service = service();
@@ -348,6 +401,42 @@ final class AscendWiring {
                         .append(slot.name()).append(" rank ").append(slot.rank()).append(" (").append(slot.value()).append(")"));
             }, () -> text.append(" ?"));
             source.sendSuccess(() -> Component.literal(text.toString()), false);
+        }
+        return 1;
+    }
+
+    /**
+     * Scouts the wild Pokemon the player is looking at (inside a profile zone): spends one Scouter and shows its rating, the one it will
+     * have in a battle and when caught. Opens the inspect page for a client with WebGUI, else prints the lines.
+     */
+    private int scoutLook(CommandSourceStack source) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var player = source.getPlayerOrException();
+        var target = com.ascensionlib.scout.WildTargeting.lookedAt(player);
+        if (target == null) {
+            source.sendFailure(Component.literal("[Scout] No Pokémon in view within " + (int) com.ascensionlib.scout.WildTargeting.RANGE + " blocks."));
+            return 0;
+        }
+        var declared = com.ascensionlib.scout.ScoutEncounters.declareWild(player, target);
+        if (!declared.ok()) {
+            source.sendFailure(Component.literal("[Scout] " + declared.message()));
+            return 0;
+        }
+        var message = com.ascensionlib.scout.ScoutEncounters.use(player.getUUID(), declared.encounterId(), declared.subjectId());
+        source.sendSuccess(() -> Component.literal("[Scout] " + message), false);
+        if (com.ascensionlib.web.WebUi.canShow(player)) {
+            com.ascensionlib.scout.InspectWeb.open(player, com.ascensionlib.scout.InspectWeb.Kind.WILD, "");
+        } else {
+            var state = com.ascensionlib.scout.ScoutEncounters.wildStateFor(player.getUUID());
+            for (var entry : state.entries()) {
+                if (!entry.subjectId().equals(declared.subjectId())) continue;
+                entry.detail().ifPresent(detail -> {
+                    var text = new StringBuilder(entry.name() + " Lv." + detail.level() + " " + detail.rarityId() + (detail.resonance().isEmpty() ? "" : " " + detail.resonance()));
+                    detail.slots().forEach(slot -> text.append("\n   ").append(slot.category()).append(": ").append(slot.name())
+                            .append(" rank ").append(slot.rank()).append(" (").append(slot.value()).append("%)"));
+                    source.sendSuccess(() -> Component.literal(text.toString()), false);
+                });
+            }
         }
         return 1;
     }
@@ -486,7 +575,7 @@ final class AscendWiring {
         }
         var pokemon = best.getPokemon();
         try {
-            var rating = service.previewWild(pokemon);
+            var rating = service.previewWild(pokemon, Math.max(1, ProfileZones.tierOf(best.level().dimension().location())));
             var text = new StringBuilder(pokemon.getSpecies().getName() + " Lv" + pokemon.getLevel() + " · " + pokemon.getUuid()
                     + " · would be " + rating.rarity().id() + ", " + rating.upgradesOnCapture() + " upgrade(s) on capture:");
             for (var slotData : rating.slots()) {

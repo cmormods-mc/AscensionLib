@@ -19,7 +19,9 @@ public final class StoreException extends RuntimeException {
         STALE_PROFILE,
         STALE_WALLET,
         /** An operation ID was reused with different parameters. */
-        OPERATION_REUSED
+        OPERATION_REUSED,
+        /** A voucher batch the store never minted (a forged or foreign item). */
+        UNKNOWN_VOUCHER
     }
 
     private final Code code;

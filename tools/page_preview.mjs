@@ -17,9 +17,9 @@ const MOCK = `<script>
   var PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFUlEQVR42mP8z8Dwn4EIwDiqkL4KAfE8Bv9hHFSfAAAAAElFTkSuQmCC';
   var price = { dust: 20, facets: 2, cores: 0 };
   var slots = [
-    { slotId: 'p1', category: 'prefix', name: 'Burn Boost', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0 },
-    { slotId: 'p2', category: 'prefix', name: 'Fury', condition: '', rank: 1, value: 8, bandMin: 6, bandMax: 9, nextMin: 10, nextMax: 13, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0 },
-    { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: '', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40 } ];
+    { slotId: 'p1', category: 'prefix', name: 'Burn Boost', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
+    { slotId: 'p2', category: 'prefix', name: 'Fury', condition: '', rank: 1, value: 8, bandMin: 6, bandMax: 9, nextMin: 10, nextMax: 13, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
+    { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: '', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40, floor: 29 } ];
   var view = { pokemonId: 'mew2', name: 'Mewtwo', speciesId: 'cobblemon:mewtwo', aspects: [], level: 52, rarityId: 'mythical', uniqueName: '777', pending: 2, nextMilestone: 60,
     profileRevision: 7, walletRevision: 8, dust: 1234, facets: 40, cores: 3, scouters: 5, refine: price, reforge: price,
     promotion: { toRarity: '', price: price, attunement: 90, attunementNeeded: 0, block: 'Already Mythical' },
@@ -63,6 +63,12 @@ const MOCK = `<script>
           break;
         case 'ascension_inspect_use': scouted[m.subjectId] = true; emit('inspectScout', scoutState()); emit('hudScout', scoutState()); break;
         case 'ascension_inspect_open': location.href = 'inspect.html' + (m.kind === 'enemy' ? '?enemy' : ''); break;
+        case 'ascension_wallet_ready': case 'ascension_wallet_deposit': case 'ascension_wallet_withdraw':
+          if (m.channel !== 'ascension_wallet_ready') emit('walletResult', { ok: true, message: m.channel === 'ascension_wallet_withdraw' ? 'Withdrew ' + m.amount + ' as voucher items.' : 'Deposited 64 Facet.' });
+          emit('walletView', { freeSlots: 11, lines: [['resonance_dust', 'Resonance Dust', '#d9a441', 1234, 0], ['facet', 'Facet', '#4f9ad9', 40, 64], ['ascension_core', 'Ascension Core', '#c9694f', 3, 0],
+            ['unique_fragment', 'Unique Fragment', '#8c63c7', 7, 0], ['unique_catalyst', 'Unique Catalyst', '#b04fa0', 1, 0], ['scouter', 'Scouter', '#6f9a52', 5, 0], ['ascension_sigil', 'Ascension Sigil', '#ffd437', 0, 0]]
+            .map(function (a) { return { id: a[0], name: a[1], color: a[2], amount: a[3], carried: a[4] }; }) }); break;
+        case 'ascension_wallet_open': location.href = 'wallet.html'; break;
         case 'ascension_hud_ready':
           emit('sprites', { arcanine: PNG });
           emit('hudReveal', { pokemonId: 'a1', name: 'Arcanine', speciesId: 'cobblemon:arcanine', aspects: [], detail: detail('epic') });
@@ -88,6 +94,7 @@ const INDEX = `<!doctype html><meta charset="utf-8"><title>AscensionLib page pre
 <ul><li><a href="craft.html">craft.html</a> (upgrade, refine, reforge, promote, unique)</li>
 <li><a href="fusion.html">fusion.html</a> (two chambers and picker)</li>
 <li><a href="inspect.html">inspect.html</a> (own Pokémon) · <a href="inspect.html?enemy">enemy scouting</a></li>
+<li><a href="wallet.html">wallet.html</a> (balances as item icons, withdraw and deposit)</li>
 <li><a href="hud.html">hud.html</a> (overlay: capture card and scouting panel; the page is transparent, so it sits on a game-like backdrop here)</li></ul></body>`;
 
 http.createServer((req, res) => {

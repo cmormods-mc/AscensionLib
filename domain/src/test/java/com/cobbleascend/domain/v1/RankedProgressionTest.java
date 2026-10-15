@@ -386,7 +386,7 @@ class RankedProgressionTest {
         }
     }
 
-    // --- Perfecting ------------------------------------------------------------------------------------
+    // --- Perfecting (a raised floor) ------------------------------------------------------------------
 
     /** A Rare at level 100 whose first prefix slot has been taken to rank V. */
     private ProfileV1 withRankFiveSlot(Random random) {
@@ -396,19 +396,28 @@ class RankedProgressionTest {
         return profile;
     }
 
+    /** The same slot after every Perfecting step it can take. */
+    private ProfileV1 fullyPerfected(Random random) {
+        var profile = withRankFiveSlot(random);
+        while (true) {
+            try { profile = progression.perfect(profile, "prefix:0").profile(); } catch (CraftException done) { return profile; }
+        }
+    }
+
     @Test void perfectingNeedsARankFiveSlot() {
         var profile = create(Rarity.RARE, 100, new Random(1));
         assertEquals(Reason.NOT_MAX_RANK, reasonOf(() -> progression.perfect(profile, "prefix:0")));
         assertEquals(Reason.UNKNOWN_SLOT, reasonOf(() -> progression.perfect(profile, "prefix:9")));
     }
 
-    @Test void perfectingRaisesOnePointAtATimeToTheBandMaximumAndPricesRiseWithEachStep() {
+    @Test void perfectingRaisesTheFloorOnePointAtATimeLiftsTheValueToItAndPricesRiseWithEachStep() {
         var profile = withRankFiveSlot(new Random(7));
         var slot = profile.slot("prefix:0").orElseThrow();
         var band = rules.affix(slot.affixId()).band(5);
-        long spent = 0;
-        int steps = slot.rolledValue() - band.min();
-        while (slot.rolledValue() < band.max()) {
+        assertEquals(0, slot.floor(), "No floor until the first step");
+        assertEquals(band.min(), progression.effectiveFloor(slot));
+        int steps = 0;
+        while (progression.effectiveFloor(slot) < band.max()) {
             long expected = RankedProgression.PERFECT_BASE_DUST + (long) RankedProgression.PERFECT_STEP_DUST * steps;
             assertEquals(expected, progression.perfectCost(slot));
             var result = progression.perfect(profile, "prefix:0");
@@ -416,35 +425,181 @@ class RankedProgressionTest {
             assertEquals(0, result.creditsSpent());
             assertEquals(profile.revision() + 1, result.profile().revision());
             var next = result.profile().slot("prefix:0").orElseThrow();
-            assertEquals(slot.rolledValue() + 1, next.rolledValue());
+            assertEquals(band.min() + steps + 1, next.floor(), "The floor rises by exactly one");
+            assertEquals(Math.max(slot.rolledValue(), next.floor()), next.rolledValue(), "The value lifts to the floor and never drops");
             assertEquals(slot.affixId(), next.affixId());
             assertEquals(5, next.rank());
-            assertTrue(band.contains(next.rolledValue()), "Never leaves the rank's band");
+            assertTrue(band.contains(next.rolledValue()) && band.contains(next.floor()), "Never leaves the band");
             for (var other : profile.ordinarySlots())
                 if (!other.slotId().equals("prefix:0")) assertEquals(other, result.profile().slot(other.slotId()).orElseThrow());
-            spent += expected;
             profile = result.profile();
             slot = next;
             steps++;
         }
-        assertTrue(spent > 0);
-        assertEquals(Reason.AT_BAND_MAX, reasonOf(() -> progression.perfect(withTop(progression), "prefix:0")));
+        assertEquals(band.max() - band.min(), steps, "A slot has exactly band width steps");
+        assertEquals(band.max(), slot.rolledValue(), "Fully raised, the slot always holds its band maximum");
+        assertEquals(Reason.AT_BAND_MAX, reasonOf(() -> progression.perfect(fullyPerfected(new Random(7)), "prefix:0")));
     }
 
-    /** A profile whose prefix:0 already sits at its band maximum. */
-    private ProfileV1 withTop(RankedProgression progression) {
-        var profile = withRankFiveSlot(new Random(3));
-        while (true) {
-            try { profile = progression.perfect(profile, "prefix:0").profile(); } catch (CraftException done) { return profile; }
+    @Test void aValueAboveTheNewFloorStaysWhereItIs() {
+        for (int seed = 0; seed < 200; seed++) {
+            var profile = withRankFiveSlot(new Random(seed));
+            var slot = profile.slot("prefix:0").orElseThrow();
+            var band = rules.affix(slot.affixId()).band(5);
+            if (slot.rolledValue() <= band.min() + 1) continue;
+            var next = progression.perfect(profile, "prefix:0").profile().slot("prefix:0").orElseThrow();
+            assertEquals(slot.rolledValue(), next.rolledValue());
+            assertEquals(band.min() + 1, next.floor());
+            return;
         }
+        fail("No seed rolled above the band minimum");
     }
 
-    @Test void aRefineAfterPerfectingCanRerollTheValueAnywhereInTheBand() {
-        var profile = withTop(progression);
-        var band = rules.affix(profile.slot("prefix:0").orElseThrow().affixId()).band(5);
-        var seen = new HashSet<Integer>();
+    @Test void aRefineNeverRollsBelowTheFloorAndEverythingAboveIsStillPossible() {
+        var profile = withRankFiveSlot(new Random(5));
+        for (int n = 0; n < 4; n++) profile = progression.perfect(profile, "prefix:0").profile();
+        var slot = profile.slot("prefix:0").orElseThrow();
+        var band = rules.affix(slot.affixId()).band(5);
+        assertTrue(slot.floor() > band.min());
+        var seen = new TreeSet<Integer>();
         var random = new Random(11);
-        for (int n = 0; n < 200; n++) seen.add(progression.refine(profile, "prefix:0", random).profile().slot("prefix:0").orElseThrow().rolledValue());
-        assertTrue(seen.stream().anyMatch(v -> v < band.max()), "Refine can undo a perfected value: that is the price of rerolling");
+        for (int n = 0; n < 400; n++) {
+            var refined = progression.refine(profile, "prefix:0", random).profile().slot("prefix:0").orElseThrow();
+            assertEquals(slot.floor(), refined.floor(), "A refine keeps the floor");
+            assertTrue(refined.rolledValue() >= slot.floor(), "Never below the floor");
+            seen.add(refined.rolledValue());
+        }
+        assertEquals(slot.floor(), seen.first());
+        assertEquals(band.max(), seen.last());
+    }
+
+    @Test void aReforgeClearsTheFloorAndAnUnperfectedSlotRefinesAsBefore() {
+        var profile = withRankFiveSlot(new Random(3));
+        profile = progression.perfect(profile, "prefix:0").profile();
+        assertTrue(profile.slot("prefix:0").orElseThrow().floor() > 0);
+        var reforged = progression.reforge(profile, "prefix:0", types, new Random(2)).profile().slot("prefix:0").orElseThrow();
+        assertEquals(0, reforged.floor());
+        var plain = withRankFiveSlot(new Random(4));
+        var band = rules.affix(plain.slot("prefix:0").orElseThrow().affixId()).band(5);
+        var seen = new HashSet<Integer>();
+        for (int n = 0; n < 300; n++) seen.add(progression.refine(plain, "prefix:0", new Random(n)).profile().slot("prefix:0").orElseThrow().rolledValue());
+        assertTrue(seen.contains(band.min()) && seen.contains(band.max()));
+    }
+
+    @Test void theFloorSurvivesTheCodecAndAProfileWithoutOneEncodesExactlyAsBefore() {
+        var codec = new ProfileV1Codec(rules);
+        var plain = withRankFiveSlot(new Random(8));
+        assertFalse(codec.encode(plain).contains("floor"), "No floor key unless one is set");
+        var perfected = progression.perfect(plain, "prefix:0").profile();
+        var encoded = codec.encode(perfected);
+        assertTrue(encoded.contains("\"floor\""));
+        assertEquals(perfected, codec.decode(encoded, perfected.pokemonId()));
+        assertEquals(plain, codec.decode(codec.encode(plain), plain.pokemonId()));
+    }
+
+    @Test void aFloorBelowRankFiveOrAboveTheValueOrOutsideTheBandIsRefused() {
+        var profile = withRankFiveSlot(new Random(6));
+        var slot = profile.slot("prefix:0").orElseThrow();
+        assertThrows(IllegalArgumentException.class, () -> new OrdinarySlot("prefix:1", Category.PREFIX, 3, "executioner", Map.of(), 5, 1, 3));
+        assertThrows(IllegalArgumentException.class, () -> new OrdinarySlot(slot.slotId(), slot.category(), 5, slot.affixId(), slot.parameters(),
+                slot.rolledValue(), slot.definitionVersion(), slot.rolledValue() + 1));
+        var band = rules.affix(slot.affixId()).band(5);
+        var outside = new OrdinarySlot(slot.slotId(), slot.category(), 5, slot.affixId(), slot.parameters(), slot.rolledValue(),
+                slot.definitionVersion(), Math.max(1, band.min() - 1));
+        var broken = new ArrayList<>(profile.ordinarySlots());
+        broken.set(broken.indexOf(slot), outside);
+        var bad = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(), profile.spentUpgradeCredits(), broken, profile.unique());
+        assertThrows(IllegalArgumentException.class, () -> rules.validate(bad));
+    }
+
+    // --- Overreach ------------------------------------------------------------------------------------
+
+    /** A rank V prefix:0 whose value sits at its band maximum. */
+    private ProfileV1 atBandMax(Random random) { return fullyPerfected(random); }
+
+    @Test void overreachNeedsARankFiveSlotAtItsBandMaximumAndOnlyOneAttempt() {
+        var low = create(Rarity.RARE, 100, new Random(1));
+        assertEquals(Reason.NOT_MAX_RANK, reasonOf(() -> progression.overreach(low, "prefix:0", new Random(1))));
+        var five = withRankFiveSlot(new Random(2));
+        var slot = five.slot("prefix:0").orElseThrow();
+        var band = rules.affix(slot.affixId()).band(5);
+        if (slot.rolledValue() < band.max())
+            assertEquals(Reason.NOT_AT_BAND_MAX, reasonOf(() -> progression.overreach(five, "prefix:0", new Random(1))));
+        var top = atBandMax(new Random(2));
+        var result = progression.overreach(top, "prefix:0", new Random(9)).profile();
+        assertTrue(result.slot("prefix:0").orElseThrow().sealed());
+        assertEquals(Reason.SLOT_SEALED, reasonOf(() -> progression.overreach(result, "prefix:0", new Random(9))), "One attempt only");
+    }
+
+    @Test void anAttemptCostsDustAndFacetsAndNeverCoresAndWinsOrLosesWithinItsBounds() {
+        var top = atBandMax(new Random(4));
+        var band = rules.affix(top.slot("prefix:0").orElseThrow().affixId()).band(5);
+        int wins = 0, losses = 0;
+        for (int seed = 0; seed < 4000; seed++) {
+            var result = progression.overreach(top, "prefix:0", new Random(seed));
+            assertEquals(Map.of(MaterialId.RESONANCE_DUST, 60L, MaterialId.FACET, 2L), result.cost());
+            var slot = result.profile().slot("prefix:0").orElseThrow();
+            assertTrue(slot.sealed());
+            assertEquals(0, slot.floor(), "A sealed slot has no floor");
+            assertEquals(5, slot.rank());
+            if (slot.rolledValue() > band.max()) {
+                wins++;
+                int lo = band.max() + Math.max(1, Math.round(band.max() * 10 / 100f));
+                int hi = Math.min(RankedRules.overreachCeiling(band.max()), band.max() + Math.max(1, Math.round(band.max() * 25 / 100f)));
+                assertTrue(slot.rolledValue() >= lo && slot.rolledValue() <= hi, "A win lands in 10-25 percent above the maximum: " + slot.rolledValue());
+            } else {
+                losses++;
+                assertTrue(slot.rolledValue() >= band.min() && slot.rolledValue() <= band.min() + (band.max() - band.min()) / 2,
+                        "A loss lands in the lower half of the band: " + slot.rolledValue());
+            }
+        }
+        assertEquals(0.45, wins / 4000.0, 0.03, "About 45 percent win");
+        assertTrue(losses > 0);
+    }
+
+    @Test void aLossIgnoresAFloorAndASealBlocksRefineAndPerfectingButNotAReforge() {
+        // a Perfected slot (floor at the top) still falls on a loss
+        var top = atBandMax(new Random(5));
+        int seed = 0;
+        ProfileV1 lost = null, won = null;
+        while (lost == null || won == null) {
+            var r = progression.overreach(top, "prefix:0", new Random(seed++)).profile();
+            if (r.slot("prefix:0").orElseThrow().rolledValue() > rules.affix(r.slot("prefix:0").orElseThrow().affixId()).band(5).max()) won = r; else lost = r;
+        }
+        for (var sealed : List.of(lost, won)) {
+            assertEquals(Reason.SLOT_SEALED, reasonOf(() -> progression.refine(sealed, "prefix:0", new Random(1))));
+            assertEquals(Reason.SLOT_SEALED, reasonOf(() -> progression.perfect(sealed, "prefix:0")));
+            var reforged = progression.reforge(sealed, "prefix:0", types, new Random(3)).profile().slot("prefix:0").orElseThrow();
+            assertFalse(reforged.sealed(), "A reforge makes a fresh slot");
+            assertEquals(0, reforged.floor());
+        }
+        var lostSlot = lost.slot("prefix:0").orElseThrow();
+        assertTrue(lostSlot.rolledValue() < rules.affix(lostSlot.affixId()).band(5).max(), "A loss really lowers the roll");
+    }
+
+    @Test void onlyASealedSlotMayExceedItsBandAndNeverBeyondTheCeilingAndTheSealSurvivesTheCodec() {
+        var top = atBandMax(new Random(6));
+        var slot = top.slot("prefix:0").orElseThrow();
+        var band = rules.affix(slot.affixId()).band(5);
+        var unsealedOver = new OrdinarySlot(slot.slotId(), slot.category(), 5, slot.affixId(), slot.parameters(), band.max() + 1, slot.definitionVersion(), 0, false);
+        var list = new ArrayList<>(top.ordinarySlots());
+        list.set(list.indexOf(slot), unsealedOver);
+        var bad = top.advance(top.rarity(), top.highestLevelObserved(), top.awardedMilestones(), top.spentUpgradeCredits(), list, top.unique());
+        assertThrows(IllegalArgumentException.class, () -> rules.validate(bad), "An unsealed slot cannot exceed its band");
+        var tooHigh = new OrdinarySlot(slot.slotId(), slot.category(), 5, slot.affixId(), slot.parameters(),
+                Math.min(100, RankedRules.overreachCeiling(band.max()) + 1), slot.definitionVersion(), 0, true);
+        if (tooHigh.rolledValue() > RankedRules.overreachCeiling(band.max())) {
+            list.set(list.indexOf(unsealedOver), tooHigh);
+            var worse = top.advance(top.rarity(), top.highestLevelObserved(), top.awardedMilestones(), top.spentUpgradeCredits(), list, top.unique());
+            assertThrows(IllegalArgumentException.class, () -> rules.validate(worse));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new OrdinarySlot("prefix:1", Category.PREFIX, 3, "executioner", Map.of(), 5, 1, 0, true), "Only rank V can be sealed");
+        assertThrows(IllegalArgumentException.class, () -> new OrdinarySlot(slot.slotId(), slot.category(), 5, slot.affixId(), slot.parameters(), 20, 1, 3, true), "A sealed slot has no floor");
+        var codec = new ProfileV1Codec(rules);
+        var attempted = progression.overreach(top, "prefix:0", new Random(1)).profile();
+        var encoded = codec.encode(attempted);
+        assertTrue(encoded.contains("\"sealed\":1"));
+        assertEquals(attempted, codec.decode(encoded, attempted.pokemonId()));
+        assertFalse(codec.encode(top).contains("sealed"), "Unsealed profiles encode exactly as before");
     }
 }

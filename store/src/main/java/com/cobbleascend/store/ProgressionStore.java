@@ -28,7 +28,9 @@ import java.util.random.RandomGenerator;
  * <p>All access is serialized through this instance. Use one instance per world.
  */
 public final class ProgressionStore implements AutoCloseable {
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
+    /** The most one withdrawal may mint: 36 stacks of 64. */
+    public static final long MAX_MINT = 2304;
 
     public enum OpenMode { CREATE_IF_ABSENT, REQUIRE_EXISTING }
 
@@ -158,9 +160,10 @@ public final class ProgressionStore implements AutoCloseable {
                 putMeta("authority_id", authorityId.toString());
                 putMeta("catalog_version", Integer.toString(rules.catalogVersion()));
             } else {
-                if (version.equals("1")) {
-                    // Schema 2 only adds the fusions table: existing rows are untouched.
+                if (version.equals("1") || version.equals("2")) {
+                    // Schema 2 added the fusions table and schema 3 the vouchers table: existing rows are untouched.
                     createFusionsTable();
+                    createVouchersTable();
                     try (var update = db.prepareStatement("UPDATE meta SET value = ? WHERE key = 'schema_version'")) {
                         update.setString(1, Integer.toString(SCHEMA_VERSION));
                         update.executeUpdate();
@@ -200,8 +203,24 @@ public final class ProgressionStore implements AutoCloseable {
         }
     }
 
+    private void createVouchersTable() throws SQLException {
+        try (var statement = db.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS vouchers(
+                        batch_id TEXT PRIMARY KEY,
+                        player_id TEXT NOT NULL,
+                        material_id TEXT NOT NULL,
+                        minted INTEGER NOT NULL CHECK(minted >= 1),
+                        outstanding INTEGER NOT NULL CHECK(outstanding >= 0),
+                        delivered INTEGER NOT NULL DEFAULT 0,
+                        created_at INTEGER NOT NULL) STRICT""");
+            statement.execute("CREATE INDEX IF NOT EXISTS vouchers_undelivered ON vouchers(player_id, delivered)");
+        }
+    }
+
     private void createSchema() throws SQLException {
         createFusionsTable();
+        createVouchersTable();
         try (var statement = db.createStatement()) {
             statement.execute("""
                     CREATE TABLE profiles(
@@ -455,6 +474,113 @@ public final class ProgressionStore implements AutoCloseable {
         });
     }
 
+    // ---- vouchers: wallet currency as tradable items -------------------------------------------------------
+
+    /** The batch id a mint with this operation ID gets, so the caller (and a replay) knows it without asking the store. */
+    public static UUID voucherBatchId(UUID operationId) {
+        return UUID.nameUUIDFromBytes(("voucher|" + operationId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Withdraws {@code amount} of a material from the wallet into a new voucher batch, in one transaction: the debit and the batch row commit
+     * together. The batch is not yet {@code delivered}; the caller hands the items over and then calls {@link #markVoucherDelivered}.
+     * Idempotent per operation ID. At most {@link #MAX_MINT} units.
+     */
+    public synchronized Outcome mintVoucher(UUID operationId, UUID playerId, MaterialId material, long amount, long expectedWalletRevision) {
+        if (amount < 1 || amount > MAX_MINT) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "A withdrawal is 1 to " + MAX_MINT);
+        return run(operationId, "MINT|" + playerId + "|" + material.id() + "|" + amount + "|" + expectedWalletRevision, () -> {
+            var before = loadWallet(playerId);
+            if (expectedWalletRevision != CraftRequest.ANY_REVISION && before.revision() != expectedWalletRevision)
+                throw new StoreException(Code.STALE_WALLET, "Wallet changed since it was shown");
+            var after = before.debit(Map.of(material, amount));
+            options.faults().at(Faults.Point.AFTER_VALIDATION);
+            saveWallet(playerId, before, after);
+            try (var statement = db.prepareStatement(
+                    "INSERT INTO vouchers(batch_id, player_id, material_id, minted, outstanding, delivered, created_at) VALUES(?, ?, ?, ?, ?, 0, ?)")) {
+                statement.setString(1, voucherBatchId(operationId).toString());
+                statement.setString(2, playerId.toString());
+                statement.setString(3, material.id());
+                statement.setLong(4, amount);
+                statement.setLong(5, amount);
+                statement.setLong(6, options.clock().millis());
+                statement.executeUpdate();
+            }
+            return new Fresh(Kind.MINT_VOUCHER, playerId, null, null, after, Map.of(material, amount), 0);
+        });
+    }
+
+    /** Records that the items of a batch reached the player. Safe to repeat. */
+    public synchronized void markVoucherDelivered(UUID batchId) {
+        transaction(() -> {
+            try (var statement = db.prepareStatement("UPDATE vouchers SET delivered = 1 WHERE batch_id = ?")) {
+                statement.setString(1, batchId.toString());
+                statement.executeUpdate();
+            }
+            return null;
+        });
+    }
+
+    /** Batches minted for this player whose items were never confirmed delivered (a crash or a full inventory): hand them over again. */
+    public synchronized List<Voucher> undeliveredVouchers(UUID playerId) {
+        return read(() -> {
+            var out = new ArrayList<Voucher>();
+            try (var statement = db.prepareStatement(
+                    "SELECT batch_id, player_id, material_id, minted, outstanding, delivered, created_at FROM vouchers WHERE player_id = ? AND delivered = 0 AND outstanding > 0")) {
+                statement.setString(1, playerId.toString());
+                try (var rows = statement.executeQuery()) { while (rows.next()) out.add(readVoucher(rows)); }
+            }
+            return out;
+        });
+    }
+
+    public synchronized Optional<Voucher> voucher(UUID batchId) {
+        return read(() -> {
+            try (var statement = db.prepareStatement(
+                    "SELECT batch_id, player_id, material_id, minted, outstanding, delivered, created_at FROM vouchers WHERE batch_id = ?")) {
+                statement.setString(1, batchId.toString());
+                try (var rows = statement.executeQuery()) { return rows.next() ? Optional.of(readVoucher(rows)) : Optional.<Voucher>empty(); }
+            }
+        });
+    }
+
+    private Voucher readVoucher(java.sql.ResultSet rows) throws SQLException {
+        return new Voucher(UUID.fromString(rows.getString(1)), UUID.fromString(rows.getString(2)), MaterialId.fromId(rows.getString(3)),
+                rows.getLong(4), rows.getLong(5), rows.getInt(6) == 1, rows.getLong(7));
+    }
+
+    /**
+     * Credits the redeemer for the units of a batch they hold, never more than the batch still has outstanding: the rest of {@code amount} are
+     * counterfeit or already redeemed and credit nothing. The voucher is a bearer instrument, so the redeemer need not be the player it was
+     * minted for. The credited amount comes back in {@link Outcome#cost()} (empty when nothing was left). Idempotent per operation ID. An unknown
+     * batch throws {@link Code#UNKNOWN_VOUCHER} and records nothing.
+     */
+    public synchronized Outcome redeemVoucher(UUID operationId, UUID redeemerId, UUID batchId, long amount) {
+        if (amount < 1) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to redeem");
+        return run(operationId, "REDEEM|" + redeemerId + "|" + batchId + "|" + amount, () -> {
+            Voucher batch;
+            try (var statement = db.prepareStatement(
+                    "SELECT batch_id, player_id, material_id, minted, outstanding, delivered, created_at FROM vouchers WHERE batch_id = ?")) {
+                statement.setString(1, batchId.toString());
+                try (var rows = statement.executeQuery()) {
+                    if (!rows.next()) throw new StoreException(Code.UNKNOWN_VOUCHER, "No such voucher batch");
+                    batch = readVoucher(rows);
+                }
+            }
+            long credit = Math.min(amount, batch.outstanding());
+            var before = loadWallet(redeemerId);
+            if (credit < 1) return new Fresh(Kind.REDEEM_VOUCHER, redeemerId, null, null, before, Map.of(), 0);
+            var after = before.credit(Map.of(batch.material(), credit));
+            options.faults().at(Faults.Point.AFTER_VALIDATION);
+            saveWallet(redeemerId, before, after);
+            try (var statement = db.prepareStatement("UPDATE vouchers SET outstanding = outstanding - ? WHERE batch_id = ?")) {
+                statement.setLong(1, credit);
+                statement.setString(2, batchId.toString());
+                statement.executeUpdate();
+            }
+            return new Fresh(Kind.REDEEM_VOUCHER, redeemerId, null, null, after, Map.of(batch.material(), credit), 0);
+        });
+    }
+
     /** Executes one confirmed craft: revision checks, domain transition, debit, writes and result record. */
     public synchronized Outcome craft(CraftRequest request) {
         return run(request.operationId(), request.canonical(), () -> {
@@ -482,6 +608,7 @@ public final class ProgressionStore implements AutoCloseable {
                         case REFORGE -> progression.reforge(profile, request.target(), request.types(), random);
                         case REFINE -> progression.refine(profile, request.target(), random);
                         case PERFECT -> progression.perfect(profile, request.target());
+                        case OVERREACH -> progression.overreach(profile, request.target(), random);
                         case PROMOTE -> progression.promote(profile, request.types(), random);
                         case AWARD_ATTUNEMENT -> progression.awardAttunement(profile, request.level());
                         case INSTALL_UNIQUE -> progression.installUnique(profile, request.target(), request.operationId());

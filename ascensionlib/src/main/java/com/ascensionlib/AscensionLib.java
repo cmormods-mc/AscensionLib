@@ -38,6 +38,7 @@ public final class AscensionLib implements ModInitializer {
             com.ascensionlib.web.HudWeb.forget(id);
             com.ascensionlib.web.WebSprites.forget(id);
             com.ascensionlib.scout.InspectWeb.forget(id);
+            com.ascensionlib.scout.ScoutEncounters.endWild(id);
             com.ascensionlib.craft.CraftNet.forget(id);
             com.ascensionlib.fusion.FusionWeb.forget(id);
             com.ascensionlib.scout.ScoutEncounters.disarmBattle(java.util.List.of(id));

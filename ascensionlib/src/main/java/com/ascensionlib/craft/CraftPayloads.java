@@ -15,10 +15,11 @@ public final class CraftPayloads {
     /** Page to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge}, {@code promote} (no slot), {@code unique} (slotId is the Unique's id; installs or replaces) or {@code assemble} (a Catalyst from Fragments). */
     public record Confirm(String operationId, String pokemonId, String kind, String slotId, long profileRevision, long walletRevision) {}
 
-    /** One occupied ordinary slot as the upgrade screen shows it. Bands are -1 where there is no next rank; {@code perfectCost} is the dust for the next Perfecting step (0 when it cannot be done). */
+    /** One occupied ordinary slot as the upgrade screen shows it. Bands are -1 where there is no next rank; {@code sealed} marks a slot that has had its one Overreach attempt; {@code overreachMin/Max} bound the value a success would give and {@code overreachChance} is its percent chance. {@code floor} is the lowest value the slot can roll now (its raised floor, else its band minimum) and {@code perfectCost} the dust to raise it one point (0 when it cannot be done). */
     public record SlotView(String slotId, String category, String name, String condition, int rank, int value, int bandMin, int bandMax,
                            int nextMin, int nextMax, String upgradeBlock, String refineBlock, String reforgeBlock, int reforgePool,
-                           String perfectBlock, int perfectCost) {}
+                           String perfectBlock, int perfectCost, int floor, String overreachBlock, boolean sealed, int overreachDust,
+                           int overreachFacets, int overreachChance, int overreachMin, int overreachMax) {}
 
     /** A material cost: dust, facets, cores. */
     public record Price(int dust, int facets, int cores) {}

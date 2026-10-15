@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:amethyst_shard",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "facet"
+                  }
+                },
+                "minecraft:custom_model_data": 8102,
+                "minecraft:custom_name": "{\"text\":\"Facet\",\"color\":\"#4f9ad9\",\"italic\":false}",
+                "minecraft:lore": [
+                  "{\"text\":\"A cut crystal that sharpens an affix.\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"Spent on reforging and overreaching.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

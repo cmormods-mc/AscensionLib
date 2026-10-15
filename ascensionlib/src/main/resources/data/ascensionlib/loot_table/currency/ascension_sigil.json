@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:nautilus_shell",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "ascension_sigil"
+                  }
+                },
+                "minecraft:custom_model_data": 8107,
+                "minecraft:custom_name": "{\"text\":\"Ascension Sigil\",\"color\":\"#ffd437\",\"italic\":false}",
+                "minecraft:lore": [
+                  "{\"text\":\"Gives a Pokemon with no profile\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"a rolled rarity.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

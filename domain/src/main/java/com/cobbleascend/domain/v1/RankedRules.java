@@ -125,6 +125,11 @@ public final class RankedRules {
         }
     }
 
+    /** The most a sealed slot may hold: its band maximum plus a quarter of it, never over 100. */
+    public static int overreachCeiling(int bandMax) {
+        return Math.min(100, bandMax + (int) Math.ceil(bandMax * 0.25));
+    }
+
     private void validateSlots(Rarity rarity, Collection<OrdinarySlot> slots) {
         var families = new HashSet<String>();
         var counts = new EnumMap<Category, Integer>(Category.class);
@@ -135,8 +140,12 @@ public final class RankedRules {
             if (slot.definitionVersion() != affix.definitionVersion())
                 throw new IllegalArgumentException("Slot definition version is stale: " + slot.slotId());
             if (!families.add(affix.family())) throw new IllegalArgumentException("Duplicate family");
-            if (!affix.band(slot.rank()).contains(slot.rolledValue()))
+            var band = affix.band(slot.rank());
+            boolean overreached = slot.sealed() && slot.rolledValue() > band.max();
+            if (overreached ? slot.rolledValue() > overreachCeiling(band.max()) : !band.contains(slot.rolledValue()))
                 throw new IllegalArgumentException("Roll outside the band for rank " + slot.rank());
+            if (slot.floor() > 0 && !affix.band(slot.rank()).contains(slot.floor()))
+                throw new IllegalArgumentException("Floor outside the band for rank " + slot.rank());
             checkParameters(affix.base(), slot);
             counts.merge(slot.category(), 1, Integer::sum);
         }
