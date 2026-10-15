@@ -88,7 +88,13 @@ async function open(page, file, w = 1100, h = 700) {
 }
 const sent = p => p.evaluate(() => window.__sent);
 const emit = (p, e, d, s) => p.evaluate(([e, d, s]) => window.__emit(e, d, s), [e, d, s]);
-const shot = async (p, n) => { if (shotsDir) await p.screenshot({ path: path.join(shotsDir, n + '.png') }); };
+// shots are taken over a game-like green so a transparent page shows what the game would show through it
+const shot = async (p, n) => {
+  if (!shotsDir) return;
+  await p.evaluate(() => { document.documentElement.dataset.bg = document.documentElement.style.background; document.documentElement.style.background = 'linear-gradient(#3b6aa8,#4f8a45)'; });
+  await p.screenshot({ path: path.join(shotsDir, n + '.png') });
+  await p.evaluate(() => { document.documentElement.style.background = document.documentElement.dataset.bg || ''; });
+};
 const noErrors = p => eq(p.errors, [], 'page errors');
 
 // ---------------------------------------------------------------- craft
