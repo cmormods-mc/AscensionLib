@@ -30,7 +30,11 @@ public final class CurrencyItems {
     /** @param tradable false keeps the material out of vouchers (Tower Marks) */
     public record Spec(MaterialId material, String baseItem, int model, String name, int color, List<String> lore, boolean tradable) {}
 
+    /** The AscensionDex item: a base item, a custom model number the pack maps to art, a name, a colour and lore (not a currency, so not in {@link #all()}). */
+    public record DexSpec(String baseItem, int model, String name, int color, List<String> lore) {}
+
     private static final Map<MaterialId, Spec> SPECS = load();
+    private static final DexSpec DEX = loadDex();
 
     private CurrencyItems() {}
 
@@ -41,6 +45,10 @@ public final class CurrencyItems {
     /** The fee for withdrawing {@code amount} units, rounded up, so any withdrawal of one or more units costs at least one. */
     public static long withdrawalFee(long amount) {
         return amount < 1 ? 0 : (amount * WITHDRAWAL_FEE_PERCENT + 99) / 100;
+    }
+
+    public static DexSpec dex() {
+        return DEX;
     }
 
     public static Map<MaterialId, Spec> all() {
@@ -54,6 +62,17 @@ public final class CurrencyItems {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    private static DexSpec loadDex() {
+        var stream = CurrencyItems.class.getResourceAsStream("/cobbleascend/currency-items.json");
+        if (stream == null) throw new IllegalStateException("currency-items.json is missing from the jar");
+        var dex = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("dex");
+        if (dex == null) throw new IllegalStateException("No dex item in currency-items.json");
+        var lore = new java.util.ArrayList<String>();
+        dex.getAsJsonArray("lore").forEach(line -> lore.add(line.getAsString()));
+        return new DexSpec(dex.get("base").getAsString(), dex.get("model").getAsInt(), dex.get("name").getAsString(),
+                Integer.parseInt(dex.get("color").getAsString().substring(1), 16), List.copyOf(lore));
     }
 
     private static Map<MaterialId, Spec> load() {

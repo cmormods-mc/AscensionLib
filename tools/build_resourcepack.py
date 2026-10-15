@@ -174,6 +174,26 @@ ART = {
 }
 
 
+DEX_ART = ({'R': 'd23a46', 'r': '8a1f2b', 'L': 'ff9aa0', 'B': '56c1f4', 'b': '2a79a8', 'W': 'eaf8ff', 'K': '2c2c3a', 'Y': 'f2cf3a', 'G': '52c24a'}, [
+    "................",
+    "..oooooooooooo..",
+    ".oRRRRRRRRRRRRo.",
+    ".oLRWBRRYRGRKro.",
+    ".oLRBbRRRRRRRro.",
+    ".oLRRRRRRRRRRro.",
+    ".oLRoooooooooro.",
+    ".oLRoWWBBWBBoro.",
+    ".oLRoWBBWWWBoro.",
+    ".oLRoBBBBWBBoro.",
+    ".oLRobbbbbbboro.",
+    ".oLRoooooooooro.",
+    ".oLRRKKRLRKKRro.",
+    ".oLrrrrrrrrrrro.",
+    "..oooooooooooo..",
+    "................",
+])
+
+
 def png(rows, palette):
     colors = dict(palette)
     colors['o'] = OUT
@@ -234,6 +254,23 @@ def main():
         table = {'type': 'minecraft:generic', 'pools': [{'rolls': 1, 'entries': [
             {'type': 'minecraft:item', 'name': spec['base'], 'functions': [{'function': 'minecraft:set_components', 'components': components}]}]}]}
         write(LOOT / f'{material}.json', json.dumps(table, indent=2) + '\n')
+    # the AscensionDex: not a currency, so no icon list or loot table entry, but the same pack
+    dex = DESIGN['dex']
+    palette, rows = DEX_ART
+    image = png(rows, palette)
+    write(PACK / f'assets/{NS}/textures/item/ascension_dex.png', image)
+    write(ICONS / 'ascension_dex.png', image)
+    write(PACK / f'assets/{NS}/models/item/ascension_dex.json',
+          json.dumps({'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/ascension_dex'}}, indent=2) + '\n')
+    overrides.setdefault(dex['base'].split(':', 1)[1], []).append({'predicate': {'custom_model_data': dex['model']}, 'model': f'{NS}:item/ascension_dex'})
+    dex_components = {
+        'minecraft:custom_data': {NS: {'dex': True}},
+        'minecraft:custom_model_data': dex['model'],
+        'minecraft:custom_name': component_text(dex['name'], dex['color']),
+        'minecraft:lore': [component_text(line, 'gray') for line in dex['lore']],
+    }
+    write(LOOT.parent / 'ascension_dex.json', json.dumps({'type': 'minecraft:generic', 'pools': [{'rolls': 1, 'entries': [
+        {'type': 'minecraft:item', 'name': dex['base'], 'functions': [{'function': 'minecraft:set_components', 'components': dex_components}]}]}]}, indent=2) + '\n')
     # each base item's model gains the overrides; the base items are all plain generated items, so the override file is the whole model
     for base, entries in overrides.items():
         model = {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'minecraft:item/{base}'}, 'overrides': entries}

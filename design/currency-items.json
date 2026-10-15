@@ -2,6 +2,8 @@
   "version": 1,
   "namespace": "ascensionlib",
   "note": "Each wallet material as a vanilla item: tagged with custom_data {ascensionlib:{material, batch?}} and a custom_model_data the server resource pack maps to art. Base items are inert and stack to 64. A tradable value of false keeps a material out of withdrawal (default true). An item with no batch is LOOT FORM (absorbed into the wallet when carried); an item with a batch is a VOUCHER (tradable, redeemed with /ascend wallet deposit).",
+  "dex": {"base": "minecraft:knowledge_book", "model": 8110, "name": "AscensionDex", "color": "#ff6b78",
+          "lore": ["Right-click to review your party", "and pick a Pokemon to inspect."]},
   "items": {
     "resonance_dust": {"base": "minecraft:glowstone_dust", "model": 8101, "name": "Resonance Dust", "color": "#d9a441",
                        "lore": ["Raw resonance, spent on upgrades,", "refining and perfecting."]},

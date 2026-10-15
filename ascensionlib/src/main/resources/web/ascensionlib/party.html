@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AscensionDex</title>
+<link rel="stylesheet" href="ascension.css">
+<style>
+  .frame { width: 860px; height: 560px; }
+  .main { flex: 1; min-height: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .hint { color: var(--muted); font-size: 11px; }
+  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 10px; }
+  .card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 6px; min-height: 0;
+          background: var(--row); border: 2px solid var(--line); cursor: pointer; text-align: center; }
+  .card:hover { border-color: var(--acc); }
+  .card.sel { border-color: var(--gold); box-shadow: 0 0 0 2px var(--outline), 0 0 12px rgba(242, 207, 58, .45); background: var(--panel); }
+  .card.empty { cursor: default; opacity: .45; border-style: dashed; }
+  .card .slot { position: absolute; left: 6px; top: 4px; font-size: 10px; color: var(--muted); }
+  .card .badge { position: absolute; right: 6px; top: 4px; font-size: 10px; padding: 0 5px; background: #0d2a1c; color: var(--good); border: 1px solid var(--good); }
+  .card .spr { width: 96px; height: 80px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .card .nm { font-size: 13px; text-shadow: var(--glow); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .sub { font-size: 11px; color: var(--muted); display: flex; gap: 6px; align-items: center; justify-content: center; }
+  .tag { font-size: 10px; font-weight: 700; padding: 0 6px; background: #46526a; color: #fff; }
+  .hp { width: 80%; height: 6px; background: var(--well); border: 1px solid var(--line); } .hp i { display: block; height: 100%; background: var(--good); }
+  .hp.low i { background: var(--gold); } .hp.crit i { background: var(--warn); }
+  .card.faint .nm { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="head"><span>ASCENSIONDEX</span><button class="x" id="close" title="Close">&times;</button></div>
+  <div class="main">
+    <div class="hint">Your party. Pick a Pokemon (double-click inspects it).</div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="foot">
+    <div class="msg muted" id="info"></div>
+    <button id="upgrade" disabled>Upgrade</button>
+    <button class="primary" id="inspect" disabled>Inspect</button>
+    <button id="done">Close</button>
+  </div>
+</div>
+<script src="ui.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.A, $ = A.$;
+  var view = null, sel = -1, tries = 0;
+
+  function pick(i) { sel = i; draw(); }
+  function inspect() { var s = view && view.slots[sel]; if (s && s.id) A.send('ascension_inspect_open', { kind: 'owned', id: s.id }); }
+
+  function draw() {
+    if (!view) return;
+    var grid = $('grid'); grid.innerHTML = '';
+    view.slots.forEach(function (s, i) {
+      var card = A.el('div', 'card' + (s.id ? '' : ' empty') + (i === sel ? ' sel' : '') + (s.fainted ? ' faint' : ''));
+      card.appendChild(A.el('span', 'slot', String(i + 1)));
+      if (!s.id) { card.appendChild(A.el('div', 'sub', 'Empty slot')); grid.appendChild(card); return; }
+      if (s.pending > 0) card.appendChild(A.el('span', 'badge', s.pending + (s.pending === 1 ? ' upgrade' : ' upgrades')));
+      var spr = A.el('div', 'spr'); spr.appendChild(A.sprite(s.speciesId, 2)); card.appendChild(spr);
+      card.appendChild(A.el('div', 'nm', (s.shiny ? '★ ' : '') + s.name));
+      var sub = A.el('div', 'sub'); sub.appendChild(A.el('span', '', 'Lv ' + s.level));
+      var tag = A.el('span', 'tag', s.rarityId ? A.rarityName(s.rarityId) : 'No profile');
+      if (s.rarityId) { tag.style.background = 'var(--' + s.rarityId + '-bg)'; tag.style.color = 'var(--' + s.rarityId + ')'; }
+      sub.appendChild(tag); card.appendChild(sub);
+      var hp = A.el('div', 'hp' + (s.hp < 25 ? ' crit' : s.hp < 50 ? ' low' : '')); var fill = A.el('i'); fill.style.width = s.hp + '%'; hp.appendChild(fill); card.appendChild(hp);
+      card.addEventListener('click', function () { pick(i); });
+      card.addEventListener('dblclick', function () { pick(i); inspect(); });
+      grid.appendChild(card);
+    });
+    var s = view.slots[sel];
+    $('inspect').disabled = !(s && s.id);
+    $('upgrade').disabled = !(s && s.id && s.rarityId && !s.locked);
+    $('upgrade').title = s && s.locked ? 'This Pokemon is on loan and cannot be upgraded.' : s && s.id && !s.rarityId ? 'It has no ascension profile yet: inspect it to use an Ascension Sigil.' : '';
+    A.text($('info'), s && s.id ? s.name + (s.rarityId ? '' : ' has no ascension profile') : 'Pick a Pokemon');
+  }
+
+  A.on('partyView', function (v) { view = v; tries = 99; if (sel < 0 || !v.slots[sel] || !v.slots[sel].id) { sel = -1; for (var i = 0; i < v.slots.length; i++) if (v.slots[i].id) { sel = i; break; } } draw(); });
+  $('inspect').addEventListener('click', inspect);
+  $('upgrade').addEventListener('click', function () { var s = view && view.slots[sel]; if (s && s.id && !$('upgrade').disabled) A.send('ascension_craft_open', { pokemonId: s.id }); });
+  $('close').addEventListener('click', function () { A.send('close'); });
+  $('done').addEventListener('click', function () { A.send('close'); });
+
+  function ready() {
+    if (!A.g) { A.text($('info'), 'This page needs the WebGUI mod.'); return; }
+    A.send('ascension_party_ready');
+    if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
+  }
+  A.setBezel(''); ready();
+})();
+</script>
+</body>
+</html>

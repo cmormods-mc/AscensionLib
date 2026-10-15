@@ -463,10 +463,40 @@ await check('page size: each tablet page asks for the player size, shows - and +
   noErrors(p);
 });
 
+await check('party: six slots, rarity, health and pending upgrades; pick, inspect and upgrade send the existing messages', async () => {
+  const p = await open(null, 'party.html', 1920, 1080);
+  eq((await sent(p)).map(m => m.channel), ['ascension_party_ready'], 'asks for its data');
+  await emit(p, 'sprites', { arcanine: PNG, growlithe: PNG });
+  const mon = (slot, id, name, species, level, rarityId, pending, hp, extra) => Object.assign({ slot, id, name, speciesId: species, level, rarityId, pending, hp, fainted: hp === 0, shiny: false, locked: false }, extra || {});
+  const empty = slot => ({ slot, id: '', name: '', speciesId: '', level: 0, rarityId: '', pending: 0, hp: 0, fainted: false, shiny: false, locked: false });
+  await emit(p, 'partyView', { slots: [mon(0, 'a1', 'Arcanine', 'cobblemon:arcanine', 52, 'epic', 2, 80), mon(1, 'b2', 'Growlithe', 'cobblemon:growlithe', 20, '', 0, 30), mon(2, 'c3', 'Pikachu', 'cobblemon:pikachu', 10, 'rare', 0, 0, { shiny: true }), empty(3), empty(4), empty(5)] });
+  eq(await p.locator('.card').count(), 6, 'six slots');
+  eq(await p.locator('.card.empty').count(), 3, 'three are empty');
+  yes((await p.textContent('.card')).includes('2 upgrades') && (await p.textContent('.card')).includes('EPIC') || (await p.textContent('.card')).includes('Epic'), 'rarity and pending upgrades on the card');
+  yes((await p.locator('.card').nth(1).textContent()).includes('No profile'), 'a Pokemon with no profile says so');
+  yes((await p.locator('.card').nth(2).textContent()).includes('★ Pikachu'), 'a shiny is starred');
+  eq(await p.locator('.card.sel').count(), 1, 'the first Pokemon is selected');
+  eq(await p.isDisabled('#upgrade'), false, 'a profiled Pokemon can be upgraded');
+  await p.locator('.card').nth(1).click();
+  eq(await p.isDisabled('#upgrade'), true, 'but one with no profile cannot (inspect it to use a Sigil)');
+  await p.click('#inspect');
+  const m = (await sent(p)).find(x => x.channel === 'ascension_inspect_open');
+  eq([m.kind, m.id], ['owned', 'b2'], 'Inspect opens the owned inspector for the pick');
+  await p.locator('.card').nth(0).click();
+  await p.click('#upgrade');
+  eq((await sent(p)).find(x => x.channel === 'ascension_craft_open').pokemonId, 'a1', 'Upgrade opens craft for the pick');
+  await p.locator('.card').nth(3).click();
+  eq(await p.locator('.card.sel').count() <= 1, true, 'an empty slot cannot be picked in');
+  await p.locator('.card').nth(2).dblclick();
+  eq((await sent(p)).filter(x => x.channel === 'ascension_inspect_open').pop().id, 'c3', 'double-click inspects');
+  await shot(p, 'party');
+  noErrors(p);
+});
+
 await check('pages degrade without WebGUI (no window.webgui): no crash', async () => {
   const ctx = await browser.newContext(); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', e => errors.push(e.message));
-  for (const f of ['craft.html', 'fusion.html', 'inspect.html', 'hud.html', 'wallet.html']) await p.goto(base + f);
+  for (const f of ['craft.html', 'fusion.html', 'inspect.html', 'hud.html', 'wallet.html', 'party.html', 'completion.html']) await p.goto(base + f);
   eq(errors, [], 'errors');
 });
 

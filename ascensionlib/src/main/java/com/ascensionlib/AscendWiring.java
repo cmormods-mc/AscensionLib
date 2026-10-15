@@ -59,6 +59,7 @@ final class AscendWiring {
             safely("voucher delivery", () -> com.ascensionlib.wallet.WalletItems.deliverPending(handler.getPlayer()));
         }));
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.wallet.WalletItems::tick);
+        com.ascensionlib.dex.DexItem.install();
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.battle.BleedWatch::tick);
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.battle.Participation::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
@@ -193,6 +194,12 @@ final class AscendWiring {
                                         .executes(ctx -> walletDeposit(ctx.getSource(), StringArgumentType.getString(ctx, "material"))))))
                 // /ascend craft [slot]: open the upgrade / refine / reforge screen for a party Pokemon (slot 1 by default).
                 // /ascend ui [percent]: how big your Ascension pages are, 60 to 160 percent of the automatic fit (100 is the default).
+                // /ascend dex: get an AscensionDex (right-click it to review your party); /ascend party opens the same page directly.
+                .then(Commands.literal("dex").executes(ctx -> dex(ctx.getSource())))
+                .then(Commands.literal("party").executes(ctx -> {
+                    var player = ctx.getSource().getPlayerOrException();
+                    return com.ascensionlib.dex.PartyWeb.open(player) ? 1 : 0;
+                }))
                 .then(Commands.literal("ui")
                         .executes(ctx -> uiSize(ctx.getSource(), -1))
                         .then(Commands.argument("percent", IntegerArgumentType.integer(com.ascensionlib.web.UiPrefs.MIN_PERCENT, com.ascensionlib.web.UiPrefs.MAX_PERCENT))
@@ -520,6 +527,17 @@ final class AscendWiring {
             source.sendFailure(Component.literal("Refused: " + exception.getMessage()));
             return 0;
         }
+    }
+
+    private int dex(CommandSourceStack source) throws CommandSyntaxException {
+        var player = source.getPlayerOrException();
+        if (com.ascensionlib.dex.DexItem.carries(player)) {
+            source.sendSuccess(() -> Component.literal("[Ascend] You already carry an AscensionDex. Right-click it to review your party."), false);
+            return 1;
+        }
+        com.ascensionlib.dex.DexItem.give(player);
+        source.sendSuccess(() -> Component.literal("[Ascend] Here is your AscensionDex. Right-click it to review your party."), false);
+        return 1;
     }
 
     private int uiSize(CommandSourceStack source, int percent) throws CommandSyntaxException {
