@@ -11,6 +11,7 @@ import statistics
 import sys
 
 N = int(sys.argv[sys.argv.index('--n') + 1]) if '--n' in sys.argv else 200_000
+RESPEC = '--respec' in sys.argv   # also model the proposed respec crown items (docs/RESPEC-DESIGN.md)
 RUN_HOURS = 1.0  # one F10 completion
 
 PARAMS = {
@@ -28,6 +29,18 @@ PARAMS = {
     # the F5 mini chest (about half way through the hour)
     'f5': dict(dust=200, facets=1, fragments=1, scouters=1, core_chance=0.05),
 }
+
+# Respec crown items as decided (docs/RESPEC-DESIGN.md: a Hourglass of Undoing about every 10 completions, an Unbinding Prism about every 35; no Transcendent Respec): weights per tier on the same scale as the crown table above (they are fractions of a point,
+# so the real table would scale every weight by 10 or 100). Only used with --respec.
+RESPEC_WEIGHTS = {
+    'bronze': dict(respec_rank=0.0, respec_unique=0.0, respec_trans=0.0),
+    'silver': dict(respec_rank=6.0, respec_unique=0.0, respec_trans=0.0),
+    'gold':   dict(respec_rank=8.0, respec_unique=3.0, respec_trans=0.0),
+    'mythic': dict(respec_rank=10.0, respec_unique=5.0, respec_trans=0.0),
+}
+if RESPEC:
+    for tier, extra in RESPEC_WEIGHTS.items():
+        PARAMS['tiers'][tier]['w'].update(extra)
 
 # what the goals cost (domain constants and docs/ECONOMY.md, DEPTH-DESIGN.md)
 GOALS = {
@@ -57,7 +70,7 @@ def one_completion(rng):
     out = dict(tier=tier, dust=PARAMS['dust'] * mult + PARAMS['f5']['dust'], facets=round(PARAMS['facets'] * mult) + PARAMS['f5']['facets'],
                fragments=round(PARAMS['fragments'] * mult) + PARAMS['f5']['fragments'], scouters=PARAMS['scouters'] + PARAMS['f5']['scouters'],
                marks=PARAMS['marks_f10'] + PARAMS['marks_f5'] + (1 if tier in ('gold', 'mythic') else 0) + (1 if tier == 'mythic' else 0),
-               cores=1 if rng.random() < PARAMS['f5']['core_chance'] else 0, sigils=0, catalysts=0, armor=0, tickets=0, notable=0, bundles=0)
+               cores=1 if rng.random() < PARAMS['f5']['core_chance'] else 0, sigils=0, catalysts=0, armor=0, tickets=0, notable=0, bundles=0, respec_rank=0, respec_unique=0, respec_trans=0)
     for _ in range(spec['slots']):
         kind = pick(spec['w'], rng)
         if kind == 'core':
@@ -71,9 +84,11 @@ def one_completion(rng):
             out['catalysts'] += 1
         elif kind == 'armor':
             out['armor'] += 1
+        elif kind in ('respec_rank', 'respec_unique', 'respec_trans'):
+            out[kind] += 1
         else:
             out['tickets'] += 1
-    out['notable'] = out['cores'] + out['sigils'] + out['catalysts'] + out['armor'] + out['tickets'] + out['bundles']
+    out['notable'] = out['cores'] + out['sigils'] + out['catalysts'] + out['armor'] + out['tickets'] + out['bundles'] + out['respec_rank'] + out['respec_unique'] + out['respec_trans']
     return out
 
 
@@ -90,6 +105,13 @@ def main():
     keys = ['dust', 'facets', 'fragments', 'scouters', 'marks', 'cores', 'sigils', 'catalysts', 'armor', 'tickets']
     mean = {k: statistics.fmean(r[k] for r in runs) for k in keys}
     print(f'Per completion (mean of {N:,}): ' + ', '.join(f'{k} {mean[k]:.2f}' for k in keys))
+    if RESPEC:
+        print('\nRespec crown items (one completion = one hour):')
+        for key, label in (('respec_rank', 'Hourglass of Undoing (Rank Respec)'), ('respec_unique', 'Unbinding Prism (Unique Respec)')):
+            rate = statistics.fmean(r[key] for r in runs)
+            by_tier = ', '.join(f"{t} {statistics.fmean(r[key] for r in runs if r['tier'] == t):.3f}" for t in PARAMS['tiers'])
+            print(f"  {label}: {rate:.4f} per completion, one every {1 / rate:.1f} completions (hours of Tower play)  ({by_tier})")
+        print(f"  cores per completion with the respec entries in the table: {mean['cores']:.2f} (0.59 without)")
     print('\nBy tier (mean):')
     for tier in PARAMS['tiers']:
         sub = [r for r in runs if r['tier'] == tier]
