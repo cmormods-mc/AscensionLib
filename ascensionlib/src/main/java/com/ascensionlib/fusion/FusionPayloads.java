@@ -8,7 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * The fusion channel. The client asks which Pokemon can be consumed by a host ({@link Open}, answered by {@link Candidates}), asks to see
+ * The fusion channel. The client opens the screen for a host ({@link Open}, answered by {@link Candidates}), asks for the Pokemon a chamber could hold ({@link Pick}, answered by {@link PickList}), asks to see
  * one pairing ({@link Preview}, answered by {@link Detail}) and confirms it ({@link Confirm}, answered by {@link Result}). Everything is
  * a preview until the server accepts a confirmation: the server resolves the Transcendent, applies the rules and the price, and the
  * client only shows the text it is sent.
@@ -18,7 +18,7 @@ public final class FusionPayloads {
 
     private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath("ascensionlib", path); }
 
-    /** Client to server: which of my Pokemon could this host consume? */
+    /** Client to server: open the fusion screen with this Pokemon as the host. */
     public record Open(String hostId) implements CustomPacketPayload {
         public static final Type<Open> TYPE = new Type<>(id("fusion_open"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Open> CODEC = StreamCodec.of(
@@ -26,32 +26,64 @@ public final class FusionPayloads {
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
 
-    /** One possible donor; {@code block} is why it cannot be used now (empty when it can). */
-    public record Candidate(String id, String name, String speciesId, String rarityId, String uniqueName, String block) {}
+    /** One Pokemon the player owns, as the picker and the chambers show it; {@code block} is why it cannot take the asked-for role now (empty when it can). */
+    public record Entry(String id, String name, String speciesId, String rarityId, String uniqueName, boolean inParty, boolean canHost, String block) {}
 
-    public record Candidates(String hostId, String hostName, String hostSpeciesId, String hostBlock, List<Candidate> donors) implements CustomPacketPayload {
+    static void writeEntry(RegistryFriendlyByteBuf buf, Entry e) {
+        buf.writeUtf(e.id(), 36);
+        buf.writeUtf(e.name(), 128);
+        buf.writeUtf(e.speciesId(), 128);
+        buf.writeUtf(e.rarityId(), 16);
+        buf.writeUtf(e.uniqueName(), 64);
+        buf.writeBoolean(e.inParty());
+        buf.writeBoolean(e.canHost());
+        buf.writeUtf(e.block(), 256);
+    }
+
+    static Entry readEntry(RegistryFriendlyByteBuf buf) {
+        return new Entry(buf.readUtf(36), buf.readUtf(128), buf.readUtf(128), buf.readUtf(16), buf.readUtf(64), buf.readBoolean(), buf.readBoolean(), buf.readUtf(256));
+    }
+
+    /** The most entries a pick list carries: a full party plus the first page of the PC. */
+    public static final int MAX_PICK = 36;
+
+    /** Server to client: opens the fusion screen with this host in the host chamber; {@code hostBlock} is why it cannot be a host (empty when it can). */
+    public record Candidates(Entry host, String hostBlock) implements CustomPacketPayload {
         public static final Type<Candidates> TYPE = new Type<>(id("fusion_candidates"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Candidates> CODEC = StreamCodec.of((buf, v) -> {
-            buf.writeUtf(v.hostId(), 36);
-            buf.writeUtf(v.hostName(), 128);
-            buf.writeUtf(v.hostSpeciesId(), 128);
-            buf.writeUtf(v.hostBlock(), 256);
-            buf.writeVarInt(v.donors().size());
-            for (var c : v.donors()) {
-                buf.writeUtf(c.id(), 36);
-                buf.writeUtf(c.name(), 128);
-                buf.writeUtf(c.speciesId(), 128);
-                buf.writeUtf(c.rarityId(), 16);
-                buf.writeUtf(c.uniqueName(), 64);
-                buf.writeUtf(c.block(), 256);
-            }
+        public static final StreamCodec<RegistryFriendlyByteBuf, Candidates> CODEC = StreamCodec.of(
+                (buf, v) -> { writeEntry(buf, v.host()); buf.writeUtf(v.hostBlock(), 256); },
+                buf -> new Candidates(readEntry(buf), buf.readUtf(256)));
+        public String hostId() { return host.id(); }
+        public String hostName() { return host.name(); }
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+
+    /**
+     * Client to server: list my Pokemon for a chamber. {@code hostRole} true lists valid hosts only; false lists possible donors, each with the
+     * reason it cannot be used. {@code hostId} and {@code donorId} are what the two chambers hold now (empty for none): the one in the other
+     * chamber is offered greyed out, and a donor's reason takes the host into account.
+     */
+    public record Pick(boolean hostRole, String hostId, String donorId) implements CustomPacketPayload {
+        public static final Type<Pick> TYPE = new Type<>(id("fusion_pick"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Pick> CODEC = StreamCodec.of(
+                (buf, v) -> { buf.writeBoolean(v.hostRole()); buf.writeUtf(v.hostId(), 36); buf.writeUtf(v.donorId(), 36); },
+                buf -> new Pick(buf.readBoolean(), buf.readUtf(36), buf.readUtf(36)));
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
+
+    /** Server to client: the answer to a {@link Pick}: party first, then the first page of the PC. */
+    public record PickList(boolean hostRole, List<Entry> entries) implements CustomPacketPayload {
+        public static final Type<PickList> TYPE = new Type<>(id("fusion_pick_list"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, PickList> CODEC = StreamCodec.of((buf, v) -> {
+            buf.writeBoolean(v.hostRole());
+            buf.writeVarInt(v.entries().size());
+            for (var e : v.entries()) writeEntry(buf, e);
         }, buf -> {
-            String hostId = buf.readUtf(36), name = buf.readUtf(128), species = buf.readUtf(128), block = buf.readUtf(256);
-            int count = Math.min(96, buf.readVarInt());
-            List<Candidate> donors = new ArrayList<>();
-            for (int i = 0; i < count; i++)
-                donors.add(new Candidate(buf.readUtf(36), buf.readUtf(128), buf.readUtf(128), buf.readUtf(16), buf.readUtf(64), buf.readUtf(256)));
-            return new Candidates(hostId, name, species, block, donors);
+            boolean hostRole = buf.readBoolean();
+            int count = Math.min(MAX_PICK, buf.readVarInt());
+            List<Entry> entries = new ArrayList<>();
+            for (int i = 0; i < count; i++) entries.add(readEntry(buf));
+            return new PickList(hostRole, entries);
         });
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }

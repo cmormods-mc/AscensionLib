@@ -32,6 +32,8 @@ public final class AscensionLibClient implements ClientModInitializer {
                 context.client().execute(() -> CraftClient.onDone(payload)));
         ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.Candidates.TYPE, (payload, context) ->
                 context.client().execute(() -> FusionClient.onCandidates(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.PickList.TYPE, (payload, context) ->
+                context.client().execute(() -> FusionClient.onPickList(payload)));
         ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.Detail.TYPE, (payload, context) ->
                 context.client().execute(() -> FusionClient.onDetail(payload)));
         ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.Result.TYPE, (payload, context) ->

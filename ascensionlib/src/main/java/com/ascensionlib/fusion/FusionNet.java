@@ -30,13 +30,18 @@ import org.slf4j.LoggerFactory;
 public final class FusionNet {
     private static final Logger LOG = LoggerFactory.getLogger("ascensionlib");
 
+    /** How many PC Pokemon a pick list offers: the first page. */
+    private static final int PC_PAGE = 30;
+
     private FusionNet() {}
 
     public static void register() {
         PayloadTypeRegistry.playC2S().register(FusionPayloads.Open.TYPE, FusionPayloads.Open.CODEC);
+        PayloadTypeRegistry.playC2S().register(FusionPayloads.Pick.TYPE, FusionPayloads.Pick.CODEC);
         PayloadTypeRegistry.playC2S().register(FusionPayloads.Preview.TYPE, FusionPayloads.Preview.CODEC);
         PayloadTypeRegistry.playC2S().register(FusionPayloads.Confirm.TYPE, FusionPayloads.Confirm.CODEC);
         PayloadTypeRegistry.playS2C().register(FusionPayloads.Candidates.TYPE, FusionPayloads.Candidates.CODEC);
+        PayloadTypeRegistry.playS2C().register(FusionPayloads.PickList.TYPE, FusionPayloads.PickList.CODEC);
         PayloadTypeRegistry.playS2C().register(FusionPayloads.Detail.TYPE, FusionPayloads.Detail.CODEC);
         PayloadTypeRegistry.playS2C().register(FusionPayloads.Result.TYPE, FusionPayloads.Result.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Open.TYPE, (payload, context) -> context.server().execute(() -> {
@@ -45,6 +50,12 @@ public final class FusionNet {
             try { sendCandidates(player, payload.hostId()); }
             catch (RuntimeException exception) { LOG.error("Fusion open failed for {}", player.getGameProfile().getName(), exception); }
         }));
+        ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Pick.TYPE, (payload, context) -> context.server().execute(() -> {
+            var player = context.player();
+            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.pick", 6, 3)) return;
+            try { sendPick(player, payload); }
+            catch (RuntimeException exception) { LOG.error("Fusion pick failed for {}", player.getGameProfile().getName(), exception); }
+        }));
         ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Preview.TYPE, (payload, context) -> context.server().execute(() -> {
             var player = context.player();
             if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.preview", 8, 4)) return;
@@ -52,14 +63,6 @@ public final class FusionNet {
             catch (RuntimeException exception) { LOG.error("Fusion preview failed for {}", player.getGameProfile().getName(), exception); }
         }));
         ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Confirm.TYPE, (payload, context) -> context.server().execute(() -> confirm(context.player(), payload)));
-    }
-
-    private static List<Pokemon> owned(ServerPlayer player) {
-        List<Pokemon> all = new ArrayList<>();
-        Cobblemon.INSTANCE.getStorage().getParty(player).forEach(all::add);
-        Cobblemon.INSTANCE.getStorage().getPC(player).forEach(all::add);
-        all.removeIf(p -> p.isBattleClone() || !player.getUUID().equals(p.getOwnerUUID()));
-        return all;
     }
 
     /** Text sent to the client is bounded so an unexpectedly long name can never make a packet fail to encode. */
@@ -85,33 +88,89 @@ public final class FusionNet {
         sendCandidates(player, host.getUuid().toString());
     }
 
+    /** Why this Pokemon cannot be a host; empty when it can. */
+    private static String hostBlock(Pokemon pokemon, java.util.Optional<ProfileV1> profile, java.util.Set<UUID> fused) {
+        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
+        if (locked.isPresent()) return locked.get();
+        if (profile.isEmpty()) return "That Pokémon has no ascension profile.";
+        if (profile.get().rarity() != Rarity.MYTHICAL) return "Only a Mythic Pokémon can be the host.";
+        if (profile.get().unique() == null) return "The host needs a Unique.";
+        return fused.contains(pokemon.getUuid()) ? "This Pokémon is already a Transcendent." : "";
+    }
+
+    /** Why this Pokemon cannot be a donor whatever the host is; empty when it could. */
+    private static String donorBlock(Pokemon pokemon, java.util.Optional<ProfileV1> profile, java.util.Set<UUID> fused) {
+        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
+        if (locked.isPresent()) return locked.get();
+        if (profile.isEmpty()) return "No ascension profile.";
+        if (profile.get().unique() == null) return "Needs a Unique.";
+        if (fused.contains(pokemon.getUuid())) return "Already a Transcendent.";
+        return profile.get().rarity().ordinal() < Rarity.EPIC.ordinal() ? "Needs Epic rarity or better." : "";
+    }
+
+    private static boolean inParty(ServerPlayer player, Pokemon pokemon) {
+        for (var member : Cobblemon.INSTANCE.getStorage().getParty(player)) if (member == pokemon) return true;
+        return false;
+    }
+
+    private static FusionPayloads.Entry entry(ProfileService service, Pokemon pokemon, java.util.Optional<ProfileV1> profile, boolean inParty,
+                                              boolean canHost, String block) {
+        return new FusionPayloads.Entry(pokemon.getUuid().toString(), cap(pokemon.getDisplayName(false).getString(), 100),
+                pokemon.getSpecies().getResourceIdentifier().toString(), profile.map(p -> p.rarity().id()).orElse(""),
+                profile.map(p -> p.unique() == null ? "" : cap(service.rules().unique(p.unique().uniqueId()).map(u -> u.name()).orElse(p.unique().uniqueId()), 60)).orElse(""),
+                inParty, canHost, cap(block, 250));
+    }
+
+    /** Sends the host and asks the client to open the screen with it in the host chamber (a command or the Fuse button did). */
     static void sendCandidates(ServerPlayer player, String hostId) {
         var service = AscensionApi.service().orElse(null);
         if (service == null || !ServerPlayNetworking.canSend(player, FusionPayloads.Candidates.TYPE)) return;
         var host = CraftNet.findOwned(player, hostId).orElse(null);
         if (host == null) return;
-        var hostProfile = service.canonical(host);
+        var profile = service.canonical(host);
+        String block = hostBlock(host, profile, service.store().fusedPokemon());
+        ServerPlayNetworking.send(player, new FusionPayloads.Candidates(entry(service, host, profile, inParty(player, host), block.isEmpty(), ""), cap(block, 250)));
+    }
+
+    /**
+     * Answers a {@link FusionPayloads.Pick}: the party, then the first page of the PC ({@link #PC_PAGE} Pokemon). A host list holds only valid
+     * hosts (plus the donor chamber's Pokemon, greyed); a donor list holds every Pokemon with the reason it cannot be used, the pairing included.
+     */
+    static void sendPick(ServerPlayer player, FusionPayloads.Pick request) {
+        var service = AscensionApi.service().orElse(null);
+        if (service == null || !ServerPlayNetworking.canSend(player, FusionPayloads.PickList.TYPE)) return;
         var fused = service.store().fusedPokemon();
         var wallet = service.store().wallet(player.getUUID());
-        String hostBlock = hostProfile.isEmpty() ? "That Pokémon has no ascension profile."
-                : hostProfile.get().rarity() != Rarity.MYTHICAL ? "Only a Mythic Pokémon can be the host."
-                : hostProfile.get().unique() == null ? "The host needs a Unique." : fused.contains(host.getUuid()) ? "This Pokémon is already a Transcendent." : "";
-        var donors = new ArrayList<FusionPayloads.Candidate>();
-        if (hostBlock.isEmpty()) {
-            for (var other : owned(player)) {
-                if (other.getUuid().equals(host.getUuid())) continue;
-                if (fused.contains(other.getUuid())) continue;
-                var profile = service.store().profile(other.getUuid());
-                if (profile.isEmpty() || profile.get().unique() == null || profile.get().rarity().ordinal() < Rarity.EPIC.ordinal()) continue;
-                donors.add(new FusionPayloads.Candidate(other.getUuid().toString(), cap(other.getDisplayName(false).getString(), 100),
-                        other.getSpecies().getResourceIdentifier().toString(), profile.get().rarity().id(),
-                        cap(service.rules().unique(profile.get().unique().uniqueId()).map(u -> u.name()).orElse(profile.get().unique().uniqueId()), 60),
-                        cap(blockFor(host, hostProfile.get(), other, profile.get(), wallet, fused), 250)));
-                if (donors.size() >= 96) break;
+        var host = request.hostId().isEmpty() ? null : CraftNet.findOwned(player, request.hostId()).orElse(null);
+        var hostProfile = host == null ? java.util.Optional.<ProfileV1>empty() : service.canonical(host);
+        boolean hostValid = host != null && hostBlock(host, hostProfile, fused).isEmpty();
+        var party = new ArrayList<Pokemon>();
+        Cobblemon.INSTANCE.getStorage().getParty(player).forEach(party::add);
+        var pc = new ArrayList<Pokemon>();
+        for (var pokemon : Cobblemon.INSTANCE.getStorage().getPC(player)) { if (pc.size() >= PC_PAGE) break; pc.add(pokemon); }
+        var entries = new ArrayList<FusionPayloads.Entry>();
+        for (boolean fromParty : new boolean[] {true, false}) {
+            for (var pokemon : fromParty ? party : pc) {
+                if (pokemon.isBattleClone() || !player.getUUID().equals(pokemon.getOwnerUUID())) continue;
+                var profile = service.store().profile(pokemon.getUuid());
+                boolean canHost = hostBlock(pokemon, profile, fused).isEmpty();
+                String id = pokemon.getUuid().toString();
+                String block;
+                if (request.hostRole()) {
+                    if (id.equals(request.donorId())) block = "Already in the donor chamber.";
+                    else if (!canHost) continue;
+                    else block = "";
+                } else if (id.equals(request.hostId())) {
+                    block = "Already in the host chamber.";
+                } else {
+                    block = donorBlock(pokemon, profile, fused);
+                    if (block.isEmpty() && hostValid) block = blockFor(host, hostProfile.get(), pokemon, profile.get(), wallet, fused);
+                }
+                entries.add(entry(service, pokemon, profile, fromParty, canHost, block));
+                if (entries.size() >= FusionPayloads.MAX_PICK) break;
             }
         }
-        ServerPlayNetworking.send(player, new FusionPayloads.Candidates(host.getUuid().toString(), cap(host.getDisplayName(false).getString(), 100),
-                host.getSpecies().getResourceIdentifier().toString(), cap(hostBlock, 250), donors));
+        ServerPlayNetworking.send(player, new FusionPayloads.PickList(request.hostRole(), entries));
     }
 
     static void sendDetail(ServerPlayer player, String hostId, String donorId) {

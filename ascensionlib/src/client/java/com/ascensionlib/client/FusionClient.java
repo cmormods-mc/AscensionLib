@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
 /**
- * Client side of the fusion channel: asks for a host's candidate donors and routes the server's answers to the open screen (or opens
+ * Client side of the fusion channel: opens the fusion screen for a host and routes the server's answers to the open screen (or opens
  * it, when a command or a button asked). The client holds nothing that matters: every name, number and price on the screen is text the
  * server sent, and nothing happens until the server accepts a confirmation.
  */
@@ -42,6 +42,10 @@ final class FusionClient {
         }
         waitingToOpen = false;
         pendingParent = null;
+    }
+
+    static void onPickList(FusionPayloads.PickList list) {
+        if (Minecraft.getInstance().screen instanceof FusionPickerScreen picker) picker.accept(list);
     }
 
     static void onDetail(FusionPayloads.Detail detail) {
