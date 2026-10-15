@@ -59,6 +59,7 @@ const craftView = {
   unique: { currentId: '777', catalysts: 1, fragments: 3, fragmentsNeeded: 5, block: '', options: [
     { id: '777', name: '777', benefit: 'More item rewards.', drawback: 'Lower defence.', current: true },
     { id: 'fury', name: 'Fury', benefit: 'Hits harder.', drawback: 'Takes more damage.', current: false } ] },
+  respec: { hourglasses: 1, prisms: 1, marks: 6, price: 90, spent: 9, hourglassBlock: '', prismBlock: '', resets: [{ name: 'Burn Boost', rank: 3, floor: 0 }, { name: 'Sturdy', rank: 5, floor: 29 }] },
   slots, message: '', open: false,
 };
 const entry = (n, id, rarity = 'mythical', party = true, canHost = true, block = '') =>
@@ -110,10 +111,10 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   await emit(p, 'craftView', craftView);
   eq(await p.textContent('#name'), 'Mewtwo', 'name');
   eq(await p.textContent('#pend'), '1', 'pending');
-  eq(await p.locator('.tab').count(), 7, 'tabs');
+  eq(await p.locator('.tab').count(), 8, 'tabs');
   eq(await p.locator('#list .row').count(), 2, 'affix rows');
   yes((await p.textContent('#wallet')).includes('1,234'), 'wallet shows dust with separators');
-  eq(await p.locator('#wallet img.dot').count(), 7, 'the craft wallet column shows the item icons');
+  eq(await p.locator('#wallet img.dot').count(), 9, 'the craft wallet column shows the item icons');
   yes(await p.locator('#art img').count() === 1, 'sprite image appears from the data URL');
   await shot(p, 'craft-upgrade');
   // Upgrade tab is selected (pending > 0): Review is enabled for Burn Boost, then confirm sends one request
@@ -169,6 +170,70 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   yes((await sent(p)).some(x => x.channel === 'ascension_wallet_open'), 'the Wallet button opens the wallet page');
   await p.click('#fuse');
   yes((await sent(p)).some(x => x.channel === 'ascension_fusion_open' && x.hostId === craftView.pokemonId), 'Fuse opens fusion for this host');
+  noErrors(p);
+});
+
+await check('craft respec: the Hourglass tab previews the reset, confirms it, shows the refusal for a sealed Pokemon, and buys one with Marks', async () => {
+  const p = await open(null, 'craft.html', 1920, 1080);
+  await emit(p, 'sprites', { mewtwo: PNG });
+  await emit(p, 'craftView', craftView);
+  await p.locator('.tab', { hasText: 'Respec' }).click();
+  yes((await p.textContent('#detail')).includes('Hourglass of Undoing'), 'the Hourglass card');
+  yes((await p.textContent('#detail')).includes('9 upgrade credits come back'), 'what comes back');
+  yes((await p.textContent('#detail')).includes('Overreached') && (await p.textContent('#detail')).includes('never be respecced'), 'the Overreach warning is on the card');
+  yes((await p.textContent('#list')).includes('Sturdy') && (await p.textContent('#list')).includes('floor +29% cleared'), 'the left list shows what resets, floors included');
+  yes((await p.textContent('#detail')).includes('You hold 1 Hourglass'), 'holdings');
+  eq(await p.locator('#detail button', { hasText: 'Buy for 90 Marks' }).isDisabled(), true, 'six Marks cannot buy one');
+  await shot(p, 'craft-respec');
+  await p.locator('#detail button', { hasText: 'Review' }).click();
+  yes((await p.textContent('#dTitle')).includes('Confirm respec'), 'the dialog');
+  yes((await p.textContent('#dBody')).includes('Reset 2 modifiers to rank I') && (await p.textContent('#dBody')).includes('Cost: 1 Hourglass of Undoing'), 'what it does and costs');
+  await p.click('#dOk');
+  const c = (await sent(p)).find(x => x.channel === 'ascension_craft_confirm' && x.kind === 'respec_ranks');
+  eq([c.kind, c.slotId], ['respec_ranks', ''], 'it asks the server for a Rank Respec');
+  await emit(p, 'craftDone', { operationId: c.operationId, ok: true, message: '', slotId: '', oldName: '', oldRank: 0, oldValue: 9, newName: 'Respec', newRank: 0, newValue: 0, replayed: false });
+  yes((await p.textContent('.banner')).includes('9 upgrade credits back to spend'), 'the result line');
+  // a sealed Pokemon: the server's reason is shown and Review is off
+  await emit(p, 'craftView', Object.assign({}, craftView, { respec: Object.assign({}, craftView.respec, { hourglassBlock: 'An Overreached Pokemon is sealed for good and cannot be respecced' }) }));
+  yes((await p.textContent('#detail')).includes('sealed for good'), 'the refusal reason shows');
+  eq(await p.locator('#detail button', { hasText: 'Review' }).isDisabled(), true, 'and Review is off');
+  // the Marks route
+  await emit(p, 'craftView', Object.assign({}, craftView, { respec: Object.assign({}, craftView.respec, { marks: 95, hourglassBlock: '' }) }));
+  const buy = p.locator('#detail button', { hasText: 'Buy for 90 Marks' });
+  eq(await buy.isDisabled(), false, 'with 95 Marks the purchase is open');
+  await buy.click();
+  yes((await p.textContent('#dTitle')).includes('Confirm purchase') && (await p.textContent('#dBody')).includes('90 Tower Marks'), 'the purchase dialog');
+  await p.click('#dOk');
+  eq((await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop().kind, 'buy_hourglass', 'it asks to buy');
+  noErrors(p);
+});
+
+await check('craft respec: the Unique tab offers the Unbinding Prism as a free swap, blocked with a reason when it cannot be used', async () => {
+  const p = await open(null, 'craft.html', 1920, 1080);
+  await emit(p, 'sprites', { mewtwo: PNG });
+  await emit(p, 'craftView', craftView);
+  await p.locator('.tab', { hasText: 'Unique' }).click();
+  await p.locator('.uopt', { hasText: 'Fury' }).click();
+  yes((await p.textContent('#detail')).includes('swap it free with an Unbinding Prism (you hold 1)'), 'the Prism row');
+  await p.locator('#detail button', { hasText: 'Use Unbinding Prism' }).click();
+  yes((await p.textContent('#dTitle')).includes('Confirm unbinding'), 'its own dialog');
+  yes((await p.textContent('#dBody')).includes('Swap 777 for Fury') && (await p.textContent('#dBody')).includes('no Catalyst, no Tower Mark'), 'what it does and costs');
+  await p.click('#dOk');
+  const c = (await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop();
+  eq([c.kind, c.slotId], ['respec_unique', 'fury'], 'it asks for a Prism swap to the chosen Unique');
+  await emit(p, 'craftDone', { operationId: c.operationId, ok: true, message: '', slotId: 'fury', oldName: '777', oldRank: 0, oldValue: 0, newName: 'Fury', newRank: 0, newValue: 0, replayed: false });
+  yes((await p.textContent('.banner')).includes('Unique swapped: Fury'), 'the result line');
+  // the normal Review still takes the Catalyst path
+  await p.locator('.uopt', { hasText: 'Fury' }).click();
+  await emit(p, 'craftView', craftView);
+  await p.locator('.uopt', { hasText: 'Fury' }).click();
+  await p.locator('#detail button', { hasText: 'Review' }).click();
+  await p.click('#dOk');
+  eq((await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop().kind, 'unique', 'Review without the Prism is the Catalyst route');
+  // no Prism held: disabled with the reason
+  await emit(p, 'craftView', Object.assign({}, craftView, { respec: Object.assign({}, craftView.respec, { prisms: 0, prismBlock: 'You have no Unbinding Prism' }) }));
+  await p.locator('.uopt', { hasText: 'Fury' }).click();
+  eq(await p.locator('#detail button', { hasText: 'Use Unbinding Prism' }).isDisabled(), true, 'no Prism, no button');
   noErrors(p);
 });
 

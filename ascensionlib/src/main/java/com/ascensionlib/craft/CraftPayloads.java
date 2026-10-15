@@ -12,7 +12,7 @@ import java.util.List;
 public final class CraftPayloads {
     private CraftPayloads() {}
 
-    /** Page to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge}, {@code promote} (no slot), {@code unique} (slotId is the Unique's id; installs or replaces) or {@code assemble} (a Catalyst from Fragments). */
+    /** Page to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge}, {@code promote} (no slot), {@code unique} (slotId is the Unique's id; installs or replaces), {@code assemble} (a Catalyst from Fragments), {@code respec_ranks} (an Hourglass of Undoing), {@code respec_unique} (an Unbinding Prism; slotId is the new Unique's id) or {@code buy_hourglass} (an Hourglass for Tower Marks). */
     public record Confirm(String operationId, String pokemonId, String kind, String slotId, long profileRevision, long walletRevision) {}
 
     /** One occupied ordinary slot as the upgrade screen shows it. Bands are -1 where there is no next rank; {@code sealed} marks a slot that has had its one Overreach attempt; {@code overreachMin/Max} bound the value a success would give and {@code overreachChance} is its percent chance. {@code floor} is the lowest value the slot can roll now (its raised floor, else its band minimum) and {@code perfectCost} the dust to raise it one point (0 when it cannot be done). */
@@ -39,12 +39,22 @@ public final class CraftPayloads {
      */
     public record UniqueState(String currentId, long catalysts, long fragments, int fragmentsNeeded, List<UniqueOption> options, String block) {}
 
+    /** One slot a Rank Respec would reset: its name, its rank now and its perfected floor (0 for none). */
+    public record ResetLine(String name, int rank, int floor) {}
+
+    /**
+     * The Respec tab (docs/RESPEC-DESIGN.md): how many Hourglasses of Undoing and Unbinding Prisms the player holds and their Tower Marks, the Marks an
+     * Hourglass costs, what a Rank Respec would reset ({@code resets}, with the credits it would return in {@code spent}) and the reason each item
+     * cannot be used on this Pokemon now (empty when it can).
+     */
+    public record Respec(long hourglasses, long prisms, long marks, int price, int spent, String hourglassBlock, String prismBlock, List<ResetLine> resets) {}
+
     /**
      * Server to page: the screen's data (the page asks for it once it has loaded, and gets a fresh one after every action). {@code open} is unused. {@code message} is a one-line notice (an error from the last action, or empty).
      */
     public record View(String pokemonId, String name, String speciesId, List<String> aspects, int level, String rarityId, String uniqueName,
                        int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores, long scouters, long marks,
-                       Price refine, Price reforge, Promotion promotion, UniqueState unique, List<SlotView> slots, String message, boolean open) {}
+                       Price refine, Price reforge, Promotion promotion, UniqueState unique, Respec respec, List<SlotView> slots, String message, boolean open) {}
 
     /** Server to page: how a confirmed craft ended. On success the slot before and after; on failure only the reason. */
     public record Done(String operationId, boolean ok, String message, String slotId, String oldName, int oldRank, int oldValue,

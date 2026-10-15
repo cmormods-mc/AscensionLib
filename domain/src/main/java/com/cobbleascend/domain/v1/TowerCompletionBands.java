@@ -17,7 +17,7 @@ import java.util.UUID;
 public record TowerCompletionBands(int dust, int facets, int fragments, int scouters, int marks, int goldMarkBonus, int mythicMarkBonus,
                                    int fragmentBundle, List<TierSpec> tiers) {
     /** The crown items. {@link #ARMOR} and {@link #TICKET} are CobbleTowers' own tables, so they come back as counts for it to hand over. */
-    public enum Crown { CORE, FRAGMENT_BUNDLE, SIGIL, CATALYST, ARMOR, TICKET }
+    public enum Crown { CORE, FRAGMENT_BUNDLE, SIGIL, CATALYST, ARMOR, TICKET, RESPEC_RANK, RESPEC_UNIQUE }
 
     public enum Tier { BRONZE, SILVER, GOLD, MYTHIC }
 
@@ -40,10 +40,12 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
     public record Completion(Tier tier, int score, Map<MaterialId, Long> pile, Map<MaterialId, Long> materials, List<Crown> crowns, int armorPieces, int tickets) {}
 
     public static final TowerCompletionBands DEFAULTS = new TowerCompletionBands(800, 6, 3, 4, 3, 1, 1, 12, List.of(
-            new TierSpec(Tier.BRONZE, 0, 70, 1, new int[] {30, 40, 10, 0, 14, 6}),
-            new TierSpec(Tier.SILVER, 2, 100, 1, new int[] {36, 30, 12, 2, 14, 6}),
-            new TierSpec(Tier.GOLD, 5, 150, 2, new int[] {36, 22, 14, 4, 16, 8}),
-            new TierSpec(Tier.MYTHIC, 8, 225, 3, new int[] {36, 14, 14, 8, 18, 10})));
+            // Weights are the approved crown table times ten, with the two respec items added (docs/RESPEC-DESIGN.md): the Hourglass of Undoing about every
+            // 10.6 completions and the Unbinding Prism about every 34.3.
+            new TierSpec(Tier.BRONZE, 0, 70, 1, new int[] {300, 400, 100, 0, 140, 60, 0, 0}),
+            new TierSpec(Tier.SILVER, 2, 100, 1, new int[] {360, 300, 120, 20, 140, 60, 60, 0}),
+            new TierSpec(Tier.GOLD, 5, 150, 2, new int[] {360, 220, 140, 40, 160, 80, 80, 30}),
+            new TierSpec(Tier.MYTHIC, 8, 225, 3, new int[] {360, 140, 140, 80, 180, 100, 100, 50})));
 
     public TowerCompletionBands {
         if (dust < 0 || facets < 0 || fragments < 0 || scouters < 0 || marks < 0 || goldMarkBonus < 0 || mythicMarkBonus < 0 || fragmentBundle < 1)
@@ -92,6 +94,8 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
                 case CATALYST -> add(materials, MaterialId.UNIQUE_CATALYST, 1);
                 case ARMOR -> armor++;
                 case TICKET -> tickets++;
+                case RESPEC_RANK -> add(materials, MaterialId.RANK_RESPEC, 1);
+                case RESPEC_UNIQUE -> add(materials, MaterialId.UNIQUE_RESPEC, 1);
             }
         }
         return new Completion(spec.tier(), score, pile, Collections.unmodifiableMap(materials), List.copyOf(crowns), armor, tickets);

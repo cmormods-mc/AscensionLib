@@ -517,6 +517,83 @@ class RankedProgressionTest {
     /** A rank V prefix:0 whose value sits at its band maximum. */
     private ProfileV1 atBandMax(Random random) { return fullyPerfected(random); }
 
+    // ---- the respec items (docs/RESPEC-DESIGN.md) ----
+
+    /** A rare Pokemon at level 100 with every pending credit spent, so there is an investment to undo. */
+    private ProfileV1 invested(long seed) {
+        var random = new Random(seed);
+        var profile = create(Rarity.EPIC, 100, random);
+        for (int guard = 0; guard < 40 && profile.pendingCredits() > 0; guard++) {
+            var open = profile.ordinarySlots().stream().filter(s -> s.rank() < 5).toList();
+            if (open.isEmpty()) break;
+            profile = progression.upgrade(profile, open.get(random.nextInt(open.size())).slotId(), random).profile();
+        }
+        return profile;
+    }
+
+    @Test void anHourglassSendsEverySlotBackToRankOneAndReturnsEveryCredit() {
+        var before = invested(41);
+        assertEquals(0, before.pendingCredits());
+        int spent = before.spentUpgradeCredits();
+        assertTrue(spent > 0);
+        var result = progression.respecRanks(before, new Random(5));
+        var after = result.profile();
+        assertEquals(Map.of(MaterialId.RANK_RESPEC, 1L), result.cost(), "it costs the Hourglass and nothing else: no material is refunded or taken");
+        assertEquals(0, after.spentUpgradeCredits());
+        assertEquals(spent, after.pendingCredits(), "every spent credit is pending again");
+        for (var slot : after.ordinarySlots()) {
+            assertEquals(1, slot.rank());
+            assertEquals(0, slot.floor());
+            assertFalse(slot.sealed());
+            assertTrue(rules.affix(slot.affixId()).band(1).contains(slot.rolledValue()), "re-rolled inside the rank I band");
+        }
+        assertEquals(before.ordinarySlots().stream().map(OrdinarySlot::affixId).toList(), after.ordinarySlots().stream().map(OrdinarySlot::affixId).toList(), "the affixes are kept");
+        assertEquals(before.rarity(), after.rarity());
+        assertEquals(before.attunement(), after.attunement());
+        assertEquals(before.awardedMilestones(), after.awardedMilestones());
+        assertEquals(before.unique(), after.unique());
+        assertEquals(before.revision() + 1, after.revision());
+        rules.validate(after);
+    }
+
+    @Test void anHourglassClearsAPerfectedFloorToo() {
+        var top = fullyPerfected(new Random(7));
+        assertTrue(top.ordinarySlots().stream().anyMatch(s -> s.floor() > 0), "the fixture has a perfected floor");
+        var after = progression.respecRanks(top, new Random(3)).profile();
+        assertTrue(after.ordinarySlots().stream().allMatch(s -> s.floor() == 0 && s.rank() == 1));
+    }
+
+    @Test void anOverreachedPokemonCanNeverBeRespeccedAndTheItemIsNotSpent() {
+        var top = atBandMax(new Random(2));
+        var sealed = progression.overreach(top, "prefix:0", new Random(9)).profile();
+        assertTrue(sealed.slot("prefix:0").orElseThrow().sealed());
+        assertEquals(Reason.RESPEC_SEALED, reasonOf(() -> progression.respecRanks(sealed, new Random(1))));
+        assertFalse(progression.respecRanksBlock(sealed).isEmpty(), "the preview says why");
+    }
+
+    @Test void anHourglassOnAPokemonWithNothingAboveRankOneIsRefused() {
+        var fresh = create(Rarity.RARE, 1, new Random(3));
+        assertEquals(Reason.NOTHING_TO_RESPEC, reasonOf(() -> progression.respecRanks(fresh, new Random(1))));
+        assertTrue(progression.respecRanksBlock(fresh).contains("nothing to undo"));
+        assertEquals("", progression.respecRanksBlock(invested(41)));
+    }
+
+    @Test void aPrismSwapsTheUniqueForOnlyItsOwnCostAndWithTheSameRulesAsReplace() {
+        var multi = new RankedProgression(rulesWithSecondUnique());
+        var profile = multi.create(UUID.randomUUID(), authority, Rarity.EPIC, Origin.of("wild_capture"), 40, types, new Random(30));
+        var installed = multi.installUnique(profile, "ashen_heart", UUID.randomUUID()).profile();
+        var op = UUID.randomUUID();
+        var swapped = multi.respecUnique(installed, "second_wind", op);
+        assertEquals(Map.of(MaterialId.UNIQUE_RESPEC, 1L), swapped.cost(), "no Catalyst and no Tower Mark");
+        assertEquals(new UniqueInstance("second_wind", 1, op), swapped.profile().unique());
+        assertEquals(installed.ordinarySlots(), swapped.profile().ordinarySlots());
+        assertEquals(Reason.SAME_UNIQUE, reasonOf(() -> multi.respecUnique(installed, "ashen_heart", UUID.randomUUID())));
+        assertEquals(Reason.NO_UNIQUE, reasonOf(() -> multi.respecUnique(profile, "second_wind", UUID.randomUUID())), "a Prism swaps; it does not install");
+        assertEquals(Reason.UNKNOWN_UNIQUE, reasonOf(() -> multi.respecUnique(installed, "missing", UUID.randomUUID())));
+        assertEquals(Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, 1L),
+                multi.replaceUnique(installed, "second_wind", UUID.randomUUID()).cost(), "the normal Replace still costs both");
+    }
+
     @Test void overreachNeedsARankFiveSlotAtItsBandMaximumAndOnlyOneAttempt() {
         var low = create(Rarity.RARE, 100, new Random(1));
         assertEquals(Reason.NOT_MAX_RANK, reasonOf(() -> progression.overreach(low, "prefix:0", new Random(1))));

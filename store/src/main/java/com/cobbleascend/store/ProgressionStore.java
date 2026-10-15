@@ -540,6 +540,28 @@ public final class ProgressionStore implements AutoCloseable {
         });
     }
 
+    /**
+     * Trades one bundle of materials for another in one transaction (the Tower Marks route to an Hourglass of Undoing): the debit and the credit commit
+     * together, a short wallet changes nothing, and the operation ID makes a retry a replay. The wallet revision the caller saw must still hold.
+     */
+    public synchronized Outcome exchange(UUID operationId, UUID playerId, Map<MaterialId, Long> pay, Map<MaterialId, Long> receive, String reason, long expectedWalletRevision) {
+        Objects.requireNonNull(reason);
+        var payText = new TreeMap<String, Long>();
+        pay.forEach((id, amount) -> payText.put(id.id(), amount));
+        var getText = new TreeMap<String, Long>();
+        receive.forEach((id, amount) -> getText.put(id.id(), amount));
+        return run(operationId, "EXCHANGE|" + playerId + "|" + payText + "|" + getText + "|" + reason + "|" + expectedWalletRevision, () -> {
+            var before = loadWallet(playerId);
+            if (expectedWalletRevision != CraftRequest.ANY_REVISION && before.revision() != expectedWalletRevision)
+                throw new StoreException(Code.STALE_WALLET, "Wallet changed since it was shown");
+            var after = before.debit(pay).credit(receive);
+            if (after == before) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to exchange");
+            options.faults().at(Faults.Point.AFTER_VALIDATION);
+            saveWallet(playerId, before, after);
+            return new Fresh(Kind.EXCHANGE, playerId, null, null, after, pay, 0);
+        });
+    }
+
     // ---- vouchers: wallet currency as tradable items -------------------------------------------------------
 
     /** The batch id a mint with this operation ID gets, so the caller (and a replay) knows it without asking the store. */
@@ -682,6 +704,8 @@ public final class ProgressionStore implements AutoCloseable {
                         case AWARD_ATTUNEMENT -> progression.awardAttunement(profile, request.level());
                         case INSTALL_UNIQUE -> progression.installUnique(profile, request.target(), request.operationId());
                         case REPLACE_UNIQUE -> progression.replaceUnique(profile, request.target(), request.operationId());
+                        case RESPEC_RANKS -> progression.respecRanks(profile, random);
+                        case RESPEC_UNIQUE -> progression.respecUnique(profile, request.target(), request.operationId());
                         default -> throw new IllegalStateException("Unreachable craft kind");
                     };
                     next = result.profile();

@@ -99,9 +99,37 @@ class TowerCompletionBandsTest {
             dust += share[t] * d / n; cores += share[t] * c / n; fragments += share[t] * f / n; sigils += share[t] * s / n;
         }
         assertEquals(1184 - 200, dust, 15);
-        assertEquals(0.59 - 0.05, cores, 0.03);
+        assertEquals(0.54 - 0.05, cores, 0.03);   // 0.59 before the two respec items joined the crown table
         assertEquals(9.0 - 1, fragments, 0.4);
         assertEquals(0.19, sigils, 0.03);
+    }
+
+    @Test void theRespecItemsDropAtTheApprovedRates() {
+        // 1 completion = 1 hour: an Hourglass about every 10.6 completions, a Prism about every 34.3 (docs/RESPEC-DESIGN.md)
+        int[] cards = {0, 2, 5, 8};
+        double[] share = {0.15, 0.45, 0.30, 0.10};
+        int n = 60_000;
+        double rank = 0, prism = 0;
+        for (int t = 0; t < 4; t++) {
+            double r = 0, u = 0;
+            for (int i = 0; i < n; i++) {
+                var result = BANDS.payout("e" + i, new UUID(i, 11), cards[t], 0, false);
+                r += result.materials().getOrDefault(MaterialId.RANK_RESPEC, 0L);
+                u += result.materials().getOrDefault(MaterialId.UNIQUE_RESPEC, 0L);
+            }
+            rank += share[t] * r / n;
+            prism += share[t] * u / n;
+        }
+        assertEquals(1 / 10.6, rank, 0.012, "an Hourglass about every ten completions");
+        assertEquals(1 / 34.3, prism, 0.006, "a Prism about every thirty-five");
+    }
+
+    @Test void bronzeNeverDropsARespecItemAndOnlyGoldAndMythicDropAPrism() {
+        for (int i = 0; i < 4000; i++) {
+            var bronze = BANDS.payout("b" + i, new UUID(i, 12), 0, 0, false);
+            assertFalse(bronze.materials().containsKey(MaterialId.RANK_RESPEC) || bronze.materials().containsKey(MaterialId.UNIQUE_RESPEC));
+            assertFalse(BANDS.payout("s" + i, new UUID(i, 13), 2, 0, false).materials().containsKey(MaterialId.UNIQUE_RESPEC));
+        }
     }
 
     @Test void malformedBandsAreRefused() {

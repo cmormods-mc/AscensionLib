@@ -389,6 +389,71 @@ def ascension_dex():
     return c
 
 
+VIOLET = ramp('3a1f6b', '6a3fb0', '9b6bd9', 'c9a2ff', 'f3eaff')
+GLASS = ramp('4a6a86', '7fa3c4', 'aecbe3', 'd8ebf7', 'ffffff')
+BRASS = ramp('5a3c10', '8a5a14', 'b98a2c', 'e3b84f', 'fff0b0')
+
+
+def rank_respec():
+    c = Canvas()
+    # The Hourglass of Undoing: brass caps, a glass body, and violet sand that rises: a full upper bulb, a thin stream
+    # going up through the neck, and grains lifting off a nearly empty lower bulb.
+    top = [(9, 6), (23, 6), (17.5, 15), (14.5, 15)]
+    bottom = [(14.5, 17), (17.5, 17), (23, 26), (9, 26)]
+    c.poly(top, GLASS[2]); c.poly(bottom, GLASS[2])
+    c.poly([(10, 7), (14, 7), (14.5, 14), (13.5, 14)], GLASS[4])           # a lit strip down the left of the upper bulb
+    # sand in the upper bulb (lit from the left, shaded to the right)
+    for y in range(8, 15):
+        half = 6.0 - (y - 6) * 0.65
+        for x in range(int(16 - half), int(16 + half) + 1):
+            tone = 3 if x < 14 else 2 if x < 18 else 1
+            if y > 9 or (x > 12 and x < 20): c.set(x, y, VIOLET[tone])
+    # the stream through the neck and the lower bulb: a little sand, and grains rising
+    c.line(16, 15, 16, 17, VIOLET[3])
+    for (x, y, t) in [(14, 24, 2), (15, 24, 3), (16, 24, 3), (17, 24, 2), (18, 24, 1), (15, 23, 3), (16, 23, 3), (17, 23, 2), (16, 22, 3)]:
+        c.set(x, y, VIOLET[t])
+    for (x, y, t) in [(12, 21, 3), (19, 20, 4), (14, 19, 4), (18, 18, 3)]:
+        c.set(x, y, VIOLET[t])
+    # brass caps and two posts
+    for y in range(3, 6):
+        for x in range(8, 25): c.set(x, y, BRASS[3 if y == 3 else 2 if y == 4 else 1])
+    for y in range(27, 30):
+        for x in range(8, 25): c.set(x, y, BRASS[3 if y == 27 else 2 if y == 28 else 1])
+    for y in range(6, 27):
+        c.set(8, y, BRASS[1]); c.set(24, y, BRASS[0])
+    for x in range(9, 24): c.set(x, 3, BRASS[4]) if x < 13 else None
+    c.sparkle(26, 7, VIOLET[3], arm=2, core=VIOLET[4])
+    c.outline()
+    return c
+
+
+PRISM = ramp('7a5a14', 'b98a2c', 'e3b84f', 'ffe08a', 'fffbe0')
+SPEC = [rgb('ff5a4a'), rgb('ff9a3c'), rgb('f2d83a'), rgb('52c24a'), rgb('4ab8f0'), rgb('9b6bd9')]
+
+
+def unique_respec():
+    c = Canvas()
+    # The Unbinding Prism: a triangular prism cracked down the middle, the halves a pixel apart, a spectrum fanning out of the right side.
+    left = [(14, 4), (14, 27), (4, 27)]
+    right = [(16, 3), (28, 27), (16, 27)]
+    c.poly([(14.5, 4), (14.5, 27), (4, 27)], PRISM[3])
+    c.poly([(14.5, 4), (14.5, 27), (9, 27)], PRISM[4])
+    c.poly([(5, 27), (9, 27), (14.5, 12)], PRISM[2])
+    c.poly([(16.5, 3), (28, 27), (16.5, 27)], PRISM[1])
+    c.poly([(16.5, 3), (22, 27), (16.5, 27)], PRISM[2])
+    # the crack: a dark zigzag between the halves
+    for (x, y) in [(15, 4), (15, 5), (16, 6), (15, 7), (15, 8), (16, 9), (16, 10), (15, 11), (15, 12), (16, 13), (16, 14), (15, 15), (15, 16),
+                   (16, 17), (16, 18), (15, 19), (15, 20), (16, 21), (16, 22), (15, 23), (15, 24), (16, 25), (16, 26)]:
+        c.set(x, y, PRISM[0])
+    # a spectrum leaving the right face, one thin line per colour, fanning out
+    for i, col in enumerate(SPEC):
+        c.line(22, 18 + (i - 2.5) * 0.6, 30, 10 + i * 3, col)
+    c.sparkle(7, 8, PRISM[3], arm=2, core=PRISM[4])
+    c.set(13, 10, PRISM[4]); c.set(12, 14, PRISM[4]); c.set(11, 18, PRISM[4])
+    c.outline()
+    return c
+
+
 ICONS = {
     'resonance_dust': resonance_dust,
     'facet': facet,
@@ -399,6 +464,8 @@ ICONS = {
     'ascension_sigil': ascension_sigil,
     'tower_mark': tower_mark,
     'ascension_dex': ascension_dex,
+    'rank_respec': rank_respec,
+    'unique_respec': unique_respec,
 }
 
 

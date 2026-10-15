@@ -885,6 +885,65 @@ class ProgressionStoreTest {
         assertEquals(Reason.INSUFFICIENT_FUNDS, reasonOf(() -> fundedStore().mintVoucher(UUID.randomUUID(), player, MaterialId.FACET, 10, CraftRequest.ANY_REVISION)));
     }
 
+    // ---- respec items ----
+
+    private UUID investedPokemon(ProgressionStore store, UUID pokemon) {
+        acquire(store, pokemon, Rarity.EPIC, 100);
+        var profile = store.profile(pokemon).orElseThrow();
+        var random = new java.util.Random(11);
+        for (int guard = 0; guard < 40 && profile.pendingCredits() > 0; guard++) {
+            var slot = profile.ordinarySlots().get(random.nextInt(profile.ordinarySlots().size()));
+            if (slot.rank() >= 5) continue;
+            profile = store.craft(CraftRequest.upgrade(UUID.randomUUID(), player, pokemon, slot.slotId(), profile.revision(), CraftRequest.ANY_REVISION)).profile();
+        }
+        return pokemon;
+    }
+
+    @Test void anHourglassIsSpentWithTheResetInOneTransactionAndAReplayChargesOnce() {
+        var store = open();
+        var pokemon = investedPokemon(store, UUID.randomUUID());
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RANK_RESPEC, 2L, MaterialId.RESONANCE_DUST, 100L), "test");
+        var before = store.profile(pokemon).orElseThrow();
+        assertEquals(0, before.pendingCredits());
+        var op = UUID.randomUUID();
+        var done = store.craft(CraftRequest.respecRanks(op, player, pokemon, before.revision(), CraftRequest.ANY_REVISION));
+        assertEquals(before.spentUpgradeCredits(), done.profile().pendingCredits());
+        assertEquals(1, store.wallet(player).balance(MaterialId.RANK_RESPEC), "one Hourglass spent");
+        assertEquals(100, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "no dust is touched or refunded");
+        assertTrue(store.craft(CraftRequest.respecRanks(op, player, pokemon, before.revision(), CraftRequest.ANY_REVISION)).replayed());
+        assertEquals(1, store.wallet(player).balance(MaterialId.RANK_RESPEC), "a replay does not charge twice");
+    }
+
+    @Test void anHourglassWithoutTheItemOrOnASealedPokemonChangesNothing() {
+        var store = open();
+        var pokemon = investedPokemon(store, UUID.randomUUID());
+        var before = store.profile(pokemon).orElseThrow();
+        assertEquals(Reason.INSUFFICIENT_FUNDS, reasonOf(() -> store.craft(CraftRequest.respecRanks(UUID.randomUUID(), player, pokemon, before.revision(), CraftRequest.ANY_REVISION))));
+        assertEquals(before, store.profile(pokemon).orElseThrow(), "no item, no change");
+        // a nothing-to-undo Pokemon refuses and keeps the item
+        var fresh = UUID.randomUUID();
+        acquire(store, fresh, Rarity.RARE, 20);
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RANK_RESPEC, 1L), "test");
+        var profile = store.profile(fresh).orElseThrow();
+        assertEquals(Reason.NOTHING_TO_RESPEC, reasonOf(() -> store.craft(CraftRequest.respecRanks(UUID.randomUUID(), player, fresh, profile.revision(), CraftRequest.ANY_REVISION))));
+        assertEquals(1, store.wallet(player).balance(MaterialId.RANK_RESPEC), "a refusal keeps the Hourglass");
+    }
+
+    @Test void theMarksRouteTradesNinetyMarksForAnHourglassInOneTransaction() {
+        var store = open();
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.TOWER_MARK, 100L), "test");
+        var op = UUID.randomUUID();
+        var price = (long) com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE;
+        var done = store.exchange(op, player, Map.of(MaterialId.TOWER_MARK, price), Map.of(MaterialId.RANK_RESPEC, 1L), "test", CraftRequest.ANY_REVISION);
+        assertEquals(10, done.wallet().balance(MaterialId.TOWER_MARK));
+        assertEquals(1, done.wallet().balance(MaterialId.RANK_RESPEC));
+        assertTrue(store.exchange(op, player, Map.of(MaterialId.TOWER_MARK, price), Map.of(MaterialId.RANK_RESPEC, 1L), "test", CraftRequest.ANY_REVISION).replayed());
+        assertEquals(10, store.wallet(player).balance(MaterialId.TOWER_MARK), "a replay does not charge twice");
+        assertEquals(Reason.INSUFFICIENT_FUNDS, reasonOf(() -> store.exchange(UUID.randomUUID(), player, Map.of(MaterialId.TOWER_MARK, price), Map.of(MaterialId.RANK_RESPEC, 1L), "test", CraftRequest.ANY_REVISION)),
+                "ten Marks cannot buy another");
+        assertEquals(1, store.wallet(player).balance(MaterialId.RANK_RESPEC));
+    }
+
     @Test void aTowerMarkIsBoundAndCanNeverBeWithdrawn() {
         var store = open();
         store.grant(UUID.randomUUID(), player, Map.of(MaterialId.TOWER_MARK, 5L), "test");

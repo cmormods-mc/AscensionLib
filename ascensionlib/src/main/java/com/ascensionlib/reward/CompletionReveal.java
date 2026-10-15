@@ -80,6 +80,8 @@ public final class CompletionReveal {
             case CORE -> crownOf(crown, MaterialId.ASCENSION_CORE, 1, true);
             case SIGIL -> crownOf(crown, MaterialId.ASCENSION_SIGIL, 1, true);
             case CATALYST -> crownOf(crown, MaterialId.UNIQUE_CATALYST, 1, true);
+            case RESPEC_RANK -> crownOf(crown, MaterialId.RANK_RESPEC, 1, true);
+            case RESPEC_UNIQUE -> crownOf(crown, MaterialId.UNIQUE_RESPEC, 1, true);
             case FRAGMENT_BUNDLE -> new CrownView("fragments", MaterialId.UNIQUE_FRAGMENT.id(), "Unique Fragment bundle",
                     String.format("#%06x", CurrencyItems.spec(MaterialId.UNIQUE_FRAGMENT).color()), com.cobbleascend.domain.v1.TowerCompletionBands.DEFAULTS.fragmentBundle(), false);
             case ARMOR -> new CrownView("armor", "", "Tower armor piece", "#c9d4e0", 1, false);
@@ -121,10 +123,12 @@ public final class CompletionReveal {
     public static String announcement(String name, View view) {
         boolean core = view.crowns().stream().anyMatch(c -> c.kind().equals("core"));
         boolean catalyst = view.crowns().stream().anyMatch(c -> c.kind().equals("catalyst"));
-        if (!core && !catalyst && !view.tier().equals("mythic")) return "";
+        boolean prism = view.crowns().stream().anyMatch(c -> c.kind().equals("respec_unique"));
+        if (!core && !catalyst && !prism && !view.tier().equals("mythic")) return "";
         var what = new ArrayList<String>();
         if (view.tier().equals("mythic")) what.add("a MYTHIC completion");
         if (catalyst) what.add("a Unique Catalyst");
+        if (prism) what.add("an Unbinding Prism");
         if (core) what.add("an Ascension Core");
         return "[Tower] " + name + " earned " + String.join(", ", what) + "!";
     }

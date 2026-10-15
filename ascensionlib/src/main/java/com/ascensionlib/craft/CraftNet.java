@@ -192,6 +192,16 @@ public final class CraftNet {
                 com.cobbleascend.store.StoreConfig.defaults().catalystFragments(), uniqueOptions,
                 service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be replaced" : catalysts < 1 || wallet.balance(MaterialId.TOWER_MARK) < com.cobbleascend.domain.v1.RankedProgression.INSTALL_MARKS
                         ? "Needs 1 Unique Catalyst + " + com.cobbleascend.domain.v1.RankedProgression.INSTALL_MARKS + " Tower Mark" : "");
+        var respecRules = new com.cobbleascend.domain.v1.RankedProgression(rules);
+        long hourglasses = wallet.balance(MaterialId.RANK_RESPEC), prisms = wallet.balance(MaterialId.UNIQUE_RESPEC);
+        String hourglassBlock = respecRules.respecRanksBlock(profile);
+        if (hourglassBlock.isEmpty() && hourglasses < 1) hourglassBlock = "You have no Hourglass of Undoing";
+        String prismBlock = service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be swapped"
+                : profile.unique() == null ? "Install a Unique with a Catalyst first" : prisms < 1 ? "You have no Unbinding Prism" : "";
+        var resets = new ArrayList<CraftPayloads.ResetLine>();
+        for (var slot : profile.ordinarySlots()) resets.add(new CraftPayloads.ResetLine(slotName(service, slot), slot.rank(), slot.floor()));
+        var respec = new CraftPayloads.Respec(hourglasses, prisms, wallet.balance(MaterialId.TOWER_MARK), com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE,
+                profile.spentUpgradeCredits(), hourglassBlock, prismBlock, resets);
         int nextMilestone = 0;
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
         return new CraftPayloads.View(pokemon.getUuid().toString(), pokemon.getDisplayName(false).getString(),
@@ -200,7 +210,7 @@ public final class CraftNet {
                 profile.pendingCredits(), nextMilestone, profile.revision(), wallet.revision(), wallet.balance(MaterialId.RESONANCE_DUST),
                 wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE), wallet.balance(MaterialId.SCOUTER), wallet.balance(MaterialId.TOWER_MARK),
                 new CraftPayloads.Price(refineCost.dust(), refineCost.facets(), refineCost.cores()),
-                new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, slots, message, open);
+                new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, respec, slots, message, open);
     }
 
     static String describe(com.cobbleascend.domain.Cost cost) {
@@ -230,7 +240,8 @@ public final class CraftNet {
         var before = service.canonical(pokemon);
         if (before.isEmpty()) { fail(player, request, "That Pokémon has no ascension profile."); return; }
         if (request.kind().equals("assemble")) { assemble(player, service, pokemon, request, operation); return; }
-        if (request.kind().equals("unique") && service.isFused(pokemon.getUuid())) {
+        if (request.kind().equals("buy_hourglass")) { buyHourglass(player, service, pokemon, request, operation); return; }
+        if ((request.kind().equals("unique") || request.kind().equals("respec_unique")) && service.isFused(pokemon.getUuid())) {
             fail(player, request, "A Transcendent's power cannot be replaced.");
             return;
         }
@@ -249,13 +260,23 @@ public final class CraftNet {
             case "unique" -> craft = before.get().unique() == null
                     ? CraftRequest.installUnique(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(), request.walletRevision())
                     : CraftRequest.replaceUnique(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(), request.walletRevision());
+            case "respec_ranks" -> craft = CraftRequest.respecRanks(operation, player.getUUID(), pokemon.getUuid(), request.profileRevision(), request.walletRevision());
+            case "respec_unique" -> craft = CraftRequest.respecUnique(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
+                    request.walletRevision());
             case "promote" -> craft = CraftRequest.promote(operation, player.getUUID(), pokemon.getUuid(), service.typesFor(pokemon),
                     request.profileRevision(), request.walletRevision());
             default -> { fail(player, request, "Unknown action."); return; }
         }
         try {
             var outcome = service.craft(pokemon, craft);
-            if (craft.kind() == Kind.INSTALL_UNIQUE || craft.kind() == Kind.REPLACE_UNIQUE) {
+            if (craft.kind() == Kind.RESPEC_RANKS) {
+                LOG.info("respec_ranks committed on Pokemon {} ({} credits returned) by {} (operation {}{})", pokemon.getUuid(), before.get().spentUpgradeCredits(),
+                        player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
+                WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", "", "", 0, before.get().spentUpgradeCredits(), "Respec", 0, 0, outcome.replayed()));
+                sendView(player, pokemon, false, "");
+                return;
+            }
+            if (craft.kind() == Kind.INSTALL_UNIQUE || craft.kind() == Kind.REPLACE_UNIQUE || craft.kind() == Kind.RESPEC_UNIQUE) {
                 var was = before.get().unique() == null ? "" : uniqueName(service, before.get().unique().uniqueId());
                 var now = uniqueName(service, outcome.profile().unique().uniqueId());
                 LOG.info("{} committed on Pokemon {} -> {} by {} (operation {}{})", craft.kind().name().toLowerCase(java.util.Locale.ROOT), pokemon.getUuid(),
@@ -299,6 +320,7 @@ public final class CraftNet {
                 case NO_ELIGIBLE_AFFIX -> "No other affix can take that slot.";
                 case INSUFFICIENT_ATTUNEMENT -> "Not enough attunement to promote yet.";
                 case UNIQUE_PRESENT, NO_UNIQUE, SAME_UNIQUE, UNKNOWN_UNIQUE -> "That Unique cannot be set on this Pokémon: " + exception.getMessage();
+                case RESPEC_SEALED, NOTHING_TO_RESPEC -> exception.getMessage() + ". Nothing was spent.";
                 case MAX_RARITY -> "Already at the highest rarity.";
                 default -> "The change is not allowed: " + exception.getMessage();
             });
@@ -316,6 +338,27 @@ public final class CraftNet {
 
     private static String uniqueName(ProfileService service, String id) {
         return service.rules().unique(id).map(u -> u.name()).orElse(id);
+    }
+
+    /** The Marks route: {@code RESPEC_MARKS_PRICE} Tower Marks for one Hourglass of Undoing, in one transaction. */
+    private static void buyHourglass(ServerPlayer player, ProfileService service, Pokemon pokemon, CraftPayloads.Confirm request, UUID operation) {
+        try {
+            var price = (long) com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE;
+            var outcome = service.store().exchange(operation, player.getUUID(), java.util.Map.of(MaterialId.TOWER_MARK, price), java.util.Map.of(MaterialId.RANK_RESPEC, 1L),
+                    "hourglass of undoing", request.walletRevision());
+            LOG.info("hourglass bought for {} Marks by {} (operation {}{})", price, player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
+            WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", "", "", 0, 0, "Hourglass of Undoing", 0, 0, outcome.replayed()));
+            sendView(player, pokemon, false, "");
+        } catch (StoreException exception) {
+            fail(player, request, exception.code() == StoreException.Code.STALE_WALLET
+                    ? "Your materials changed. Review it again." : "The Hourglass could not be bought: " + exception.getMessage());
+        } catch (CraftException exception) {
+            fail(player, request, exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS
+                    ? "You need " + com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE + " Tower Marks." : "The Hourglass could not be bought: " + exception.getMessage());
+        } catch (RuntimeException exception) {
+            LOG.error("Hourglass purchase failed for {}", player.getGameProfile().getName(), exception);
+            fail(player, request, "Something went wrong; nothing was spent.");
+        }
     }
 
     /** Turns the player's Fragments into one Catalyst. Needs no Pokemon change; the view is refreshed so the new balance shows. */

@@ -109,6 +109,32 @@
       ],
       "rarity": "rare",
       "kind": "Currency"
+    },
+    "rank_respec": {
+      "base": "minecraft:ghast_tear",
+      "model": 8111,
+      "name": "Hourglass of Undoing",
+      "color": "#c9a2ff",
+      "rarity": "epic",
+      "kind": "Respec",
+      "lore": [
+        "Resets one Pokemon's ranks to I and",
+        "returns its upgrade credits to spend again.",
+        "Materials are not refunded. Never works",
+        "on an Overreached Pokemon."
+      ]
+    },
+    "unique_respec": {
+      "base": "minecraft:prismarine_shard",
+      "model": 8112,
+      "name": "Unbinding Prism",
+      "color": "#ffe08a",
+      "rarity": "legendary",
+      "kind": "Respec",
+      "lore": [
+        "Swaps a Pokemon's Unique for another,",
+        "with no Catalyst and no Tower Mark."
+      ]
     }
   },
   "rarities": {

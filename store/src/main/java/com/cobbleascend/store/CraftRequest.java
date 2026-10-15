@@ -20,7 +20,7 @@ public record CraftRequest(UUID operationId, Kind kind, UUID playerId, UUID poke
         Objects.requireNonNull(target);
         types = List.copyOf(types);
         switch (kind) {
-            case UPGRADE, REFORGE, REFINE, PERFECT, OVERREACH, PROMOTE, INSTALL_UNIQUE, REPLACE_UNIQUE -> Objects.requireNonNull(playerId);
+            case UPGRADE, REFORGE, REFINE, PERFECT, OVERREACH, PROMOTE, INSTALL_UNIQUE, REPLACE_UNIQUE, RESPEC_RANKS, RESPEC_UNIQUE -> Objects.requireNonNull(playerId);
             case OBSERVE_LEVEL, AWARD_ATTUNEMENT -> { }
             default -> throw new IllegalArgumentException("Not a craft request kind: " + kind);
         }
@@ -58,6 +58,16 @@ public record CraftRequest(UUID operationId, Kind kind, UUID playerId, UUID poke
 
     public static CraftRequest replaceUnique(UUID op, UUID player, UUID pokemon, String uniqueId, long profileRevision, long walletRevision) {
         return new CraftRequest(op, Kind.REPLACE_UNIQUE, player, pokemon, uniqueId, 0, List.of(), profileRevision, walletRevision);
+    }
+
+    /** The Hourglass of Undoing on one Pokemon. */
+    public static CraftRequest respecRanks(UUID op, UUID player, UUID pokemon, long profileRevision, long walletRevision) {
+        return new CraftRequest(op, Kind.RESPEC_RANKS, player, pokemon, "", 0, List.of(), profileRevision, walletRevision);
+    }
+
+    /** The Unbinding Prism: swap the Pokemon's Unique for {@code uniqueId}. */
+    public static CraftRequest respecUnique(UUID op, UUID player, UUID pokemon, String uniqueId, long profileRevision, long walletRevision) {
+        return new CraftRequest(op, Kind.RESPEC_UNIQUE, player, pokemon, uniqueId, 0, List.of(), profileRevision, walletRevision);
     }
 
     /** Server-driven: no wallet or player involved. */

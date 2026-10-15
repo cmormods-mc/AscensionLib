@@ -24,10 +24,13 @@ class PageJsonTest {
                 "Needs rank V", false, 60, 2, 45, 35, 40);
         var unique = new CraftPayloads.UniqueState("", 1, 2, 3, List.of(new CraftPayloads.UniqueOption("u1", "777", "b", "d", false)), "");
         var view = new CraftPayloads.View("id", "Name", "cobblemon:mewtwo", List.of(), 50, "mythical", "777", 1, 60, 7, 8, 100, 20, 3, 4, 2,
-                price, price, new CraftPayloads.Promotion("", price, 10, 90, ""), unique, List.of(slot), "", false);
+                price, price, new CraftPayloads.Promotion("", price, 10, 90, ""), unique,
+                new CraftPayloads.Respec(1, 2, 90, 90, 5, "", "", List.of(new CraftPayloads.ResetLine("Burn Boost", 3, 0))), List.of(slot), "", false);
         var json = JsonParser.parseString(gson.toJson(view)).getAsJsonObject();
         has(json, "pokemonId", "name", "speciesId", "level", "rarityId", "uniqueName", "pending", "nextMilestone", "profileRevision", "walletRevision",
-                "dust", "facets", "cores", "scouters", "refine", "reforge", "promotion", "unique", "slots", "message");
+                "dust", "facets", "cores", "scouters", "refine", "reforge", "promotion", "unique", "respec", "slots", "message");
+        has(json.getAsJsonObject("respec"), "hourglasses", "prisms", "marks", "price", "spent", "hourglassBlock", "prismBlock", "resets");
+        has(json.getAsJsonObject("respec").getAsJsonArray("resets").get(0).getAsJsonObject(), "name", "rank", "floor");
         has(json.getAsJsonObject("promotion"), "toRarity", "price", "attunement", "attunementNeeded", "block");
         has(json.getAsJsonObject("unique"), "currentId", "catalysts", "fragments", "fragmentsNeeded", "options", "block");
         has(json.getAsJsonArray("slots").get(0).getAsJsonObject(), "slotId", "category", "name", "condition", "rank", "value", "bandMin", "bandMax",

@@ -16,7 +16,11 @@ public enum MaterialId {
     /** One use gives a Pokemon with no profile a profile with a rolled rarity, and is consumed. Rare loot from tower bosses. */
     ASCENSION_SIGIL("ascension_sigil"),
     /** Proof of a personal Tower clear. Never withdrawn as a voucher (design/currency-items.json, "tradable": false); spent on the top-end crafts. */
-    TOWER_MARK("tower_mark");
+    TOWER_MARK("tower_mark"),
+    /** The Hourglass of Undoing: resets one Pokemon's ranks and gives its upgrade credits back (docs/RESPEC-DESIGN.md). */
+    RANK_RESPEC("rank_respec"),
+    /** The Unbinding Prism: swaps a Pokemon's Unique for another without a Catalyst or a Mark. */
+    UNIQUE_RESPEC("unique_respec");
 
     private final String id;
     MaterialId(String id) { this.id = id; }

@@ -1,0 +1,35 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:ghast_tear",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "rank_respec"
+                  }
+                },
+                "minecraft:custom_model_data": 8111,
+                "minecraft:custom_name": "{\"text\":\"Hourglass of Undoing\",\"color\":\"#c9a2ff\",\"italic\":false}",
+                "minecraft:lore": [
+                  "[\"\",{\"text\":\"EPIC\",\"color\":\"#af69ff\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Respec\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
+                  "{\"text\":\"Resets one Pokemon's ranks to I and\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"returns its upgrade credits to spend again.\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"Materials are not refunded. Never works\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"on an Overreached Pokemon.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

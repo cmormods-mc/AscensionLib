@@ -292,7 +292,7 @@ public final class RankedProgression {
     public CraftResult installUnique(ProfileV1 profile, String uniqueId, UUID operationId) {
         rules.validate(profile);
         if (profile.unique() != null) throw new CraftException(Reason.UNIQUE_PRESENT, "A Unique is already installed");
-        return setUnique(profile, uniqueId, operationId);
+        return setUnique(profile, uniqueId, operationId, Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, (long) INSTALL_MARKS));
     }
 
     public CraftResult replaceUnique(ProfileV1 profile, String uniqueId, UUID operationId) {
@@ -300,17 +300,67 @@ public final class RankedProgression {
         if (profile.unique() == null) throw new CraftException(Reason.NO_UNIQUE, "No Unique to replace");
         if (profile.unique().uniqueId().equals(uniqueId))
             throw new CraftException(Reason.SAME_UNIQUE, "Replacement must be a different Unique");
-        return setUnique(profile, uniqueId, operationId);
+        return setUnique(profile, uniqueId, operationId, Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, (long) INSTALL_MARKS));
     }
 
-    private CraftResult setUnique(ProfileV1 profile, String uniqueId, UUID operationId) {
+    // ---- Respec items (docs/RESPEC-DESIGN.md) ------------------------------------------------------------------
+
+    /** Tower Marks one Hourglass of Undoing costs at the Marks route: about 20 hours of Tower play, twice the average wait for a drop. */
+    public static final int RESPEC_MARKS_PRICE = 90;
+
+    /** Whether a Rank Respec would be refused or pointless, as a reason (empty when it can be done). Never throws. */
+    public String respecRanksBlock(ProfileV1 profile) {
+        if (profile.ordinarySlots().isEmpty()) return "This Pokemon has no modifiers to reset";
+        for (var slot : profile.ordinarySlots())
+            if (slot.sealed()) return "An Overreached Pokemon is sealed for good and cannot be respecced";
+        boolean anything = false;
+        for (var slot : profile.ordinarySlots()) if (slot.rank() > 1 || slot.floor() > 0) anything = true;
+        return anything ? "" : "Every modifier is already rank I: nothing to undo";
+    }
+
+    /**
+     * The Hourglass of Undoing: every ordinary slot returns to rank I (its value rerolled inside the rank I band, its perfected floor cleared) and
+     * every upgrade credit becomes pending again. The affixes, the Unique, the rarity, the attunement and the earned milestones are kept; no
+     * material is refunded. A Pokemon with an Overreach-sealed slot can never be respecced (Overreach is a point of no return), and a Pokemon with
+     * nothing above rank I has nothing to undo; both are refused, so the item is not spent. Costs one Hourglass.
+     */
+    public CraftResult respecRanks(ProfileV1 profile, RandomGenerator random) {
+        rules.validate(profile);
+        var slots = new ArrayList<OrdinarySlot>();
+        String block = respecRanksBlock(profile);
+        if (!block.isEmpty()) {
+            boolean sealed = profile.ordinarySlots().stream().anyMatch(OrdinarySlot::sealed);
+            throw new CraftException(sealed ? Reason.RESPEC_SEALED : Reason.NOTHING_TO_RESPEC, block);
+        }
+        for (var slot : profile.ordinarySlots()) {
+            var value = rules.affix(slot.affixId()).band(1).roll(random);
+            slots.add(new OrdinarySlot(slot.slotId(), slot.category(), 1, slot.affixId(), slot.parameters(), value, slot.definitionVersion()));
+        }
+        var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(), 0, slots, profile.unique());
+        rules.validate(next);
+        return new CraftResult(next, Map.of(MaterialId.RANK_RESPEC, 1L), 0);
+    }
+
+    /**
+     * The Unbinding Prism: replaces the held Unique with a different one for one Prism, with no Catalyst and no Mark (a normal Replace costs both).
+     * Same rules as {@link #replaceUnique}: there must be a Unique to replace and the new one must differ.
+     */
+    public CraftResult respecUnique(ProfileV1 profile, String uniqueId, UUID operationId) {
+        rules.validate(profile);
+        if (profile.unique() == null) throw new CraftException(Reason.NO_UNIQUE, "No Unique to swap: install one with a Catalyst first");
+        if (profile.unique().uniqueId().equals(uniqueId))
+            throw new CraftException(Reason.SAME_UNIQUE, "Replacement must be a different Unique");
+        return setUnique(profile, uniqueId, operationId, Map.of(MaterialId.UNIQUE_RESPEC, 1L));
+    }
+
+    private CraftResult setUnique(ProfileV1 profile, String uniqueId, UUID operationId, Map<MaterialId, Long> cost) {
         var definition = rules.unique(uniqueId)
                 .orElseThrow(() -> new CraftException(Reason.UNKNOWN_UNIQUE, "Unknown Unique: " + uniqueId));
         var instance = new UniqueInstance(definition.id(), definition.definitionVersion(), operationId);
         var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(),
                 profile.spentUpgradeCredits(), profile.ordinarySlots(), instance);
         rules.validate(next);
-        return new CraftResult(next, Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, (long) INSTALL_MARKS), 0);
+        return new CraftResult(next, cost, 0);
     }
 
     private static OrdinarySlot requireSlot(ProfileV1 profile, String slotId) {
