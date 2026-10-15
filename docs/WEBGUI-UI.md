@@ -14,8 +14,10 @@ Owner goal (2026-10-14): our mods live only in the server mods folder. Every scr
   answers with the data. Nothing is trusted from the page: ids are re-resolved to the player's own Pokemon, every craft carries an operation id and
   the revisions it was shown, and the existing rate limits apply.
 - Server text goes into pages with `textContent` only, never HTML.
-- Card pictures: CobblemonCards (on the server too) holds a 48x32 sprite per species. `WebUi.publishSprites` copies each base form to
-  `sprites/<species>.png`; pages show it and fall back to the species name. Forms and shinies are not published yet.
+- Card pictures: CobblemonCards (on the server too) holds a 48x32 sprite per species in its jar. `web/WebSprites` reads the file for a species and
+  sends it to the open page as a data URL (the `sprites` event, batches under WebGUI's 32 KB event limit, once per page). Nothing is copied into
+  our jar or into WebGUI's page folder, whose 2000-file cap AscensionLib, CobbleRaids and CobbleTowers share. Forms and shinies are not sent yet.
+- WebGUI refuses a single event over 32 KB: `WebUi.emitRaw` logs and drops anything larger instead of truncating.
 
 ## Pages
 
