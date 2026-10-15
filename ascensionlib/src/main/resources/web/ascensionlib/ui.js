@@ -46,6 +46,23 @@
     else (waiting[path] = waiting[path] || []).push(fill);
     return box;
   };
+  /** The tablet's shell colour follows the Pokemon's rarity (none: the classic red). Hard-edged 9-slice, stepped corners. */
+  var SHELLS = {
+    common: ['#6c7585', '#aeb6c4', '#3f4755'], uncommon: ['#14877a', '#4fd3c1', '#0a4a42'], rare: ['#1d6db0', '#5bb7ee', '#0f3f6e'],
+    epic: ['#6a35b8', '#af69ff', '#341a66'], legendary: ['#b88a12', '#ffd437', '#6b4f08'], mythical: ['#8e1426', '#d0404f', '#620512']
+  };
+  A.setBezel = function (rarityId) {
+    var c = SHELLS[rarityId] || SHELLS.mythical;
+    var cols = ['#1b120d', c[1], c[0], c[0], c[2], '#1b120d', '#cbd3df', '#eef2f7'], parts = '';
+    cols.forEach(function (col, i) {
+      var a = i + 0.5, k = Math.max(0, 3 - i);
+      var p = [[a + k, a], [24 - a - k, a], [24 - a, a + k], [24 - a, 24 - a - k], [24 - a - k, 24 - a], [a + k, 24 - a], [a, 24 - a - k], [a, a + k]];
+      parts += "<path d='M" + p.map(function (q) { return q[0] + ',' + q[1]; }).join(' L') + " Z' fill='none' stroke='" + col + "' stroke-width='1'/>";
+    });
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' shape-rendering='crispEdges'>" + parts + '</svg>';
+    document.documentElement.style.setProperty('--bezel', 'url("data:image/svg+xml,' + encodeURIComponent(svg).replace(/'/g, '%27') + '")');
+  };
+  A.setBezel('');
   A.newId = function () {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });

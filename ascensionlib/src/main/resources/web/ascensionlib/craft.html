@@ -6,41 +6,41 @@
 <title>Modifiers</title>
 <link rel="stylesheet" href="ascension.css">
 <style>
-  .top { display: flex; gap: 12px; align-items: center; padding: 8px 14px; background: var(--panel); border-bottom: 2px solid var(--edge); }
-  .top .nm { font-size: 18px; font-weight: 700; }
-  .grade { display: inline-block; padding: 1px 8px; font-size: 12px; font-weight: 700; color: #fff; background: #293547; }
-  .pend { margin-left: auto; text-align: right; } .pend b { font-size: 28px; line-height: 1; }
-  .sprbox { width: 96px; height: 64px; background: var(--row); border: 2px solid var(--edge); display: flex; align-items: center; justify-content: center; }
-  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 120px; gap: 10px; padding: 10px 14px; }
+  .top { display: flex; gap: 14px; align-items: center; padding: 8px 14px; background: var(--panel); border-bottom: 2px solid var(--line); }
+  .top .nm { font-size: 16px; text-shadow: var(--glow); }
+  .grade { display: inline-block; padding: 1px 8px; font-size: 11px; letter-spacing: .1em; color: #fff; background: #293547; border: 2px solid var(--outline); }
+  .pend { margin-left: auto; text-align: right; } .pend b { font-size: 26px; line-height: 1; color: var(--acc); text-shadow: var(--glow); }
+  .stage { width: 108px; height: 72px; }
+  .sprbox { display: flex; align-items: center; justify-content: center; }
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 132px; gap: 12px; padding: 10px 14px; }
   .work { min-height: 0; display: flex; flex-direction: column; }
   .tabs { display: flex; gap: 4px; align-items: flex-end; }
-  .tab { padding: 5px 14px; background: var(--head); border: 2px solid var(--edge); border-bottom: 0; cursor: pointer; color: var(--muted); box-shadow: none; }
-  .tab.on { background: var(--row); color: var(--ink); border-top: 4px solid var(--crimson); }
-  .banner { margin-left: 8px; padding: 3px 10px; flex: 1; font-size: 13px; border-left: 4px solid var(--edge); background: var(--row); }
-  .banner.ok { border-color: #6f9a52; background: #ddebd0; color: var(--ink); } .banner.bad { border-color: #b5482e; background: #f2d8d2; color: var(--ink); }
-  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px 1fr; gap: 8px; }
+  .tab { padding: 5px 12px; background: var(--head); border: 2px solid var(--line); border-bottom: 0; cursor: pointer; color: var(--muted); box-shadow: none; text-shadow: none; }
+  .tab.on { background: var(--panel); color: var(--ink); border-top: 4px solid var(--acc); text-shadow: var(--glow); }
+  .banner { margin-left: 8px; padding: 3px 10px; flex: 1; font-size: 11px; border-left: 4px solid var(--line); background: var(--row); }
+  .banner.ok { border-color: var(--good); background: #0d2a1c; color: var(--ink); } .banner.bad { border-color: var(--warn); background: #2b1612; color: var(--ink); }
+  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px 1fr; gap: 8px; }
   .list { overflow-y: auto; min-height: 0; }
-  .row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); cursor: pointer; background: var(--panel); }
-  .row:hover { background: var(--row); } .row.sel { background: #fff; outline: 2px solid var(--crimson); outline-offset: -2px; }
-  .row .ic { width: 20px; height: 20px; flex: none; border: 1px solid #1b120d; }
-  .row .t1 { font-weight: 600; } .row .t2 { font-size: 12px; color: var(--muted); } .row .v { margin-left: auto; font-weight: 700; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 2px solid transparent; margin-bottom: 3px; cursor: pointer; background: var(--row); }
+  .row:hover { border-color: var(--line); } .row.sel { border-color: var(--acc); box-shadow: var(--glow); }
+  .row .ic { width: 18px; height: 18px; flex: none; border: 2px solid var(--outline); }
+  .row .t1 { font-size: 12px; } .row .t2 { font-size: 10px; color: var(--muted); } .row .v { margin-left: auto; color: var(--acc); text-shadow: var(--glow); }
   .row.off .t1 { color: var(--muted); }
   .pair { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
-  .vbox { flex: 1; padding: 8px; background: var(--panel); border: 2px solid var(--head); text-align: center; }
-  .vbox.next { background: #dce6f4; border-color: #c3d2e8; } .vbox .big { font-size: 24px; font-weight: 700; } .vbox .sm { font-size: 12px; color: var(--muted); }
-  .cost { margin-top: auto; border-top: 1px solid var(--line); padding-top: 8px; display: flex; align-items: center; gap: 10px; }
+  .vbox { flex: 1; padding: 8px; background: var(--row); border: 2px solid var(--line); text-align: center; }
+  .vbox.next { border-color: var(--acc); box-shadow: var(--glow); } .vbox .big { font-size: 20px; color: var(--acc); text-shadow: var(--glow); } .vbox .sm { font-size: 10px; color: var(--muted); }
+  .cost { margin-top: auto; border-top: 2px solid var(--line); padding-top: 8px; display: flex; align-items: center; gap: 10px; }
   .cost .c { flex: 1; }
-  .wallet .coin { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-bottom: 1px solid var(--line); }
-  .wallet .dot { width: 12px; height: 12px; border: 1px solid #1b120d; flex: none; }
-  .meter { height: 10px; background: var(--well); border: 2px solid var(--edge); } .meter i { display: block; height: 100%; background: var(--crimson); }
-  .uopt .t2 { white-space: normal; }
+  .wallet .coin { display: flex; align-items: center; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line); }
+  .wallet .dot { width: 12px; height: 12px; border: 2px solid var(--outline); flex: none; }
+  .meter { height: 10px; background: var(--well); border: 2px solid var(--line); } .meter i { display: block; height: 100%; background: var(--acc); box-shadow: var(--glow); }
 </style>
 </head>
 <body>
 <div class="frame">
-  <div class="head"><span>Modifiers</span><button class="x" id="close" title="Close">&times;</button></div>
+  <div class="head"><span>MODIFIERS</span><button class="x" id="close" title="Close">&times;</button></div>
   <div class="top">
-    <div id="art"></div>
+    <div id="art" class="stage"></div>
     <div><div class="nm" id="name"></div><div><span class="muted" id="lvl"></span> <span class="grade" id="grade"></span></div></div>
     <div class="pend"><b id="pend">0</b><div class="muted" id="pendLabel"></div></div>
   </div>
@@ -129,7 +129,7 @@
     if (mode === 'unique') {
       view.unique.options.forEach(function (o) {
         var r = A.el('div', 'row uopt' + (o.id === uniqueId ? ' sel' : ''));
-        var ic = A.el('div', 'ic'); ic.style.background = '#b6a1c5'; r.appendChild(ic);
+        var ic = A.el('div', 'ic'); ic.style.background = '#8c63c7'; r.appendChild(ic);
         r.appendChild(A.el('div', 't1', o.name));
         if (o.current) { var h = A.el('div', 'v bad', 'held'); r.appendChild(h); }
         r.addEventListener('click', function () { uniqueId = o.id; render(); });
@@ -264,7 +264,7 @@
     A.text($('name'), view.name); A.text($('lvl'), 'Lv ' + view.level);
     var gr = $('grade'); A.text(gr, (view.rarityId === 'mythical' ? 'MYTHIC' : view.rarityId.toUpperCase()) + (view.uniqueName ? ' · UNIQUE' : ''));
     gr.style.background = 'var(--' + (view.rarityId || 'common') + '-bg)'; gr.style.color = 'var(--' + (view.rarityId || 'common') + ')';
-    var art = $('art'); art.innerHTML = ''; art.appendChild(A.sprite(view.speciesId, 2));
+    var art = $('art'); art.innerHTML = ''; art.appendChild(A.sprite(view.speciesId, 2)); A.setBezel(view.rarityId); A.setBezel(view.rarityId);
     A.text($('pend'), view.pending); A.text($('pendLabel'), view.pending === 1 ? 'upgrade available' : 'upgrades available');
     A.text($('next'), view.nextMilestone > 0 ? 'Next upgrade at Lv ' + view.nextMilestone : 'All level milestones reached');
     $('fuse').style.display = view.rarityId === 'mythical' ? '' : 'none';
