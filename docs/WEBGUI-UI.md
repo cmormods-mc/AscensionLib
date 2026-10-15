@@ -28,7 +28,7 @@ Owner goal (2026-10-14): our mods live only in the server mods folder. Every scr
 | `inspect.html` | `/ascend inspect <slot>`, the overlay's team and enemy rows | `scout/InspectWeb` | `AscendInspectScreen` |
 | `hud.html` | the server, as an overlay: a capture card, and a panel while the player is in a scouted encounter | `web/HudWeb` | capture reveal screen, battle inspect buttons, scouting screen |
 
-Shared: `ascension.css` (the quartz look), `ui.js` (helpers).
+Shared: `ascension.css` (the dark-LCD Pokedex tablet look: Monocraft font from `fonts/`, OFL, copied from CobbleRaids' bundle; scanlines; pixel keys; a stepped pixel bezel whose colour follows the Pokemon's rarity via `A.setBezel` in `ui.js`), `ui.js` (helpers). Never use a blurred `box-shadow` outside a page: WebGUI renders it as a black halo.
 
 ## Not replaceable by a page
 
