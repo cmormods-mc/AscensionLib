@@ -48,7 +48,7 @@ final class AscendWiring {
 
     private record SweepJob(UUID player, Pokemon pokemon) {}
 
-    private record PendingAcquisition(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity,
+    private record PendingAcquisition(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity, int tier,
                                       MinecraftServer server, int queuedTick) {}
 
     void register() {
@@ -59,9 +59,10 @@ final class AscendWiring {
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
             // Only a capture inside a profile zone rolls a profile; the ball is thrown from the dimension the wild Pokemon is in.
             // Everywhere else the Pokemon stays unprofiled until a Sigil is used on it. Hatching is the same: eggs get no profile.
-            if (!ProfileZones.isZone(event.getPlayer().level().dimension().location())) return;
+            int tier = ProfileZones.tierOf(event.getPlayer().level().dimension().location());
+            if (tier < 1) return;
             var s = event.getPlayer().getServer();
-            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, s));
+            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, tier, s));
         });
         CobblemonEvents.LEVEL_UP_EVENT.subscribe((Consumer<LevelUpEvent>) event -> {
             // The event can fire before the new level is applied; read the authoritative level on the next task.
@@ -113,7 +114,7 @@ final class AscendWiring {
 
     // --- acquisition -----------------------------------------------------------------------------------
 
-    private void queue(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity, MinecraftServer s) {
+    private void queue(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity, int tier, MinecraftServer s) {
         if (service() == null) {
             LOG.error("Progression is disabled; no profile created for {}", pokemon.getUuid());
             return;
@@ -122,7 +123,7 @@ final class AscendWiring {
             LOG.error("Acquisition queue full; profile not created for {}", pokemon.getUuid());
             return;
         }
-        pending.putIfAbsent(pokemon.getUuid(), new PendingAcquisition(pokemon, owner, origin, rollRarity, s, s.getTickCount()));
+        pending.putIfAbsent(pokemon.getUuid(), new PendingAcquisition(pokemon, owner, origin, rollRarity, tier, s, s.getTickCount()));
     }
 
     private void finishAcquisitions(MinecraftServer s) {
@@ -142,7 +143,7 @@ final class AscendWiring {
             var service = service();
             if (service == null) continue;
             try {
-                var profile = service.acquire(item.pokemon(), item.origin(), item.rollRarity());
+                var profile = service.acquire(item.pokemon(), item.origin(), item.rollRarity(), item.tier());
                 LOG.info("acquired {} Pokemon {} ({}): {} slots {}", item.origin().kind(), item.pokemon().getUuid(),
                         profile.rarity().id(), profile.ordinarySlots().size(),
                         profile.ordinarySlots().stream().map(x -> x.slotId() + "=" + x.affixId() + "@" + x.rolledValue()).toList());

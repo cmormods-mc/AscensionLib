@@ -53,4 +53,14 @@ class ContractSignaturesTest {
         assertContract(AscensionEncounters.class, "armBattle", void.class, Collection.class, String.class);
         assertContract(AscensionEncounters.class, "disarmBattle", void.class, Collection.class);
     }
+
+    @Test void dungeonContractsMatchWhatAscensionDungeonsLooksUp() throws Exception {
+        assertContract(AscensionZones.class, "contractVersion", int.class);
+        assertContract(AscensionZones.class, "openZone", boolean.class, String.class, int.class);
+        assertContract(AscensionZones.class, "closeZone", void.class, String.class);
+        assertContract(AscensionZones.class, "zoneTier", int.class, String.class);
+        assertContract(AscensionRewards.class, "settleDungeonRun", Map.class,
+                UUID.class, String.class, int.class, int.class, boolean.class, Collection.class);
+        assertEquals(1, AscensionZones.contractVersion());
+    }
 }

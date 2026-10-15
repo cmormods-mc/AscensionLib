@@ -70,6 +70,49 @@ public final class AscensionRewards {
     }
 
     /**
+     * Pays a finished ascensionDungeons run from the library's own bands ({@code DungeonRewardBands}), flat per player, so the caller
+     * supplies no amounts: dust for the run's tier and each arena raid won, Facets from arena wins and a boss, Unique Fragments from a
+     * boss, never Ascension Cores. Also gives each paid player's party +3 attunement (once per run) and rolls the rare Ascension Sigil
+     * ({@code SigilDrops.rollDungeon}, reward kind {@code dungeon_sigil}). Same exactly-once rules and statuses as {@link #settle}; reward
+     * kind {@code dungeon_run}. Amounts are seeded by (run, player, tier), so a retry recomputes the same.
+     *
+     * @param runId        the run's own ID (never reused)
+     * @param outcome      {@code VICTORY} when the run counts as a success (the dungeon decides: for example at least one arena won or the
+     *                     boss beaten); {@code DEFEAT} and {@code ABORTED} pay nothing
+     * @param tier         the run's zone tier, 1..10 (the one passed to {@code AscensionZones.openZone})
+     * @param arenaWins    arena raids the party won, 0..16
+     * @param bossDefeated whether the run's final boss was beaten
+     * @param players      every participant to pay (those who left early are the caller's decision)
+     * @throws IllegalArgumentException for a malformed call (unknown outcome, tier or arena count out of range)
+     */
+    public static Map<UUID, String> settleDungeonRun(UUID runId, String outcome, int tier, int arenaWins, boolean bossDefeated,
+                                                     java.util.Collection<UUID> players) {
+        var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
+        for (var player : players) {
+            var amounts = new LinkedHashMap<String, Long>();
+            com.cobbleascend.domain.v1.DungeonRewardBands.DEFAULTS.payout(runId.toString(), player, tier, arenaWins, bossDefeated)
+                    .forEach((material, amount) -> amounts.put(material.id(), amount));
+            payouts.put(player, amounts);
+        }
+        var result = settle(runId, outcome, "dungeon_run", payouts);
+        var paid = new java.util.ArrayList<UUID>();
+        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        awardAttunement("dungeon:" + runId, paid);
+        var sigils = new LinkedHashMap<UUID, Map<String, Long>>();
+        for (var player : players)
+            if (com.cobbleascend.domain.v1.SigilDrops.DEFAULTS.rollDungeon(runId.toString(), player, tier))
+                sigils.put(player, Map.of(MaterialId.ASCENSION_SIGIL.id(), 1L));
+        if (!sigils.isEmpty()) {
+            try {
+                settle(runId, outcome, "dungeon_sigil", sigils);
+            } catch (RuntimeException exception) {
+                LOG.warn("Sigil drop for dungeon run {} not recorded: {}", runId, exception.toString());
+            }
+        }
+        return result;
+    }
+
+    /**
      * Pays a won CobbleTowers Trial (a floor-limited run) from {@code TrialRewardBands}: flat per player, victory only, reward kind
      * {@code trial_rank_N}, once per (encounter, player), and +3 attunement to each paid player's party. No entry gate or daily
      * budget yet. Same statuses as {@link #settle}.

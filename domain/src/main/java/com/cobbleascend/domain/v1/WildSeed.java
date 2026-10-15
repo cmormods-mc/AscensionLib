@@ -19,12 +19,17 @@ final class WildSeed {
     private WildSeed() {}
 
     static SplittableRandom random(byte[] secret, int catalogVersion, UUID pokemonId) {
+        return random(secret, catalogVersion, pokemonId, 1);
+    }
+
+    /** A zone tier above 1 is part of the input, so the same Pokemon rates differently at a different tier; tier 1 is exactly the original input. */
+    static SplittableRandom random(byte[] secret, int catalogVersion, UUID pokemonId, int tier) {
         if (secret == null || secret.length < MIN_SECRET_BYTES)
             throw new IllegalArgumentException("Wild rating secret must be at least " + MIN_SECRET_BYTES + " bytes");
         try {
             var mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(secret, "HmacSHA256"));
-            byte[] digest = mac.doFinal(("cobbleascend:wild:v1|" + catalogVersion + "|" + pokemonId)
+            byte[] digest = mac.doFinal(("cobbleascend:wild:v1|" + catalogVersion + "|" + pokemonId + (tier > 1 ? "|tier=" + tier : ""))
                     .getBytes(StandardCharsets.UTF_8));
             return new SplittableRandom(ByteBuffer.wrap(digest).getLong());
         } catch (GeneralSecurityException exception) {

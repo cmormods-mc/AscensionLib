@@ -122,11 +122,14 @@ public final class ProfileService {
      * Registers an owned Pokemon once. The rarity roll happens inside the store transaction only when this
      * Pokemon has no committed acquisition, so repeated callbacks and restarts never re-roll.
      */
-    public ProfileV1 acquire(Pokemon pokemon, Origin origin, boolean rollRarity) {
+    public ProfileV1 acquire(Pokemon pokemon, Origin origin, boolean rollRarity) { return acquire(pokemon, origin, rollRarity, 1); }
+
+    /** As above for a capture in a profile zone of this tier: the rating is the one {@link #previewWild(Pokemon, int)} showed. */
+    public ProfileV1 acquire(Pokemon pokemon, Origin origin, boolean rollRarity, int tier) {
         return register(pokemon, (id, level, types) -> {
             // Wild captures use the rating fixed for that Pokemon, so a Scouter preview equals the result.
             if (rollRarity && origin.kind().equals("wild_capture"))
-                return progression.createWild(store.wildSecret(), id, runtime.authority(), origin, level, types);
+                return progression.createWild(store.wildSecret(), id, runtime.authority(), origin, level, types, Math.max(1, tier));
             Rarity rarity = rollRarity ? rules.base().rollRarity(random) : Rarity.COMMON;
             return progression.create(id, runtime.authority(), rarity, origin, level, types, random);
         });
@@ -197,10 +200,13 @@ public final class ProfileService {
      * must have verified the scout before showing it. Assumes a wild Pokemon keeps its UUID through capture
      * (to be confirmed in a live world).
      */
-    public RankedProgression.WildRating previewWild(Pokemon wild) {
+    public RankedProgression.WildRating previewWild(Pokemon wild) { return previewWild(wild, 1); }
+
+    /** As above for a wild Pokemon standing in a profile zone of this tier. */
+    public RankedProgression.WildRating previewWild(Pokemon wild, int tier) {
         if (wild.getOwnerUUID() != null || wild.isBattleClone())
             throw new IllegalArgumentException("Only an unowned wild Pokemon can be previewed");
-        return progression.rateWild(store.wildSecret(), wild.getUuid(), typesOf(wild), Math.max(1, wild.getLevel()));
+        return progression.rateWild(store.wildSecret(), wild.getUuid(), typesOf(wild), Math.max(1, wild.getLevel()), Math.max(1, tier));
     }
 
     /**

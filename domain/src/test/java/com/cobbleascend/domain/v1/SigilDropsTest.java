@@ -15,6 +15,14 @@ class SigilDropsTest {
         assertEquals(8, drops.towerPercent(500));
     }
 
+    @Test void dungeonChanceRisesPerTierAndIsCapped() {
+        assertEquals(2, drops.dungeonPercent(1));
+        assertEquals(5, drops.dungeonPercent(4));
+        assertEquals(10, drops.dungeonPercent(30));
+        var player = UUID.randomUUID();
+        assertEquals(drops.rollDungeon("run-1", player, 5), drops.rollDungeon("run-1", player, 5));
+    }
+
     @Test void aRollIsRepeatableAndRoughlyMatchesItsPercent() {
         var player = UUID.randomUUID();
         assertEquals(drops.rollTower("e1", player, 10), drops.rollTower("e1", player, 10));
@@ -24,7 +32,7 @@ class SigilDropsTest {
     }
 
     @Test void aMaximumBelowItsBaseIsRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new SigilDrops(5, 4));
-        assertThrows(IllegalArgumentException.class, () -> new SigilDrops(2, 101));
+        assertThrows(IllegalArgumentException.class, () -> new SigilDrops(5, 4, 2, 10));
+        assertThrows(IllegalArgumentException.class, () -> new SigilDrops(2, 8, 2, 101));
     }
 }

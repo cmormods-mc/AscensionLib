@@ -44,11 +44,15 @@ public final class AscensionBattles {
             // A wild Pokemon is rated from the Pokemon itself (its types and level), so keep it by its real uuid.
             var wildByUuid = new HashMap<UUID, Pokemon>();
             boolean profileZone = false;
+            int zoneTier = 1;
             for (var actor : battle.getActors()) {
                 // The dimension is the wild opponent's, not the player's. No entity (a scripted battle) is not a zone.
                 if (actor.getType() == ActorType.WILD && actor instanceof EntityBackedBattleActor<?> backed
                         && backed.getEntity() != null
-                        && ProfileZones.isZone(backed.getEntity().level().dimension().location())) profileZone = true;
+                        && ProfileZones.isZone(backed.getEntity().level().dimension().location())) {
+                    profileZone = true;
+                    zoneTier = Math.max(zoneTier, ProfileZones.tierOf(backed.getEntity().level().dimension().location()));
+                }
                 var kind = actor.getType() == ActorType.PLAYER ? BattleFxPlanner.Kind.PLAYER
                         : actor.getType() == ActorType.WILD ? BattleFxPlanner.Kind.WILD : BattleFxPlanner.Kind.NPC;
                 var combatants = new ArrayList<BattleFxPlanner.Combatant>();
@@ -60,12 +64,13 @@ public final class AscensionBattles {
                 actors.add(new BattleFxPlanner.Actor(kind, combatants));
             }
 
+            final int tierForWild = zoneTier;
             boolean raid = "raid".equals(battle.getFormat().getBattleType().getName());
             var rules = service.get().rules();
             var plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, profileZone, ScoutEncounters.armedEnemies(playerIds),
                     pokemonId -> service.get().snapshot(pokemonId),
                     pokemonId -> Optional.ofNullable(wildByUuid.get(pokemonId)).map(wild -> {
-                        var rating = service.get().previewWild(wild);
+                        var rating = service.get().previewWild(wild, tierForWild);
                         return new CombatSnapshot(CombatSnapshot.Source.ENEMY, pokemonId.toString(), rating.rarity(),
                                 rules.catalogVersion(), rating.slots(), null);
                     }));

@@ -94,4 +94,47 @@ class WildRatingTest {
         assertThrows(IllegalArgumentException.class, () -> progression.rateWild(secret, id, List.of(), 10));
         assertThrows(IllegalArgumentException.class, () -> progression.rateWild(secret, id, types, 0));
     }
+
+    // --- zone tiers ------------------------------------------------------------------------------------
+
+    @Test void tierOneIsExactlyTheOrdinaryRatingSoExistingRatingsNeverMove() {
+        var random = new Random(9);
+        for (int n = 0; n < 200; n++) {
+            var id = new UUID(random.nextLong(), random.nextLong());
+            assertEquals(progression.rateWild(secret, id, types, 30), progression.rateWild(secret, id, types, 30, 1));
+        }
+    }
+
+    @Test void aDeeperTierIsADeterministicRatingOfItsOwn() {
+        var id = UUID.randomUUID();
+        var first = progression.rateWild(secret, id, types, 30, 4);
+        for (int i = 0; i < 20; i++) assertEquals(first, progression.rateWild(secret, id, types, 30, 4));
+        assertThrows(IllegalArgumentException.class, () -> progression.rateWild(secret, id, types, 30, 0));
+    }
+
+    @Test void aDeeperTierShiftsRaritiesUpwardAndStopsAddingAtTheCap() {
+        double[] mean = new double[8];
+        int trials = 6000;
+        var random = new Random(21);
+        for (int n = 0; n < trials; n++) {
+            var id = new UUID(random.nextLong(), random.nextLong());
+            for (int tier : new int[] {1, 2, 4, 7}) mean[tier] += progression.rateWild(secret, id, types, 30, tier).rarity().ordinal();
+        }
+        assertTrue(mean[2] > mean[1] + trials * 0.1, "Tier 2 beats tier 1 on average");
+        assertTrue(mean[4] > mean[2], "Tier 4 beats tier 2");
+        // Tiers beyond the cap draw the same number of times (four), though each is its own fixed rating
+        assertEquals(mean[4] / trials, mean[7] / trials, 0.15);
+    }
+
+    @Test void aCaptureAtATierGivesExactlyTheRatingThePreviewShowed() {
+        var random = new Random(4);
+        for (int n = 0; n < 100; n++) {
+            var id = new UUID(random.nextLong(), random.nextLong());
+            int tier = 1 + random.nextInt(8);
+            var preview = progression.rateWild(secret, id, types, 25, tier);
+            var profile = progression.createWild(secret, id, authority, Origin.of("wild_capture"), 25, types, tier);
+            assertEquals(preview.rarity(), profile.rarity());
+            assertEquals(preview.slots(), profile.ordinarySlots());
+        }
+    }
 }

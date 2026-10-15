@@ -34,12 +34,30 @@ public final class RankedProgression {
         public WildRating { slots = List.copyOf(slots); }
     }
 
+    /** The most extra rarity draws a deep zone gives (tier 4 and above): the best of four draws. */
+    public static final int MAX_TIER_ADVANTAGE = 3;
+
     public WildRating rateWild(byte[] secret, UUID pokemonId, List<String> types, int level) {
+        return rateWild(secret, pokemonId, types, level, 1);
+    }
+
+    /**
+     * As above in a profile zone of this tier. Tier 1 is the ordinary rating, unchanged. A deeper tier is a different, equally fixed
+     * rating for the same Pokemon: its rarity is the best of {@code 1 + min(tier - 1, MAX_TIER_ADVANTAGE)} weighted draws, then its slots
+     * are rolled as usual. Deterministic from the Pokemon's ID, the tier and the server secret, so a Scouter preview equals the capture
+     * as long as both use the tier of the zone the Pokemon stands in.
+     */
+    public WildRating rateWild(byte[] secret, UUID pokemonId, List<String> types, int level, int tier) {
         if (types.isEmpty() || !com.cobbleascend.domain.Rules.TYPES.containsAll(types))
             throw new IllegalArgumentException("Species types must be one or more standard types");
+        if (tier < 1) throw new IllegalArgumentException("Zone tier must be at least 1");
         int upgrades = Milestones.reachedThrough(level).size();
-        var random = WildSeed.random(secret, rules.catalogVersion(), pokemonId);
+        var random = WildSeed.random(secret, rules.catalogVersion(), pokemonId, tier);
         Rarity rarity = rules.base().rollRarity(random);
+        for (int extra = Math.min(tier - 1, MAX_TIER_ADVANTAGE); extra > 0; extra--) {
+            Rarity again = rules.base().rollRarity(random);
+            if (again.ordinal() > rarity.ordinal()) rarity = again;
+        }
         var slots = rollInitialSlots(rarity, types, random);
         return new WildRating(rarity, slots, upgrades);
     }
@@ -47,7 +65,13 @@ public final class RankedProgression {
     /** Captures a wild Pokemon using exactly the rating {@link #rateWild} previews. */
     public ProfileV1 createWild(byte[] secret, UUID pokemonId, UUID authorityId, Origin origin, int level,
                                 List<String> types) {
-        var rating = rateWild(secret, pokemonId, types, level);
+        return createWild(secret, pokemonId, authorityId, origin, level, types, 1);
+    }
+
+    /** Captures a wild Pokemon in a zone of this tier using exactly the rating {@link #rateWild(byte[], UUID, List, int, int)} previews. */
+    public ProfileV1 createWild(byte[] secret, UUID pokemonId, UUID authorityId, Origin origin, int level,
+                                List<String> types, int tier) {
+        var rating = rateWild(secret, pokemonId, types, level, tier);
         return build(pokemonId, authorityId, rating.rarity(), origin, level, rating.slots());
     }
 
