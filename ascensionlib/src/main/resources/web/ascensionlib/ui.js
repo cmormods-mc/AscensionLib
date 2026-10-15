@@ -19,19 +19,31 @@
   A.speciesName = function (speciesId) { return A.speciesPath(speciesId).replace(/_/g, ' '); };
   /** An element: tag, class, text. */
   A.el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  /** The species' card sprite (published from CobblemonCards), or its name when the server has none. */
+  var sprites = {}, waiting = {};
+  /** Pictures arrive from the server as data URLs, in batches; an image waits for its species and shows the name until then. */
+  A.on('sprites', function (batch) {
+    Object.keys(batch).forEach(function (path) {
+      sprites[path] = batch[path];
+      (waiting[path] || []).forEach(function (fill) { fill(batch[path]); });
+      delete waiting[path];
+    });
+  });
+  /** The species' card sprite (from CobblemonCards on the server), or its name when the server has none. */
   A.sprite = function (speciesId, size) {
     var box = A.el('div', 'sprbox');
     var path = A.speciesPath(speciesId);
-    var fallback = function () { box.innerHTML = ''; box.appendChild(A.el('div', 'sprfb', A.speciesName(speciesId))); };
-    if (!/^[a-z0-9_]+$/.test(path)) { fallback(); return box; }
-    var img = new Image();
-    img.className = 'spr';
-    img.alt = '';
-    img.style.width = (48 * (size || 2)) + 'px'; img.style.height = (32 * (size || 2)) + 'px';
-    img.onerror = fallback;
-    img.src = 'sprites/' + path + '.png';
-    box.appendChild(img);
+    var label = function () { box.innerHTML = ''; box.appendChild(A.el('div', 'sprfb', A.speciesName(speciesId))); };
+    label();
+    if (!/^[a-z0-9_]+$/.test(path)) return box;
+    var fill = function (url) {
+      var img = new Image();
+      img.className = 'spr'; img.alt = '';
+      img.style.width = (48 * (size || 2)) + 'px'; img.style.height = (32 * (size || 2)) + 'px';
+      img.onload = function () { box.innerHTML = ''; box.appendChild(img); };
+      img.src = url;
+    };
+    if (sprites[path]) fill(sprites[path]);
+    else (waiting[path] = waiting[path] || []).push(fill);
     return box;
   };
   A.newId = function () {

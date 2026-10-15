@@ -54,6 +54,8 @@ public final class FusionWeb {
         WebUi.open(player, "fusion.html");
     }
 
+    static void feed(ServerPlayer player, java.util.Collection<String> species) { com.ascensionlib.web.WebSprites.feed(player, species); }
+
     /** Sends one JSON event to the player's open page. */
     static void emit(ServerPlayer player, String event, Object payload) { WebUi.emit(player, event, payload); }
 }

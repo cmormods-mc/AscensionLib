@@ -37,10 +37,10 @@ public final class HudWeb {
             OPEN.add(player.getUUID());
             OPENING.remove(player.getUUID());
             var queued = QUEUED.remove(player.getUUID());
-            if (queued != null) queued.forEach(reveal -> WebUi.emit(player, "hudReveal", reveal));
+            if (queued != null) queued.forEach(reveal -> { WebSprites.feed(player, List.of(reveal.speciesId())); WebUi.emit(player, "hudReveal", reveal); });
             var state = com.ascensionlib.scout.ScoutEncounters.stateFor(player.getUUID());
             WebUi.emit(player, "hudScout", Views.state(state));
-            if (!state.entries().isEmpty()) WebUi.emit(player, "hudTeam", team(player));
+            if (!state.entries().isEmpty()) sendTeam(player);
         });
         WebUi.listen("ascension_hud_closed", (player, o) -> { OPEN.remove(player.getUUID()); OPENING.remove(player.getUUID()); });
     }
@@ -60,6 +60,7 @@ public final class HudWeb {
     public static boolean reveal(ServerPlayer player, CaptureRevealPayload payload) {
         if (!WebUi.canShow(player)) return false;
         if (OPEN.contains(player.getUUID())) {
+            WebSprites.feed(player, List.of(payload.speciesId()));
             WebUi.emit(player, "hudReveal", payload);
             return true;
         }
@@ -77,8 +78,14 @@ public final class HudWeb {
         if (!state.entries().isEmpty()) ensureOpen(player);
         if (OPEN.contains(player.getUUID())) {
             WebUi.emit(player, "hudScout", Views.state(state));
-            if (!state.entries().isEmpty()) WebUi.emit(player, "hudTeam", team(player));
+            if (!state.entries().isEmpty()) sendTeam(player);
         }
+    }
+
+    private static void sendTeam(ServerPlayer player) {
+        var team = team(player);
+        WebSprites.feed(player, team.stream().map(Views.TeamView::speciesId).toList());
+        WebUi.emit(player, "hudTeam", team);
     }
 
     private static List<Views.TeamView> team(ServerPlayer player) {

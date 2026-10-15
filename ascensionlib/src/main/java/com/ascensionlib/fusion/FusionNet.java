@@ -107,6 +107,7 @@ public final class FusionNet {
         if (host == null) return;
         var profile = service.canonical(host);
         String block = hostBlock(host, profile, service.store().fusedPokemon());
+        FusionWeb.feed(player, java.util.List.of(host.getSpecies().getResourceIdentifier().toString()));
         FusionWeb.emit(player, "fusionCandidates", new FusionPayloads.Candidates(entry(service, host, profile, inParty(player, host), block.isEmpty(), ""), cap(block, 250)));
     }
 
@@ -148,6 +149,7 @@ public final class FusionNet {
                 if (entries.size() >= FusionPayloads.MAX_PICK) break;
             }
         }
+        FusionWeb.feed(player, entries.stream().map(FusionPayloads.Entry::speciesId).toList());
         FusionWeb.emit(player, "fusionPickList", new FusionPayloads.PickList(hostRole, entries));
     }
 

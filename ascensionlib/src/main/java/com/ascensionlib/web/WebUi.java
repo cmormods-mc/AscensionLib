@@ -58,6 +58,7 @@ public final class WebUi {
             player.sendSystemMessage(Component.literal("This screen is a web page: install the WebGUI mod (and Rinku) on your client."));
             return false;
         }
+        WebSprites.reset(player.getUUID());
         land.webgui.api.WebviewApi.openGui(player, "webgui://ascensionlib/" + page);
         return true;
     }
@@ -65,6 +66,7 @@ public final class WebUi {
     /** Opens a transparent overlay (HUD) page; the player can still play. */
     public static boolean openHud(ServerPlayer player, String page) {
         if (!available() || land.webgui.WebviewNetworking.clientKind(player) != land.webgui.WebviewNetworking.ClientKind.CURRENT) return false;
+        WebSprites.reset(player.getUUID());
         land.webgui.api.WebviewApi.openHud(player, "webgui://ascensionlib/" + page);
         return true;
     }
@@ -74,9 +76,20 @@ public final class WebUi {
         return available() && land.webgui.WebviewNetworking.clientKind(player) == land.webgui.WebviewNetworking.ClientKind.CURRENT;
     }
 
+    /** WebGUI refuses a single event over 32 KB; stay under it with room for the framing. */
+    private static final int MAX_EVENT = 30_000;
+
     /** Sends one JSON event to the player's open page. */
-    public static void emit(ServerPlayer player, String event, Object payload) {
-        if (available()) land.webgui.api.WebviewApi.emitToPage(player, event, GSON.toJson(payload));
+    public static void emit(ServerPlayer player, String event, Object payload) { emitRaw(player, event, GSON.toJson(payload)); }
+
+    /** Sends an event whose JSON is already built; an event too large for WebGUI is logged and dropped, never truncated. */
+    public static void emitRaw(ServerPlayer player, String event, String json) {
+        if (!available()) return;
+        if (json.length() > MAX_EVENT) {
+            LOG.warn("Page event {} for {} is {} characters, over WebGUI's limit; not sent", event, player.getGameProfile().getName(), json.length());
+            return;
+        }
+        land.webgui.api.WebviewApi.emitToPage(player, event, json);
     }
 
     /** What a page's message handler receives: the player and the parsed JSON object the page posted. */
@@ -148,56 +161,10 @@ public final class WebUi {
                     copied++;
                 }
             }
-            int sprites = publishSprites(target.resolve("sprites"));
             land.webgui.server.WebviewAssets.reload();
-            LOG.info("Published the AscensionLib pages to {} ({} updated, {} card sprites)", target, copied, sprites);
+            LOG.info("Published the AscensionLib pages to {} ({} updated)", target, copied);
         } catch (IOException | RuntimeException | LinkageError exception) {
             LOG.warn("Could not publish the AscensionLib web pages; the screens will not open", exception);
         }
-    }
-
-    private static final String CARD_SPRITES = "assets/cobblemon-cards/textures/item/cards/pokemon/entity_icon";
-
-    /**
-     * CobblemonCards (on the server too) holds a 48x32 sprite per species; pages cannot read a resource pack, so the base form of each
-     * species is copied to {@code sprites/<species>.png} and the pages show it (and fall back to text without it). Returns how many exist.
-     */
-    private static int publishSprites(Path target) throws IOException {
-        var container = FabricLoader.getInstance().getModContainer("cobblemon-cards").orElse(null);
-        if (container == null) return 0;
-        var root = container.findPath(CARD_SPRITES).orElse(null);
-        if (root == null) {
-            LOG.info("CobblemonCards is installed but has no sprites at {}; the pages show text instead of pictures", CARD_SPRITES);
-            return 0;
-        }
-        Files.createDirectories(target);
-        int count = 0;
-        try (var folders = Files.list(root)) {
-            for (Path folder : (Iterable<Path>) folders::iterator) {
-                if (!Files.isDirectory(folder)) continue;
-                try (var files = Files.list(folder)) {
-                    for (Path file : (Iterable<Path>) files::iterator) {
-                        String species = spriteSpecies(folder.getFileName().toString(), file.getFileName().toString());
-                        if (species == null) continue;
-                        Path out = target.resolve(species + ".png");
-                        byte[] bytes = Files.readAllBytes(file);
-                        if (!Files.exists(out) || !java.util.Arrays.equals(Files.readAllBytes(out), bytes)) Files.write(out, bytes);
-                        count++;
-                    }
-                }
-            }
-        }
-        return count;
-    }
-
-    /**
-     * The species id for a base-form sprite, or null for a form or shiny file. The folder is {@code <dex, 4 digits>_<id without
-     * underscores>} and the base file is {@code <id>.png}, so it is the file whose name without underscores is the folder's suffix.
-     */
-    static String spriteSpecies(String folder, String file) {
-        if (!file.endsWith(".png") || folder.length() < 6 || folder.charAt(4) != '_') return null;
-        String id = file.substring(0, file.length() - 4);
-        if (!id.matches("[a-z0-9_]+")) return null;
-        return id.replace("_", "").equals(folder.substring(5)) ? id : null;
     }
 }

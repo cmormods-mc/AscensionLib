@@ -48,7 +48,11 @@ public final class InspectWeb {
     private static void sendCurrent(ServerPlayer player) {
         var target = PENDING.get(player.getUUID());
         if (target == null) return;
-        if (target.kind() == Kind.OWNED) WebUi.emit(player, "inspectOwned", Views.owned(OwnedInspectNet.resultFor(player, target.id())));
+        if (target.kind() == Kind.OWNED) {
+            var result = OwnedInspectNet.resultFor(player, target.id());
+            com.ascensionlib.web.WebSprites.feed(player, java.util.List.of(result.extra().speciesId()));
+            WebUi.emit(player, "inspectOwned", Views.owned(result));
+        }
         else WebUi.emit(player, "inspectScout", Views.state(ScoutEncounters.stateFor(player.getUUID())));
     }
 

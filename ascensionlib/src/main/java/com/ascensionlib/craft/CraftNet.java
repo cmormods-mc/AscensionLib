@@ -2,6 +2,7 @@ package com.ascensionlib.craft;
 
 import com.ascensionlib.AscensionApi;
 import com.ascensionlib.ProfileService;
+import com.ascensionlib.web.WebSprites;
 import com.ascensionlib.web.WebUi;
 import com.cobbleascend.domain.Rarity;
 import com.cobbleascend.domain.v1.Category;
@@ -110,6 +111,7 @@ public final class CraftNet {
         profiled = com.ascensionlib.Profiler.start();
         var built = view(player, pokemon, service, profile.get(), open, message);
         com.ascensionlib.Profiler.stop("server.craftView", profiled);
+        WebSprites.feed(player, List.of(built.speciesId()));
         WebUi.emit(player, "craftView", built);
         return true;
     }

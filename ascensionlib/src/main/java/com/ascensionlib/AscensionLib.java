@@ -36,6 +36,7 @@ public final class AscensionLib implements ModInitializer {
             var id = handler.getPlayer().getUUID();
             com.ascensionlib.net.RateLimit.forget(id);
             com.ascensionlib.web.HudWeb.forget(id);
+            com.ascensionlib.web.WebSprites.forget(id);
             com.ascensionlib.scout.InspectWeb.forget(id);
             com.ascensionlib.craft.CraftNet.forget(id);
             com.ascensionlib.fusion.FusionWeb.forget(id);

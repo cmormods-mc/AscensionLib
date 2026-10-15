@@ -6,17 +6,10 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
 class WebUiTest {
-    @Test void aBaseSpriteMapsToItsSpeciesId() {
-        assertEquals("mewtwo", WebUi.spriteSpecies("0150_mewtwo", "mewtwo.png"));
-        assertEquals("mr_mime", WebUi.spriteSpecies("0122_mrmime", "mr_mime.png"), "Underscores in the id are not in the folder name");
-    }
-
-    @Test void formsShiniesAndStrangeNamesAreSkipped() {
-        assertNull(WebUi.spriteSpecies("0150_mewtwo", "mewtwo_shiny.png"));
-        assertNull(WebUi.spriteSpecies("0150_mewtwo", "mewtwo_mega_x.png"));
-        assertNull(WebUi.spriteSpecies("0150_mewtwo", "mewtwo.txt"));
-        assertNull(WebUi.spriteSpecies("0150_mewtwo", "../mewtwo.png"));
-        assertNull(WebUi.spriteSpecies("mewtwo", "mewtwo.png"));
+    @Test void aSpriteIsFoundByDexNumberAndFlatSpeciesName() {
+        assertEquals("0150_mewtwo/mewtwo.png", WebSprites.fileFor(150, "mewtwo"));
+        assertEquals("0122_mrmime/mr_mime.png", WebSprites.fileFor(122, "mr_mime"), "Underscores are in the file name but not the folder name");
+        assertEquals("1025_pecharunt/pecharunt.png", WebSprites.fileFor(1025, "pecharunt"));
     }
 
     @Test void fieldReadersBoundAndDefaultTheUntrustedJson() {
