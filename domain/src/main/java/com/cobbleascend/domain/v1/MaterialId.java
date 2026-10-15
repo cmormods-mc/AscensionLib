@@ -13,7 +13,7 @@ public enum MaterialId {
     UNIQUE_CATALYST("unique_catalyst"),
     /** One use reveals one enemy for one encounter. Only granted as a CobbleTowers reward for now. */
     SCOUTER("scouter"),
-    /** One use gives a Pokemon with no profile a profile with a rolled rarity, and is consumed. Rare loot in towers and Exiled. */
+    /** One use gives a Pokemon with no profile a profile with a rolled rarity, and is consumed. Rare loot from tower bosses. */
     ASCENSION_SIGIL("ascension_sigil");
 
     private final String id;

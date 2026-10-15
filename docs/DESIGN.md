@@ -65,7 +65,7 @@ All unlocked slots are filled on capture. Promotion fills exactly the newly unlo
 
 | Situation | Behavior |
 |---|---|
-| Successful wild capture | **Revised 2026-10-10:** inside a profile zone (Exiled) roll once after successful ownership/storage, normal table. Anywhere else: no profile; a Sigil (wallet material, to be built) adds one. |
+| Successful wild capture | **Revised 2026-10-10:** inside a profile zone roll once after successful ownership/storage, normal table. Anywhere else: no profile; a Sigil (wallet material, to be built) adds one. |
 | Failed catch / full-storage failure | No ownership reward, no currency, no rolled owned record. |
 | Existing ascension data | Preserve it; validate schema and revision. |
 | Evolution, form change, nickname, PC move | Preserve rarity, values and provenance. |

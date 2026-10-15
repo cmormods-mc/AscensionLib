@@ -57,7 +57,7 @@ final class AscendWiring {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> enqueueSweep(handler.getPlayer())));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
-            // Only a capture inside a profile zone (Exiled) rolls a profile; the ball is thrown from the dimension the wild Pokemon is in.
+            // Only a capture inside a profile zone rolls a profile; the ball is thrown from the dimension the wild Pokemon is in.
             // Everywhere else the Pokemon stays unprofiled until a Sigil is used on it. Hatching is the same: eggs get no profile.
             if (!ProfileZones.isZone(event.getPlayer().level().dimension().location())) return;
             var s = event.getPlayer().getServer();
@@ -74,7 +74,7 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
         ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
-        LOG.info("Capture rarity (Exiled captures only), level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
+        LOG.info("Capture rarity (profile-zone captures only), level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
     }
 
     private void stop(MinecraftServer stopping) {
@@ -257,7 +257,7 @@ final class AscendWiring {
             if (profile.isEmpty()) {
                 source.sendFailure(Component.literal(service.quarantined().contains(pokemon.getUuid())
                         ? "This Pokemon's ascension data needs administrator review. It was preserved untouched."
-                        : "No ascension profile. Pokemon caught in the Exiled dimension get one; an operator can initialize an existing Pokemon as Common."));
+                        : "No ascension profile. Pokemon caught in a profile zone get one; an operator can initialize an existing Pokemon as Common."));
                 return 0;
             }
             describe(source, service.rules(), slot, profile.get());

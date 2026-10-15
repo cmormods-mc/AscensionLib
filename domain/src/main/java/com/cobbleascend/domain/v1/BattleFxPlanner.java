@@ -14,7 +14,7 @@ import java.util.function.Function;
  *
  * <ul>
  *   <li><b>PvP</b>: nothing acts, ever.</li>
- *   <li><b>Only in three places</b>: a raid, an armed encounter, or a profile zone (the Exiled dimension). Anywhere else
+ *   <li><b>Only in three places</b>: a raid, an armed encounter, or a profile zone (a registered dimension such as the tower dimension). Anywhere else
  *       (an ordinary wild fight in any dimension) nothing acts on either side.</li>
  *   <li><b>A player's Pokemon</b> act from their stored profile; a Pokemon with no profile does not act.</li>
  *   <li><b>An armed encounter</b> (a tower opponent or floor boss, a raid boss) assigns its declared enemy snapshots, in
@@ -57,7 +57,7 @@ public final class BattleFxPlanner {
                                                           Function<UUID, Optional<CombatSnapshot>> wildSnapshot) {
         var result = new LinkedHashMap<String, List<BattleFx.Effect>>();
         if (pvp) return result;
-        // Profiles act only in a raid, an armed encounter (tower) or a profile zone (the Exiled dimension); an
+        // Profiles act only in a raid, an armed encounter (tower) or a profile zone (a registered dimension such as the tower dimension); an
         // ordinary wild fight elsewhere is fully native for both sides.
         if (armed == null && !raid && !profileZone) return result;
         var enemies = new ArrayList<Combatant>();
