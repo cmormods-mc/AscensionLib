@@ -132,6 +132,40 @@ public final class RankedProgression {
         return new CraftResult(next, MaterialId.of(rules.base().craftCost("refine")), 0);
     }
 
+    /** Dust for the first Perfecting step on a slot; each step already taken on it adds {@link #PERFECT_STEP_DUST}. */
+    public static final int PERFECT_BASE_DUST = 30;
+    public static final int PERFECT_STEP_DUST = 10;
+
+    /**
+     * What polishing this slot one more point costs in Resonance Dust: the steps already bought are how far the value stands above the
+     * band's minimum, so the price is a function of the slot alone and needs nothing stored. Only meaningful for a slot that can be perfected.
+     */
+    public int perfectCost(OrdinarySlot slot) {
+        int steps = Math.max(0, slot.rolledValue() - rules.affix(slot.affixId()).band(slot.rank()).min());
+        return PERFECT_BASE_DUST + PERFECT_STEP_DUST * steps;
+    }
+
+    /**
+     * Endgame polish: raises a rank V slot's value by one point, up to its band maximum, for Resonance Dust only. It is the one deliberate
+     * way to turn a middling roll into a top one; a Refine afterwards rerolls the value and can undo it, which is the trade. Never leaves the band.
+     */
+    public CraftResult perfect(ProfileV1 profile, String slotId) {
+        rules.validate(profile);
+        var old = requireSlot(profile, slotId);
+        if (old.rank() < RankedAffix.RANKS)
+            throw new CraftException(Reason.NOT_MAX_RANK, "Only a rank V slot can be perfected");
+        var band = rules.affix(old.affixId()).band(old.rank());
+        if (old.rolledValue() >= band.max())
+            throw new CraftException(Reason.AT_BAND_MAX, "This slot is already at the top of its band");
+        long cost = perfectCost(old);
+        var polished = new OrdinarySlot(old.slotId(), old.category(), old.rank(), old.affixId(), old.parameters(),
+                old.rolledValue() + 1, old.definitionVersion());
+        var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(),
+                profile.spentUpgradeCredits(), replace(profile, polished), profile.unique());
+        rules.validate(next);
+        return new CraftResult(next, Map.of(MaterialId.RESONANCE_DUST, cost), 0);
+    }
+
     /** Adds lifetime attunement (a Pokemon's battle-earned progress toward promotion). Free; the caller guarantees once-per-encounter. */
     public CraftResult awardAttunement(ProfileV1 profile, int points) {
         if (points < 1) throw new CraftException(Reason.INVALID_AMOUNT, "Attunement points must be positive");

@@ -12,7 +12,10 @@ import java.util.Objects;
  */
 public record ScoutView(String rarityId, String uniqueName, List<SlotLine> slots) {
     /** One modifier row: {@code category} is {@code prefix} or {@code suffix}. */
-    public record SlotLine(String category, String name, int rank, int rolledValue) {}
+    public record SlotLine(String category, String name, int rank, int rolledValue, String theme) {
+        /** A line with no theme (neutral affix). */
+        public SlotLine(String category, String name, int rank, int rolledValue) { this(category, name, rank, rolledValue, ""); }
+    }
 
     public ScoutView {
         Objects.requireNonNull(rarityId);
@@ -24,7 +27,7 @@ public record ScoutView(String rarityId, String uniqueName, List<SlotLine> slots
         var lines = new ArrayList<SlotLine>();
         for (var slot : snapshot.slots()) {
             lines.add(new SlotLine(slot.category().id(), rules.affix(slot.affixId()).base().name(), slot.rank(),
-                    slot.rolledValue()));
+                    slot.rolledValue(), Resonance.themeOf(slot.affixId()).map(Resonance.Theme::display).orElse("")));
         }
         String unique = snapshot.uniqueId() == null ? ""
                 : rules.unique(snapshot.uniqueId()).map(UniqueDefinition::name).orElse(snapshot.uniqueId());

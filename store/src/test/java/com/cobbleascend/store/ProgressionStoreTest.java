@@ -316,6 +316,35 @@ class ProgressionStoreTest {
         assertEquals(0, outcome.wallet().balance(MaterialId.RESONANCE_DUST));
     }
 
+    @Test void perfectingDebitsOnlyDustReplaysByOperationAndRefusesBelowRankFive() {
+        var store = open();
+        var pokemon = UUID.randomUUID();
+        var profile = acquire(store, pokemon, Rarity.RARE, 100);
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 500L, MaterialId.FACET, 7L), "test");
+        // not yet rank V
+        assertEquals(Reason.NOT_MAX_RANK, reasonOf(() -> store.craft(CraftRequest.perfect(UUID.randomUUID(), player, pokemon, "prefix:0",
+                profile.revision(), CraftRequest.ANY_REVISION))));
+        var current = profile;
+        for (int n = 0; n < 4; n++)
+            current = store.craft(CraftRequest.upgrade(UUID.randomUUID(), player, pokemon, "prefix:0", current.revision(), CraftRequest.ANY_REVISION)).profile();
+        final long staleRevision = current.revision();
+        var before = current.slot("prefix:0").orElseThrow();
+        var wallet = store.wallet(player);
+        var op = UUID.randomUUID();
+        var request = CraftRequest.perfect(op, player, pokemon, "prefix:0", current.revision(), wallet.revision());
+        var outcome = store.craft(request);
+        long price = new RankedProgression(rules).perfectCost(before);
+        assertEquals(before.rolledValue() + 1, outcome.profile().slot("prefix:0").orElseThrow().rolledValue());
+        assertEquals(500 - price, outcome.wallet().balance(MaterialId.RESONANCE_DUST));
+        assertEquals(7, outcome.wallet().balance(MaterialId.FACET), "Perfecting touches nothing but dust");
+        var replay = store.craft(request);
+        assertTrue(replay.replayed());
+        assertEquals(outcome.profile(), replay.profile());
+        assertEquals(500 - price, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "A replay does not charge twice");
+        assertEquals(Code.STALE_PROFILE, codeOf(() -> store.craft(CraftRequest.perfect(UUID.randomUUID(), player, pokemon, "prefix:0",
+                staleRevision, CraftRequest.ANY_REVISION))));
+    }
+
     @Test void promotionAndUniqueInstallationSpendTheirMaterials() {
         var store = open();
         var pokemon = UUID.randomUUID();

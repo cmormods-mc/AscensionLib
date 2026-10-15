@@ -481,6 +481,7 @@ public final class ProgressionStore implements AutoCloseable {
                         case UPGRADE -> progression.upgrade(profile, request.target(), random);
                         case REFORGE -> progression.reforge(profile, request.target(), request.types(), random);
                         case REFINE -> progression.refine(profile, request.target(), random);
+                        case PERFECT -> progression.perfect(profile, request.target());
                         case PROMOTE -> progression.promote(profile, request.types(), random);
                         case AWARD_ATTUNEMENT -> progression.awardAttunement(profile, request.level());
                         case INSTALL_UNIQUE -> progression.installUnique(profile, request.target(), request.operationId());

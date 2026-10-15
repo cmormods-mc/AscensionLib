@@ -112,6 +112,7 @@ public final class ProfileService {
         return switch (kind) {
             case UPGRADE -> progression.upgrade(profile, slotId, fixed);
             case REFINE -> progression.refine(profile, slotId, fixed);
+            case PERFECT -> progression.perfect(profile, slotId);
             case REFORGE -> progression.reforge(profile, slotId, types, fixed);
             default -> throw new IllegalArgumentException("Not previewable: " + kind);
         };

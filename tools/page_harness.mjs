@@ -49,8 +49,8 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+A
 
 const price = { dust: 20, facets: 2, cores: 0 };
 const slots = [
-  { slotId: 'p1', category: 'prefix', name: 'Burn Boost', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4 },
-  { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: 'Needs 20 Dust', reforgeBlock: '', reforgePool: 3 },
+  { slotId: 'p1', category: 'prefix', name: 'Burn Boost', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0 },
+  { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: 'Needs 20 Dust', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40 },
 ];
 const craftView = {
   pokemonId: '00000000-0000-0000-0000-000000000001', name: 'Mewtwo', speciesId: 'cobblemon:mewtwo', aspects: [], level: 52, rarityId: 'mythical', uniqueName: '777',
@@ -64,7 +64,10 @@ const craftView = {
 const entry = (n, id, rarity = 'mythical', party = true, canHost = true, block = '') =>
   ({ id, name: n, speciesId: 'cobblemon:' + n.toLowerCase(), rarityId: rarity, uniqueName: 'Overmind', inParty: party, canHost, block });
 const detail = (slotsExtra = []) => ({ level: 40, types: ['fire', 'flying'], baseStats: [90, 100, 80, 110, 80, 95], rarityId: 'epic', uniqueName: '777',
-  slots: [{ category: 'prefix', name: 'Burn Boost', rank: 3, value: 14, min: 12, max: 16, condition: 'Burns you inflict deal 50% more damage.' }, ...slotsExtra] });
+  slots: [{ category: 'prefix', name: 'Keen Edge', rank: 5, value: 16, min: 12, max: 16, condition: 'Crit chance.', theme: 'Predator' },
+          { category: 'prefix', name: 'Momentum', rank: 2, value: 5, min: 3, max: 6, condition: 'Stacks on KOs.', theme: 'Predator' },
+          { category: 'suffix', name: 'Wardstone', rank: 1, value: 6, min: 5, max: 10, condition: 'Status ward.', theme: 'Vitality' }, ...slotsExtra],
+  resonance: [{ theme: 'Predator', pieces: 2, bonusPercent: 15 }, { theme: 'Vitality', pieces: 1, bonusPercent: 0 }] });
 
 const results = [];
 let failed = 0;
@@ -105,7 +108,7 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   await emit(p, 'craftView', craftView);
   eq(await p.textContent('#name'), 'Mewtwo', 'name');
   eq(await p.textContent('#pend'), '1', 'pending');
-  eq(await p.locator('.tab').count(), 5, 'tabs');
+  eq(await p.locator('.tab').count(), 6, 'tabs');
   eq(await p.locator('#list .row').count(), 2, 'affix rows');
   yes((await p.textContent('#wallet')).includes('1,234'), 'wallet shows dust with separators');
   yes(await p.locator('#art img').count() === 1, 'sprite image appears from the data URL');
@@ -122,6 +125,18 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   yes((await p.textContent('.banner')).includes('Burn Boost'), 'banner shows the result');
   yes(await p.locator('#scrim.on').count() === 0, 'dialog closed');
   // other tabs render without errors
+  // Perfecting: only the rank V slot (Sturdy) can be polished; its price and the confirm request come from the server's numbers
+  await p.locator('.tab', { hasText: 'Perfect' }).click();
+  eq(await p.locator('#list .row.off').count(), 1, 'the rank II slot is dimmed for perfecting');
+  await p.locator('#list .row', { hasText: 'Sturdy' }).click();
+  yes((await p.textContent('#detail')).includes('+31%'), 'shows the polished value (30 -> 31)');
+  yes((await p.textContent('#detail')).includes('40 Dust'), 'shows the server price');
+  await p.locator('#detail button.primary').click();
+  await p.click('#dOk');
+  const pm = (await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop();
+  eq([pm.kind, pm.slotId], ['perfect', 's1'], 'perfect confirm');
+  await emit(p, 'craftDone', { operationId: pm.operationId, ok: true, message: '', slotId: 's1', oldName: 'Sturdy', oldRank: 5, oldValue: 30, newName: 'Sturdy', newRank: 5, newValue: 31, replayed: false });
+  yes((await p.textContent('.banner')).includes('Perfected'), 'banner after perfecting');
   for (const t of ['Refine', 'Reforge', 'Promote', 'Unique']) { await p.locator('.tab', { hasText: t }).click(); }
   await shot(p, 'craft-unique');
   yes((await p.textContent('#detail')).includes('Benefit'), 'unique tab shows benefit');
@@ -209,6 +224,9 @@ await check('inspect: owned view, affixes, upgrade button; enemy view, scout', a
   yes((await p.textContent('#grade')).includes('EPIC'), 'grade');
   yes((await p.textContent('#bottom')).includes('2 upgrades pending'), 'bottom line');
   yes(await p.locator('#rows .row').count() >= 2, 'unique + affix rows');
+  yes((await p.textContent('#reso')).includes('PREDATOR 2 · +15%'), 'resonance tier shown');
+  yes((await p.textContent('#rows')).includes('MAX'), 'a perfected rank V slot is marked');
+  yes((await p.textContent('#rows')).includes('Predator'), 'theme tag on the affix row');
   await shot(p, 'inspect-owned');
   yes((await p.textContent('#upgrade')).includes('Upgrade (2)'), 'upgrade label');
   await p.click('#upgrade');

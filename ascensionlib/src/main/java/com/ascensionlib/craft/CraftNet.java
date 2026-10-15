@@ -137,6 +137,10 @@ public final class CraftNet {
             var next = top ? null : affix.band(slot.rank() + 1);
             String upgradeBlock = profile.pendingCredits() < 1 ? "No pending upgrade" : top ? "Already at the top rank" : "";
             String refineBlock = canRefine ? "" : "Needs " + describe(refineCost);
+            boolean canPerfect = slot.rank() >= 5 && slot.rolledValue() < band.max();
+            int perfectCost = canPerfect ? new com.cobbleascend.domain.v1.RankedProgression(rules).perfectCost(slot) : 0;
+            String perfectBlock = slot.rank() < 5 ? "Needs rank V" : !canPerfect ? "Already at the top of its band"
+                    : wallet.balance(MaterialId.RESONANCE_DUST) < perfectCost ? "Needs " + perfectCost + " Resonance Dust" : "";
             String reforgeBlock = "";
             int pool = 0;
             try {
@@ -149,7 +153,8 @@ public final class CraftNet {
             }
             slots.add(new CraftPayloads.SlotView(slot.slotId(), slot.category().id(), slotName(service, slot),
                     affix.base().condition() == null ? "" : affix.base().condition(), slot.rank(), slot.rolledValue(), band.min(), band.max(),
-                    next == null ? -1 : next.min(), next == null ? -1 : next.max(), upgradeBlock, refineBlock, reforgeBlock, pool));
+                    next == null ? -1 : next.min(), next == null ? -1 : next.max(), upgradeBlock, refineBlock, reforgeBlock, pool,
+                    perfectBlock, perfectCost));
         }
         CraftPayloads.Promotion promotion;
         if (profile.rarity() == Rarity.MYTHICAL) {
@@ -219,6 +224,8 @@ public final class CraftNet {
                     CraftRequest.ANY_REVISION);
             case "refine" -> craft = CraftRequest.refine(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
                     request.walletRevision());
+            case "perfect" -> craft = CraftRequest.perfect(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), request.profileRevision(),
+                    request.walletRevision());
             case "reforge" -> craft = CraftRequest.reforge(operation, player.getUUID(), pokemon.getUuid(), request.slotId(), service.typesFor(pokemon),
                     request.profileRevision(), request.walletRevision());
             case "unique" -> craft = before.get().unique() == null
@@ -267,6 +274,8 @@ public final class CraftNet {
                 case NO_PENDING_CREDIT -> "No pending upgrade to spend.";
                 case MAX_RANK -> "That slot is already at the top rank.";
                 case INSUFFICIENT_FUNDS -> "You do not have enough materials.";
+                case NOT_MAX_RANK -> "Only a rank V slot can be perfected.";
+                case AT_BAND_MAX -> "That slot is already at the top of its band.";
                 case NO_ELIGIBLE_AFFIX -> "No other affix can take that slot.";
                 case INSUFFICIENT_ATTUNEMENT -> "Not enough attunement to promote yet.";
                 case UNIQUE_PRESENT, NO_UNIQUE, SAME_UNIQUE, UNKNOWN_UNIQUE -> "That Unique cannot be set on this Pokémon: " + exception.getMessage();

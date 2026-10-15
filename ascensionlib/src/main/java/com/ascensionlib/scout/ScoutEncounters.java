@@ -195,7 +195,7 @@ public final class ScoutEncounters {
             if (scouting.get().isRevealed(player, encounter.id, enemy.snapshot().subjectId())) {
                 var view = ScoutView.of(enemy.snapshot(), rules.get());
                 var slots = view.slots().stream()
-                        .map(line -> new ScoutPayloads.Slot(line.category(), line.name(), line.rank(), line.rolledValue()))
+                        .map(line -> new ScoutPayloads.Slot(line.category(), line.name(), line.rank(), line.rolledValue(), -1, -1, "", line.theme()))
                         .toList();
                 detail = Optional.of(new ScoutPayloads.Detail(enemy.level(), enemy.types(), enemy.baseStats(),
                         view.rarityId(), view.uniqueName(), slots));

@@ -20,7 +20,7 @@ public record CraftRequest(UUID operationId, Kind kind, UUID playerId, UUID poke
         Objects.requireNonNull(target);
         types = List.copyOf(types);
         switch (kind) {
-            case UPGRADE, REFORGE, REFINE, PROMOTE, INSTALL_UNIQUE, REPLACE_UNIQUE -> Objects.requireNonNull(playerId);
+            case UPGRADE, REFORGE, REFINE, PERFECT, PROMOTE, INSTALL_UNIQUE, REPLACE_UNIQUE -> Objects.requireNonNull(playerId);
             case OBSERVE_LEVEL, AWARD_ATTUNEMENT -> { }
             default -> throw new IllegalArgumentException("Not a craft request kind: " + kind);
         }
@@ -38,6 +38,10 @@ public record CraftRequest(UUID operationId, Kind kind, UUID playerId, UUID poke
 
     public static CraftRequest refine(UUID op, UUID player, UUID pokemon, String slotId, long profileRevision, long walletRevision) {
         return new CraftRequest(op, Kind.REFINE, player, pokemon, slotId, 0, List.of(), profileRevision, walletRevision);
+    }
+
+    public static CraftRequest perfect(UUID op, UUID player, UUID pokemon, String slotId, long profileRevision, long walletRevision) {
+        return new CraftRequest(op, Kind.PERFECT, player, pokemon, slotId, 0, List.of(), profileRevision, walletRevision);
     }
 
     public static CraftRequest promote(UUID op, UUID player, UUID pokemon, List<String> types, long profileRevision, long walletRevision) {

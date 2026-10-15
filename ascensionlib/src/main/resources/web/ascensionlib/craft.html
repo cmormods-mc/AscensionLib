@@ -71,14 +71,14 @@
 (function () {
   'use strict';
   var A = window.A, $ = A.$;
-  var MODES = ['upgrade', 'refine', 'reforge', 'promote', 'unique'];
+  var MODES = ['upgrade', 'refine', 'reforge', 'perfect', 'promote', 'unique'];
   var view = null, mode = 'upgrade', slotId = '', uniqueId = '', phase = 'browse', pendingOp = '', banner = '', bannerOk = false, waitTimer = 0, tries = 0;
 
   function slot() { for (var i = 0; i < view.slots.length; i++) if (view.slots[i].slotId === slotId) return view.slots[i]; return null; }
   function blockFor(s) {
     if (mode === 'promote') return view.promotion.block;
     if (mode === 'unique') return view.unique.block;
-    return !s ? '' : mode === 'upgrade' ? s.upgradeBlock : mode === 'refine' ? s.refineBlock : s.reforgeBlock;
+    return !s ? '' : mode === 'upgrade' ? s.upgradeBlock : mode === 'refine' ? s.refineBlock : mode === 'perfect' ? s.perfectBlock : s.reforgeBlock;
   }
   function validUnique(wanted) {
     var o = view.unique.options;
@@ -100,11 +100,12 @@
       case 'upgrade': return '1 pending upgrade (you have ' + view.pending + ')';
       case 'refine': return shortPrice(view.refine);
       case 'reforge': return shortPrice(view.reforge);
+      case 'perfect': { var ps = slot(); return ps ? ps.perfectCost + ' Resonance Dust (you have ' + view.dust + ')' : '—'; }
       case 'promote': return shortPrice(view.promotion.price);
       default: return '1 Unique Catalyst (you have ' + view.unique.catalysts + ')';
     }
   }
-  function shortCost() { return mode === 'upgrade' ? '1 upgrade' : mode === 'unique' ? '1 Catalyst' : costText(); }
+  function shortCost() { var ps = slot(); return mode === 'upgrade' ? '1 upgrade' : mode === 'unique' ? '1 Catalyst' : mode === 'perfect' ? (ps ? ps.perfectCost + ' Dust' : '—') : costText(); }
   function canReview() {
     var s = slot();
     if (mode === 'promote') return !view.promotion.block && !!view.promotion.toRarity;
@@ -210,6 +211,9 @@
       nxt = vbox(top ? 'Top rank' : 'Next · ' + A.roman[s.rank + 1], top ? '—' : s.nextMin + '–' + s.nextMax + '%', top ? 'Cannot rise further' : 'New roll range', true);
     } else if (mode === 'refine') {
       nxt = vbox('Reroll', s.bandMin + '–' + s.bandMax + '%', 'Same rank, new value', true);
+    } else if (mode === 'perfect') {
+      var capped = s.rank < 5 || s.value >= s.bandMax;
+      nxt = vbox(capped ? 'Not available' : 'Polished', capped ? '—' : '+' + (s.value + 1) + '%', 'Band top ' + s.bandMax + '%', true);
     } else {
       cur = vbox('Current · ' + A.roman[Math.max(1, Math.min(5, s.rank))], s.name, '+' + s.value + '% · rank ' + A.roman[Math.max(1, Math.min(5, s.rank))], false);
       nxt = vbox('New affix', '?', s.reforgePool + ' eligible', true);
@@ -219,7 +223,9 @@
     for (var i = 0; i < 5; i++) bar.appendChild(A.el('i', i < s.rank ? 'on' : (mode === 'upgrade' && i === s.rank && s.nextMin >= 0 ? 'next' : '')));
     box.appendChild(bar);
     box.appendChild(A.el('div', 'muted', mode === 'upgrade' ? 'Raises this affix one rank and rerolls its value. Never fails.'
-      : mode === 'refine' ? "Rerolls the value inside this rank's range. It can go lower." : 'Swaps this affix for a different one. Rank stays, value rerolls.'));
+      : mode === 'refine' ? "Rerolls the value inside this rank's range. It can go lower."
+      : mode === 'perfect' ? 'Raises a rank V value by one point, never past the top of its band. Each step costs more dust. A Refine rerolls it and can undo this.'
+      : 'Swaps this affix for a different one. Rank stays, value rerolls.'));
     box.appendChild(A.el('div', 'spacer'));
     costRow(box, blockFor(s));
   }
@@ -246,6 +252,7 @@
     var change = '';
     if (mode === 'upgrade' && s) change = s.name + ' ' + A.roman[s.rank] + ' +' + s.value + '%  →  ' + A.roman[Math.min(5, s.rank + 1)] + ', rolls ' + s.nextMin + '–' + s.nextMax + '%';
     else if (mode === 'refine' && s) change = s.name + ' +' + s.value + '%  →  a new value in ' + s.bandMin + '–' + s.bandMax + '%';
+    else if (mode === 'perfect' && s) change = s.name + ' +' + s.value + '%  →  +' + (s.value + 1) + '% (band top ' + s.bandMax + '%)';
     else if (mode === 'promote') change = A.rarityName(view.rarityId) + '  →  ' + A.rarityName(view.promotion.toRarity) + ', and one new rank I modifier';
     else if (mode === 'unique') { var o = uniqueOpt(); change = o ? (view.unique.currentId ? 'Replace with ' : 'Install ') + o.name + '. Drawback: ' + o.drawback : ''; }
     else if (s) change = s.name + ' +' + s.value + '%  →  another affix (' + s.reforgePool + ' eligible), rank ' + A.roman[s.rank];
@@ -253,6 +260,7 @@
     body.appendChild(A.el('p', 'gold', 'Cost: ' + costText()));
     body.appendChild(A.el('p', 'muted', mode === 'upgrade' ? 'No failure chance. This spends one pending upgrade.'
       : mode === 'refine' ? 'The result can be lower than now. It cannot be undone.'
+      : mode === 'perfect' ? 'Always works. Each step costs 10 more dust than the last on this slot. A later Refine can reroll the value.'
       : mode === 'promote' ? 'No failure chance. Existing modifiers are kept. It cannot be undone.'
       : mode === 'unique' ? 'Uses one Catalyst. A Unique already set is lost. It cannot be undone.' : 'The result is random and cannot be undone.'));
     if (phase === 'waiting') body.appendChild(A.el('p', 'muted', 'Waiting for the server…'));
@@ -306,6 +314,7 @@
       var was = A.roman[Math.max(1, Math.min(5, d.oldRank))], now = A.roman[Math.max(1, Math.min(5, d.newRank))];
       banner = mode === 'upgrade' ? d.newName + ' → ' + now + ' +' + d.newValue + '%'
         : mode === 'refine' ? 'Refined: +' + d.oldValue + '% → +' + d.newValue + '%'
+        : mode === 'perfect' ? 'Perfected: +' + d.oldValue + '% → +' + d.newValue + '%'
         : mode === 'reforge' ? 'Now ' + d.newName + ' +' + d.newValue + '%'
         : mode === 'promote' ? 'Promoted to ' + A.rarityName(d.newName) + ': a new modifier slot opened'
         : (d.newName === 'Unique Catalyst' ? 'Assembled a Unique Catalyst' : 'Unique set: ' + d.newName);

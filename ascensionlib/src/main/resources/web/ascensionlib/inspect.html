@@ -25,6 +25,11 @@
   .row .t1 { font-size: 13px; } .row .t2 { font-size: 10px; color: var(--muted); display: flex; gap: 8px; align-items: center; margin-top: 2px; }
   .row .v { margin-left: auto; font-size: 14px; color: var(--acc); text-shadow: var(--glow); }
   .pips { display: inline-flex; gap: 2px; } .pips i { width: 8px; height: 8px; background: var(--well); border: 1px solid var(--line); } .pips i.on { background: var(--acc); border-color: var(--acc); }
+  .theme { margin-left: 8px; font-size: 9px; letter-spacing: .08em; padding: 0 5px; border: 1px solid var(--line); color: var(--muted); text-transform: uppercase; }
+  .maxed { margin-left: 6px; font-size: 9px; padding: 0 5px; background: var(--gold); color: #1b120d; }
+  .reso { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 10px; }
+  .tier { padding: 1px 8px; border: 2px solid var(--line); color: var(--muted); letter-spacing: .06em; }
+  .tier.on { border-color: var(--acc); color: var(--acc); box-shadow: var(--glow); text-shadow: var(--glow); }
   .strip { margin-top: 8px; padding: 8px 10px; background: var(--head); border: 2px solid var(--line); min-height: 52px; }
   .bottom { padding: 2px 16px 6px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .empty { padding: 14px; color: var(--muted); }
@@ -45,6 +50,7 @@
     <div class="box right">
       <div class="rhead"><span>Affixes</span><span class="muted" id="count"></span></div>
       <div class="rows" id="rows"></div>
+      <div class="reso" id="reso" style="display:none"></div>
       <div class="strip" id="strip">Click a modifier to see what it does.</div>
     </div>
   </div>
@@ -73,7 +79,7 @@
     var rows = [];
     if (!d) return rows;
     if (d.uniqueName) rows.push({ unique: true, name: d.uniqueName, value: '', rank: 0, min: -1, max: -1, condition: 'A Unique power: fixed tuning, no ordinary rank.', prefix: false });
-    d.slots.forEach(function (s) { rows.push({ unique: false, name: s.name, value: s.value + '%', rank: s.rank, min: s.min, max: s.max, condition: s.condition, prefix: s.category === 'prefix' }); });
+    d.slots.forEach(function (s) { rows.push({ unique: false, name: s.name, value: s.value + '%', rank: s.rank, min: s.min, max: s.max, condition: s.condition, prefix: s.category === 'prefix', theme: s.theme || '', perfected: s.rank === 5 && s.max >= 0 && s.value >= s.max }); });
     return rows;
   }
   function origin(k) {
@@ -126,7 +132,10 @@
     rows.forEach(function (r, i) {
       var el = A.el('div', 'row' + (r.unique ? ' uniq' : '') + (i === sel ? ' sel' : ''));
       var ic = A.el('div', 'ic'); ic.style.background = r.unique ? '#8c63c7' : r.prefix ? '#c9694f' : '#6f9a52'; el.appendChild(ic);
-      var col = A.el('div'); col.appendChild(A.el('div', 't1', r.unique ? 'UNIQUE  ' + r.name : r.name));
+      var col = A.el('div'); var t1 = A.el('div', 't1', r.unique ? 'UNIQUE  ' + r.name : r.name);
+      if (r.theme) t1.appendChild(A.el('span', 'theme', r.theme));
+      if (r.perfected) t1.appendChild(A.el('span', 'maxed', 'MAX'));
+      col.appendChild(t1);
       if (!r.unique) {
         var t2 = A.el('div', 't2'); var pips = A.el('span', 'pips');
         for (var k = 0; k < 5; k++) pips.appendChild(A.el('i', k < r.rank ? 'on' : ''));
@@ -139,7 +148,22 @@
       el.addEventListener('mouseenter', function () { A.text($('strip'), r.condition || (r.prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.')); });
       box.appendChild(el);
     });
+    drawResonance(d);
     if (rows.length) A.text($('strip'), rows[sel].condition || (rows[sel].prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.'));
+  }
+
+  function drawResonance(d) {
+    var box = $('reso'); box.innerHTML = '';
+    var tiers = (d && d.resonance) || [];
+    if (!tiers.length) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.appendChild(A.el('span', 'muted', 'RESONANCE'));
+    tiers.forEach(function (t) {
+      var on = t.bonusPercent > 0;
+      var chip = A.el('span', 'tier' + (on ? ' on' : ''), t.theme.toUpperCase() + ' ' + t.pieces + (on ? ' · +' + t.bonusPercent + '%' : '/2'));
+      chip.title = on ? t.pieces + ' ' + t.theme + ' affixes: their values count ' + t.bonusPercent + '% higher in battle.' : 'A second ' + t.theme + ' affix would add +15% to them.';
+      box.appendChild(chip);
+    });
   }
 
   function drawBottom(d) {

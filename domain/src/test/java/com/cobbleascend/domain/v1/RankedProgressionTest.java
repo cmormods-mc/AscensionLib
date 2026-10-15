@@ -385,4 +385,66 @@ class RankedProgressionTest {
             }
         }
     }
+
+    // --- Perfecting ------------------------------------------------------------------------------------
+
+    /** A Rare at level 100 whose first prefix slot has been taken to rank V. */
+    private ProfileV1 withRankFiveSlot(Random random) {
+        var profile = create(Rarity.RARE, 100, random);
+        for (int n = 0; n < 4; n++) profile = progression.upgrade(profile, "prefix:0", random).profile();
+        assertEquals(5, profile.slot("prefix:0").orElseThrow().rank());
+        return profile;
+    }
+
+    @Test void perfectingNeedsARankFiveSlot() {
+        var profile = create(Rarity.RARE, 100, new Random(1));
+        assertEquals(Reason.NOT_MAX_RANK, reasonOf(() -> progression.perfect(profile, "prefix:0")));
+        assertEquals(Reason.UNKNOWN_SLOT, reasonOf(() -> progression.perfect(profile, "prefix:9")));
+    }
+
+    @Test void perfectingRaisesOnePointAtATimeToTheBandMaximumAndPricesRiseWithEachStep() {
+        var profile = withRankFiveSlot(new Random(7));
+        var slot = profile.slot("prefix:0").orElseThrow();
+        var band = rules.affix(slot.affixId()).band(5);
+        long spent = 0;
+        int steps = slot.rolledValue() - band.min();
+        while (slot.rolledValue() < band.max()) {
+            long expected = RankedProgression.PERFECT_BASE_DUST + (long) RankedProgression.PERFECT_STEP_DUST * steps;
+            assertEquals(expected, progression.perfectCost(slot));
+            var result = progression.perfect(profile, "prefix:0");
+            assertEquals(Map.of(MaterialId.RESONANCE_DUST, expected), result.cost(), "Dust only, nothing else");
+            assertEquals(0, result.creditsSpent());
+            assertEquals(profile.revision() + 1, result.profile().revision());
+            var next = result.profile().slot("prefix:0").orElseThrow();
+            assertEquals(slot.rolledValue() + 1, next.rolledValue());
+            assertEquals(slot.affixId(), next.affixId());
+            assertEquals(5, next.rank());
+            assertTrue(band.contains(next.rolledValue()), "Never leaves the rank's band");
+            for (var other : profile.ordinarySlots())
+                if (!other.slotId().equals("prefix:0")) assertEquals(other, result.profile().slot(other.slotId()).orElseThrow());
+            spent += expected;
+            profile = result.profile();
+            slot = next;
+            steps++;
+        }
+        assertTrue(spent > 0);
+        assertEquals(Reason.AT_BAND_MAX, reasonOf(() -> progression.perfect(withTop(progression), "prefix:0")));
+    }
+
+    /** A profile whose prefix:0 already sits at its band maximum. */
+    private ProfileV1 withTop(RankedProgression progression) {
+        var profile = withRankFiveSlot(new Random(3));
+        while (true) {
+            try { profile = progression.perfect(profile, "prefix:0").profile(); } catch (CraftException done) { return profile; }
+        }
+    }
+
+    @Test void aRefineAfterPerfectingCanRerollTheValueAnywhereInTheBand() {
+        var profile = withTop(progression);
+        var band = rules.affix(profile.slot("prefix:0").orElseThrow().affixId()).band(5);
+        var seen = new HashSet<Integer>();
+        var random = new Random(11);
+        for (int n = 0; n < 200; n++) seen.add(progression.refine(profile, "prefix:0", random).profile().slot("prefix:0").orElseThrow().rolledValue());
+        assertTrue(seen.stream().anyMatch(v -> v < band.max()), "Refine can undo a perfected value: that is the price of rerolling");
+    }
 }

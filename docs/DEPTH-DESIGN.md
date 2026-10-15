@@ -63,6 +63,15 @@ A **maxed** Pokemon is Mythical with every ordinary slot at rank V.
    - **Schema.** The profile gets a Transcendent in the Unique slot (a `kind`), so this is the schema 2 migration; the store adds a fusion craft kind with the donor's removal in the same transaction as the host's change and the material debit, with the usual operation ID replay.
 3. **Not proposed:** a rank VI (it raises the ceiling the stacked-team test has not yet validated) and any new material (the five existing ones suffice).
 
+
+### Part C, item 1 as built (2026-10-15, uncommitted, awaiting owner review)
+
+Perfecting is built, simpler than proposed so it needs no schema change: it raises a **rank V** slot's rolled value by **one point per use, up to the band maximum**, for Resonance Dust only. The price is `30 + 10 x (value - band minimum)`, so it is a function of the slot and nothing is stored (the "steps bought" are how far the value stands above the band floor). It is deterministic (no roll), previewable, and a later Refine rerolls the value anywhere in the band, which is the deliberate trade (re-polish costs dust again). `RankedProgression.perfect` / `perfectCost`, `Kind.PERFECT`, `CraftRequest.perfect`; a Perfect tab on the craft page; a MAX badge on a perfected slot in the inspector. Open question 5 (limit per slot) is answered by the band: at most `band max - band min` steps per slot per roll. The proposed per-slot *floor* (so a Refine could not undo it) was not built; say if you want that instead (it needs a stored floor per slot).
+
+### Resonance in the inspector (2026-10-15, uncommitted)
+
+The inspect page now shows each affix's theme and a RESONANCE strip (theme, pieces and the active bonus, or "1/2" progress), for owned Pokemon and scouted enemies. Data: `ScoutPayloads.Slot.theme`, `Detail.resonance` (derived from the slot themes).
+
 ## Build order and sizing
 
 1. **Spike A** (simulator checks above, no Java). 2. **Part B** resonance in `domain` (`BattleFxPlanner`, tests, inspect row) because it needs no simulator work and tests the idea cheaply. 3. **Part A** affixes in batches: Keen Edge, Ensnaring, Momentum first (they reuse the outgoing path), then Wardstone, Bracing Entry, Stubborn, Swift Strike. 4. **Part C**: Perfecting (store column for the per-slot floor and a craft kind), then Transcendence (profile schema 2, the transcendent catalog and the fusion screen, the largest item; it also needs the recipe list from the owner).

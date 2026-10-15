@@ -27,7 +27,8 @@ public final class CaptureRevealNet {
         String type = slot.type();
         String condition = affix.base().condition() == null ? "" : affix.base().condition();
         return new ScoutPayloads.Slot(slot.category().id(), affix.base().name() + (type == null ? "" : " (" + type + ")"),
-                slot.rank(), slot.rolledValue(), band.min(), band.max(), condition);
+                slot.rank(), slot.rolledValue(), band.min(), band.max(), condition,
+                com.cobbleascend.domain.v1.Resonance.themeOf(slot.affixId()).map(com.cobbleascend.domain.v1.Resonance.Theme::display).orElse(""));
     }
 
     /** Shows the reveal for a committed profile as a card on the player's HUD. False when their client cannot show web pages. */
