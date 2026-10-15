@@ -1,6 +1,5 @@
 package com.ascensionlib.fusion;
 
-import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -8,17 +7,21 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * The fusion channel. The client opens the screen for a host ({@link Open}, answered by {@link Candidates}), asks for the Pokemon a chamber could hold ({@link Pick}, answered by {@link PickList}), asks to see
- * one pairing ({@link Preview}, answered by {@link Detail}) and confirms it ({@link Confirm}, answered by {@link Result}). Everything is
- * a preview until the server accepts a confirmation: the server resolves the Transcendent, applies the rules and the price, and the
- * client only shows the text it is sent.
+ * The fusion messages. The screen is a web page shown by WebGUI, so everything but {@link Open} travels as JSON through {@link FusionWeb}
+ * (the records below are what the server serializes; the page only displays the text it is sent). The page asks to see one pairing
+ * ({@code ascension_fusion_preview}, answered by {@link Detail}) and confirms it ({@code ascension_fusion_confirm}, answered by
+ * {@link Result}). Everything is a preview until the server accepts a confirmation: the server resolves the Transcendent, applies the
+ * rules and the price.
+ *
+ * <p>{@link Open} is the one native packet left: the craft screen's Fuse button sends it, and the server answers by opening the web page.
+ * It goes away when the craft screen is a page too.
  */
 public final class FusionPayloads {
     private FusionPayloads() {}
 
     private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath("ascensionlib", path); }
 
-    /** Client to server: open the fusion screen with this Pokemon as the host. */
+    /** Client to server: open the fusion page with this Pokemon as the host. */
     public record Open(String hostId) implements CustomPacketPayload {
         public static final Type<Open> TYPE = new Type<>(id("fusion_open"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Open> CODEC = StreamCodec.of(
@@ -29,140 +32,23 @@ public final class FusionPayloads {
     /** One Pokemon the player owns, as the picker and the chambers show it; {@code block} is why it cannot take the asked-for role now (empty when it can). */
     public record Entry(String id, String name, String speciesId, String rarityId, String uniqueName, boolean inParty, boolean canHost, String block) {}
 
-    static void writeEntry(RegistryFriendlyByteBuf buf, Entry e) {
-        buf.writeUtf(e.id(), 36);
-        buf.writeUtf(e.name(), 128);
-        buf.writeUtf(e.speciesId(), 128);
-        buf.writeUtf(e.rarityId(), 16);
-        buf.writeUtf(e.uniqueName(), 64);
-        buf.writeBoolean(e.inParty());
-        buf.writeBoolean(e.canHost());
-        buf.writeUtf(e.block(), 256);
-    }
-
-    static Entry readEntry(RegistryFriendlyByteBuf buf) {
-        return new Entry(buf.readUtf(36), buf.readUtf(128), buf.readUtf(128), buf.readUtf(16), buf.readUtf(64), buf.readBoolean(), buf.readBoolean(), buf.readUtf(256));
-    }
-
     /** The most entries a pick list carries: a full party plus the first page of the PC. */
     public static final int MAX_PICK = 36;
 
-    /** Server to client: opens the fusion screen with this host in the host chamber; {@code hostBlock} is why it cannot be a host (empty when it can). */
-    public record Candidates(Entry host, String hostBlock) implements CustomPacketPayload {
-        public static final Type<Candidates> TYPE = new Type<>(id("fusion_candidates"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Candidates> CODEC = StreamCodec.of(
-                (buf, v) -> { writeEntry(buf, v.host()); buf.writeUtf(v.hostBlock(), 256); },
-                buf -> new Candidates(readEntry(buf), buf.readUtf(256)));
-        public String hostId() { return host.id(); }
-        public String hostName() { return host.name(); }
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
+    /** Server to page: the host for the host chamber; {@code hostBlock} is why it cannot be a host (empty when it can). */
+    public record Candidates(Entry host, String hostBlock) {}
+
+    /** Server to page: the Pokemon a chamber could hold: party first, then the first page of the PC. */
+    public record PickList(boolean hostRole, List<Entry> entries) {}
 
     /**
-     * Client to server: list my Pokemon for a chamber. {@code hostRole} true lists valid hosts only; false lists possible donors, each with the
-     * reason it cannot be used. {@code hostId} and {@code donorId} are what the two chambers hold now (empty for none): the one in the other
-     * chamber is offered greyed out, and a donor's reason takes the host into account.
-     */
-    public record Pick(boolean hostRole, String hostId, String donorId) implements CustomPacketPayload {
-        public static final Type<Pick> TYPE = new Type<>(id("fusion_pick"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Pick> CODEC = StreamCodec.of(
-                (buf, v) -> { buf.writeBoolean(v.hostRole()); buf.writeUtf(v.hostId(), 36); buf.writeUtf(v.donorId(), 36); },
-                buf -> new Pick(buf.readBoolean(), buf.readUtf(36), buf.readUtf(36)));
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
-
-    /** Server to client: the answer to a {@link Pick}: party first, then the first page of the PC. */
-    public record PickList(boolean hostRole, List<Entry> entries) implements CustomPacketPayload {
-        public static final Type<PickList> TYPE = new Type<>(id("fusion_pick_list"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, PickList> CODEC = StreamCodec.of((buf, v) -> {
-            buf.writeBoolean(v.hostRole());
-            buf.writeVarInt(v.entries().size());
-            for (var e : v.entries()) writeEntry(buf, e);
-        }, buf -> {
-            boolean hostRole = buf.readBoolean();
-            int count = Math.min(MAX_PICK, buf.readVarInt());
-            List<Entry> entries = new ArrayList<>();
-            for (int i = 0; i < count; i++) entries.add(readEntry(buf));
-            return new PickList(hostRole, entries);
-        });
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
-
-    /** Client to server: show me what fusing this donor into this host would make. */
-    public record Preview(String hostId, String donorId) implements CustomPacketPayload {
-        public static final Type<Preview> TYPE = new Type<>(id("fusion_preview"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Preview> CODEC = StreamCodec.of(
-                (buf, v) -> { buf.writeUtf(v.hostId(), 36); buf.writeUtf(v.donorId(), 36); },
-                buf -> new Preview(buf.readUtf(36), buf.readUtf(36)));
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
-
-    /**
-     * What a pairing would make, as text. {@code block} is empty when it can be done. The price and the balances travel as plain numbers
+     * What a pairing would make, as text. {@code block} is empty when it can be done. The price and the balances are plain numbers
      * (dust, facets, cores, catalysts); the three revisions are what a confirmation must carry back.
      */
     public record Detail(String hostId, String donorId, String block, String name, String fromUniques, String harmony, int benefit, int drawback,
                          String blurb, String core, String clutch, String drawbackText, String twistName, String twistText, String riderText,
-                         String hostType, String donorType, long[] price, long[] balances, long hostRevision, long donorRevision, long walletRevision)
-            implements CustomPacketPayload {
-        public static final Type<Detail> TYPE = new Type<>(id("fusion_detail"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Detail> CODEC = StreamCodec.of((buf, v) -> {
-            buf.writeUtf(v.hostId(), 36);
-            buf.writeUtf(v.donorId(), 36);
-            buf.writeUtf(v.block(), 256);
-            buf.writeUtf(v.name(), 128);
-            buf.writeUtf(v.fromUniques(), 128);
-            buf.writeUtf(v.harmony(), 16);
-            buf.writeVarInt(v.benefit());
-            buf.writeVarInt(v.drawback());
-            for (String text : new String[] {v.blurb(), v.core(), v.clutch(), v.drawbackText(), v.twistText(), v.riderText()}) buf.writeUtf(text, 512);
-            buf.writeUtf(v.twistName(), 64);
-            buf.writeUtf(v.hostType(), 16);
-            buf.writeUtf(v.donorType(), 16);
-            for (int i = 0; i < 4; i++) buf.writeVarLong(v.price()[i]);
-            for (int i = 0; i < 4; i++) buf.writeVarLong(v.balances()[i]);
-            buf.writeVarLong(v.hostRevision());
-            buf.writeVarLong(v.donorRevision());
-            buf.writeVarLong(v.walletRevision() + 1);
-        }, buf -> {
-            String hostId = buf.readUtf(36), donorId = buf.readUtf(36), block = buf.readUtf(256), name = buf.readUtf(128), from = buf.readUtf(128),
-                    harmony = buf.readUtf(16);
-            int benefit = buf.readVarInt(), drawback = buf.readVarInt();
-            String blurb = buf.readUtf(512), core = buf.readUtf(512), clutch = buf.readUtf(512), drawbackText = buf.readUtf(512),
-                    twistText = buf.readUtf(512), rider = buf.readUtf(512), twistName = buf.readUtf(64), hostType = buf.readUtf(16), donorType = buf.readUtf(16);
-            long[] price = new long[4], balances = new long[4];
-            for (int i = 0; i < 4; i++) price[i] = buf.readVarLong();
-            for (int i = 0; i < 4; i++) balances[i] = buf.readVarLong();
-            return new Detail(hostId, donorId, block, name, from, harmony, benefit, drawback, blurb, core, clutch, drawbackText, twistName, twistText,
-                    rider, hostType, donorType, price, balances, buf.readVarLong(), buf.readVarLong(), buf.readVarLong() - 1);
-        });
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
+                         String hostType, String donorType, long[] price, long[] balances, long hostRevision, long donorRevision, long walletRevision) {}
 
-    /** Client to server: do it, with the revisions the player was shown. */
-    public record Confirm(String operationId, String hostId, String donorId, long hostRevision, long donorRevision, long walletRevision)
-            implements CustomPacketPayload {
-        public static final Type<Confirm> TYPE = new Type<>(id("fusion_confirm"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Confirm> CODEC = StreamCodec.of((buf, v) -> {
-            buf.writeUtf(v.operationId(), 36);
-            buf.writeUtf(v.hostId(), 36);
-            buf.writeUtf(v.donorId(), 36);
-            buf.writeVarLong(v.hostRevision());
-            buf.writeVarLong(v.donorRevision());
-            buf.writeVarLong(v.walletRevision() + 1);
-        }, buf -> new Confirm(buf.readUtf(36), buf.readUtf(36), buf.readUtf(36), buf.readVarLong(), buf.readVarLong(), buf.readVarLong() - 1));
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
-
-    /** Server to client: how a confirmation ended. */
-    public record Result(String operationId, boolean ok, String message, String name) implements CustomPacketPayload {
-        public static final Type<Result> TYPE = new Type<>(id("fusion_result"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Result> CODEC = StreamCodec.of((buf, v) -> {
-            buf.writeUtf(v.operationId(), 36);
-            buf.writeBoolean(v.ok());
-            buf.writeUtf(v.message(), 256);
-            buf.writeUtf(v.name(), 128);
-        }, buf -> new Result(buf.readUtf(36), buf.readBoolean(), buf.readUtf(256), buf.readUtf(128)));
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
+    /** Server to page: how a confirmation ended. */
+    public record Result(String operationId, boolean ok, String message, String name) {}
 }

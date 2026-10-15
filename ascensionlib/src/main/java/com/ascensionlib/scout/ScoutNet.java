@@ -10,6 +10,7 @@ public final class ScoutNet {
 
     /** Payload types must be registered wherever they are encoded or decoded, so this runs from the common initializer. */
     public static void register() {
+        com.ascensionlib.web.WebUi.init();
         OwnedInspectNet.register();
         CaptureRevealNet.register();
         com.ascensionlib.craft.CraftNet.register();

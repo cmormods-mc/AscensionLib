@@ -388,8 +388,8 @@ final class AscendWiring {
             source.sendFailure(Component.literal("That party slot is empty."));
             return 0;
         }
-        if (!net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player, com.ascensionlib.fusion.FusionPayloads.Candidates.TYPE)) {
-            source.sendFailure(Component.literal("Your client does not have the fusion screen."));
+        if (!com.ascensionlib.fusion.FusionWeb.available()) {
+            source.sendFailure(Component.literal("The fusion screen is a web page: install the WebGUI mod on the server."));
             return 0;
         }
         com.ascensionlib.fusion.FusionNet.openFor(player, pokemon);

@@ -37,32 +37,15 @@ public final class FusionNet {
 
     public static void register() {
         PayloadTypeRegistry.playC2S().register(FusionPayloads.Open.TYPE, FusionPayloads.Open.CODEC);
-        PayloadTypeRegistry.playC2S().register(FusionPayloads.Pick.TYPE, FusionPayloads.Pick.CODEC);
-        PayloadTypeRegistry.playC2S().register(FusionPayloads.Preview.TYPE, FusionPayloads.Preview.CODEC);
-        PayloadTypeRegistry.playC2S().register(FusionPayloads.Confirm.TYPE, FusionPayloads.Confirm.CODEC);
-        PayloadTypeRegistry.playS2C().register(FusionPayloads.Candidates.TYPE, FusionPayloads.Candidates.CODEC);
-        PayloadTypeRegistry.playS2C().register(FusionPayloads.PickList.TYPE, FusionPayloads.PickList.CODEC);
-        PayloadTypeRegistry.playS2C().register(FusionPayloads.Detail.TYPE, FusionPayloads.Detail.CODEC);
-        PayloadTypeRegistry.playS2C().register(FusionPayloads.Result.TYPE, FusionPayloads.Result.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Open.TYPE, (payload, context) -> context.server().execute(() -> {
             var player = context.player();
             if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.open", 4, 2)) return;
-            try { sendCandidates(player, payload.hostId()); }
-            catch (RuntimeException exception) { LOG.error("Fusion open failed for {}", player.getGameProfile().getName(), exception); }
+            try {
+                var host = CraftNet.findOwned(player, payload.hostId()).orElse(null);
+                if (host != null) openFor(player, host);
+            } catch (RuntimeException exception) { LOG.error("Fusion open failed for {}", player.getGameProfile().getName(), exception); }
         }));
-        ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Pick.TYPE, (payload, context) -> context.server().execute(() -> {
-            var player = context.player();
-            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.pick", 6, 3)) return;
-            try { sendPick(player, payload); }
-            catch (RuntimeException exception) { LOG.error("Fusion pick failed for {}", player.getGameProfile().getName(), exception); }
-        }));
-        ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Preview.TYPE, (payload, context) -> context.server().execute(() -> {
-            var player = context.player();
-            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.preview", 8, 4)) return;
-            try { sendDetail(player, payload.hostId(), payload.donorId()); }
-            catch (RuntimeException exception) { LOG.error("Fusion preview failed for {}", player.getGameProfile().getName(), exception); }
-        }));
-        ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Confirm.TYPE, (payload, context) -> context.server().execute(() -> confirm(context.player(), payload)));
+        FusionWeb.register();
     }
 
     /** Text sent to the client is bounded so an unexpectedly long name can never make a packet fail to encode. */
@@ -83,9 +66,9 @@ public final class FusionNet {
         }
     }
 
-    /** Sends the candidate list and asks the client to open the screen (a command did). */
+    /** Opens the fusion page for this host (a command or the craft screen's Fuse button asked). */
     public static void openFor(ServerPlayer player, Pokemon host) {
-        sendCandidates(player, host.getUuid().toString());
+        FusionWeb.open(player, host.getUuid().toString());
     }
 
     /** Why this Pokemon cannot be a host; empty when it can. */
@@ -121,27 +104,27 @@ public final class FusionNet {
                 inParty, canHost, cap(block, 250));
     }
 
-    /** Sends the host and asks the client to open the screen with it in the host chamber (a command or the Fuse button did). */
+    /** Sends the host to the open page, for its host chamber (the page asked once it loaded, or after a fusion). */
     static void sendCandidates(ServerPlayer player, String hostId) {
         var service = AscensionApi.service().orElse(null);
-        if (service == null || !ServerPlayNetworking.canSend(player, FusionPayloads.Candidates.TYPE)) return;
+        if (service == null) return;
         var host = CraftNet.findOwned(player, hostId).orElse(null);
         if (host == null) return;
         var profile = service.canonical(host);
         String block = hostBlock(host, profile, service.store().fusedPokemon());
-        ServerPlayNetworking.send(player, new FusionPayloads.Candidates(entry(service, host, profile, inParty(player, host), block.isEmpty(), ""), cap(block, 250)));
+        FusionWeb.emit(player, "fusionCandidates", new FusionPayloads.Candidates(entry(service, host, profile, inParty(player, host), block.isEmpty(), ""), cap(block, 250)));
     }
 
     /**
      * Answers a {@link FusionPayloads.Pick}: the party, then the first page of the PC ({@link #PC_PAGE} Pokemon). A host list holds only valid
      * hosts (plus the donor chamber's Pokemon, greyed); a donor list holds every Pokemon with the reason it cannot be used, the pairing included.
      */
-    static void sendPick(ServerPlayer player, FusionPayloads.Pick request) {
+    static void sendPick(ServerPlayer player, boolean hostRole, String hostId, String donorId) {
         var service = AscensionApi.service().orElse(null);
-        if (service == null || !ServerPlayNetworking.canSend(player, FusionPayloads.PickList.TYPE)) return;
+        if (service == null) return;
         var fused = service.store().fusedPokemon();
         var wallet = service.store().wallet(player.getUUID());
-        var host = request.hostId().isEmpty() ? null : CraftNet.findOwned(player, request.hostId()).orElse(null);
+        var host = hostId.isEmpty() ? null : CraftNet.findOwned(player, hostId).orElse(null);
         var hostProfile = host == null ? java.util.Optional.<ProfileV1>empty() : service.canonical(host);
         boolean hostValid = host != null && hostBlock(host, hostProfile, fused).isEmpty();
         var party = new ArrayList<Pokemon>();
@@ -156,11 +139,11 @@ public final class FusionNet {
                 boolean canHost = hostBlock(pokemon, profile, fused).isEmpty();
                 String id = pokemon.getUuid().toString();
                 String block;
-                if (request.hostRole()) {
-                    if (id.equals(request.donorId())) block = "Already in the donor chamber.";
+                if (hostRole) {
+                    if (id.equals(donorId)) block = "Already in the donor chamber.";
                     else if (!canHost) continue;
                     else block = "";
-                } else if (id.equals(request.hostId())) {
+                } else if (id.equals(hostId)) {
                     block = "Already in the host chamber.";
                 } else {
                     block = donorBlock(pokemon, profile, fused);
@@ -170,12 +153,12 @@ public final class FusionNet {
                 if (entries.size() >= FusionPayloads.MAX_PICK) break;
             }
         }
-        ServerPlayNetworking.send(player, new FusionPayloads.PickList(request.hostRole(), entries));
+        FusionWeb.emit(player, "fusionPickList", new FusionPayloads.PickList(hostRole, entries));
     }
 
     static void sendDetail(ServerPlayer player, String hostId, String donorId) {
         var service = AscensionApi.service().orElse(null);
-        if (service == null || !ServerPlayNetworking.canSend(player, FusionPayloads.Detail.TYPE)) return;
+        if (service == null) return;
         var host = CraftNet.findOwned(player, hostId).orElse(null);
         var donor = CraftNet.findOwned(player, donorId).orElse(null);
         if (host == null || donor == null || host == donor) { sendRefusal(player, hostId, donorId, "Those Pokémon are no longer yours to fuse."); return; }
@@ -203,7 +186,7 @@ public final class FusionNet {
         var twist = new StringBuilder();
         for (var op : t.twist().effects()) twist.append(twist.length() == 0 ? "" : " and ").append(op.describe(t.benefitPercent()));
         String rider = rules.affix(t.rider().affix()).base().name() + " +" + Math.round(t.rider().value() * t.benefitPercent() / 100f) + "%";
-        ServerPlayNetworking.send(player, new FusionPayloads.Detail(host.getUuid().toString(), donor.getUuid().toString(),
+        FusionWeb.emit(player, "fusionDetail", new FusionPayloads.Detail(host.getUuid().toString(), donor.getUuid().toString(),
                 cap(blockFor(host, hostProfile.get(), donor, donorProfile.get(), wallet, fusedSet), 250), t.name(), from, t.harmony().name().toLowerCase(java.util.Locale.ROOT), t.benefitPercent(),
                 t.drawbackPercent(), t.blurb(), t.signature().core(), t.signature().clutch(), t.signature().drawback(), t.twist().name(), twist.toString(),
                 rider, t.hostType() == null ? "" : t.hostType(), t.donorType() == null ? "" : t.donorType(),
@@ -215,11 +198,14 @@ public final class FusionNet {
 
     /** A Detail with only a reason, so the screen stops waiting and shows why. */
     private static void sendRefusal(ServerPlayer player, String hostId, String donorId, String reason) {
-        ServerPlayNetworking.send(player, new FusionPayloads.Detail(cap(hostId, 36), cap(donorId, 36), cap(reason, 250), "", "", "", 1, 1, "", "", "", "", "", "", "",
+        FusionWeb.emit(player, "fusionDetail", new FusionPayloads.Detail(cap(hostId, 36), cap(donorId, 36), cap(reason, 250), "", "", "", 1, 1, "", "", "", "", "", "", "",
                 "", "", new long[4], new long[4], 0, 0, -1));
     }
 
-    private static void confirm(ServerPlayer player, FusionPayloads.Confirm request) {
+    /** What a page sends to make a fusion: the operation it chose and the revisions it was shown. */
+    record ConfirmRequest(String operationId, String hostId, String donorId, long hostRevision, long donorRevision, long walletRevision) {}
+
+    static void confirm(ServerPlayer player, ConfirmRequest request) {
         if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.confirm", 2, 1)) {
             fail(player, request, "Too many requests. Wait a moment.");
             return;
@@ -234,7 +220,7 @@ public final class FusionNet {
             var made = service.fuse(player, host, donor, request.hostRevision(), request.donorRevision(), request.walletRevision());
             LOG.info("fusion committed: {} fused {} into {} -> {} (operation {})", player.getGameProfile().getName(), donor.getUuid(), host.getUuid(),
                     made.id(), request.operationId());
-            ServerPlayNetworking.send(player, new FusionPayloads.Result(request.operationId(), true, "", made.name()));
+            FusionWeb.emit(player, "fusionResult", new FusionPayloads.Result(request.operationId(), true, "", made.name()));
         } catch (StoreException exception) {
             fail(player, request, switch (exception.code()) {
                 case STALE_PROFILE, STALE_WALLET -> "A Pokémon or your materials changed. Review it again.";
@@ -251,7 +237,7 @@ public final class FusionNet {
         }
     }
 
-    private static void fail(ServerPlayer player, FusionPayloads.Confirm request, String message) {
-        ServerPlayNetworking.send(player, new FusionPayloads.Result(request.operationId(), false, message == null ? "Not allowed." : message, ""));
+    private static void fail(ServerPlayer player, ConfirmRequest request, String message) {
+        FusionWeb.emit(player, "fusionResult", new FusionPayloads.Result(request.operationId(), false, message == null ? "Not allowed." : message, ""));
     }
 }

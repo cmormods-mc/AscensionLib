@@ -8,5 +8,5 @@
   "mixins":["ascensionlib.client.mixins.json"],
   "entrypoints":{"preLaunch":["com.ascensionlib.AscensionPreLaunch"],"main":["com.ascensionlib.AscensionLib"],"client":["com.ascensionlib.client.AscensionLibClient"]},
   "depends":{"fabricloader":">=0.17.2","minecraft":"1.21.1","java":">=21","fabric-api":"*","cobblemon":"1.8.1"},
-  "suggests":{"cobbleraids":"*"}
+  "suggests":{"cobbleraids":"*","webgui":">=2.0.0"}
 }

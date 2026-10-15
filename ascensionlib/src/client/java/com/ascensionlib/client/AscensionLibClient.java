@@ -30,14 +30,6 @@ public final class AscensionLibClient implements ClientModInitializer {
                 context.client().execute(() -> CraftClient.onView(payload)));
         ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.craft.CraftPayloads.Done.TYPE, (payload, context) ->
                 context.client().execute(() -> CraftClient.onDone(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.Candidates.TYPE, (payload, context) ->
-                context.client().execute(() -> FusionClient.onCandidates(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.PickList.TYPE, (payload, context) ->
-                context.client().execute(() -> FusionClient.onPickList(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.Detail.TYPE, (payload, context) ->
-                context.client().execute(() -> FusionClient.onDetail(payload)));
-        ClientPlayNetworking.registerGlobalReceiver(com.ascensionlib.fusion.FusionPayloads.Result.TYPE, (payload, context) ->
-                context.client().execute(() -> FusionClient.onResult(payload)));
         ClientPlayNetworking.registerGlobalReceiver(CaptureRevealPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> CaptureReveals.accept(payload)));
         // /ascendui reveal <full|compact|off>, /ascendui motion <full|reduced>, /ascendui sounds <on|off>: presentation only.
@@ -81,7 +73,6 @@ public final class AscensionLibClient implements ClientModInitializer {
             ScoutClientState.clear();
             CaptureReveals.clear();
             CraftClient.clear();
-            FusionClient.clear();
             InspectClient.clear();
         });
 
