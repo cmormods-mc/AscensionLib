@@ -214,10 +214,13 @@ public final class RankedProgression {
     /** What one attempt costs: dust and facets, never cores (the Tower stays the only core source). */
     public static final int OVERREACH_DUST = 60;
     public static final int OVERREACH_FACETS = 2;
+    /** Tower Marks one attempt costs, and one Unique install costs (bound proof of a Tower clear). */
+    public static final int OVERREACH_MARKS = 1;
+    public static final int INSTALL_MARKS = 1;
 
     /** The materials one Overreach attempt costs. */
     public static Map<MaterialId, Long> overreachCost() {
-        return Map.of(MaterialId.RESONANCE_DUST, (long) OVERREACH_DUST, MaterialId.FACET, (long) OVERREACH_FACETS);
+        return Map.of(MaterialId.RESONANCE_DUST, (long) OVERREACH_DUST, MaterialId.FACET, (long) OVERREACH_FACETS, MaterialId.TOWER_MARK, (long) OVERREACH_MARKS);
     }
 
     /**
@@ -307,7 +310,7 @@ public final class RankedProgression {
         var next = profile.advance(profile.rarity(), profile.highestLevelObserved(), profile.awardedMilestones(),
                 profile.spentUpgradeCredits(), profile.ordinarySlots(), instance);
         rules.validate(next);
-        return new CraftResult(next, Map.of(MaterialId.UNIQUE_CATALYST, 1L), 0);
+        return new CraftResult(next, Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, (long) INSTALL_MARKS), 0);
     }
 
     private static OrdinarySlot requireSlot(ProfileV1 profile, String slotId) {

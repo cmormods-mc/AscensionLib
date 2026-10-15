@@ -8,13 +8,23 @@ import org.junit.jupiter.api.Test;
 class TowerRewardBandsTest {
     private static final TowerRewardBands BANDS = TowerRewardBands.DEFAULTS;
 
-    @Test void firstSegmentPaysAboutTwelveDustAndSecondAboutTwentyThree() {
-        assertEquals(12L, dust(1, 5));
-        assertEquals(23L, dust(6, 10));
+    @Test void theFloorFiveBossIsAMiniChest() {
+        var chest = BANDS.payout("run", new UUID(9, 9), 1, 5);
+        assertEquals(200L, chest.get(MaterialId.RESONANCE_DUST));
+        assertEquals(1L, chest.get(MaterialId.FACET));
+        assertEquals(1L, chest.get(MaterialId.UNIQUE_FRAGMENT));
+        assertEquals(1L, chest.get(MaterialId.SCOUTER));
+        assertEquals(1L, chest.get(MaterialId.TOWER_MARK));
     }
 
-    @Test void aFullRunToFloorTenPaysAboutThirtyFiveDust() {
-        assertEquals(35L, dust(1, 5) + dust(6, 10));
+    @Test void theMiniChestCoreChanceIsFivePercent() {
+        int n = 40_000, cores = 0;
+        for (int i = 0; i < n; i++) if (BANDS.payout("e" + i, new UUID(i, 5), 1, 5).containsKey(MaterialId.ASCENSION_CORE)) cores++;
+        assertEquals(0.05, cores / (double) n, 0.005);
+    }
+
+    @Test void theLegacyChampionFormulaStillPaysTwentyThreeDust() {
+        assertEquals(23L, dust(6, 10));
     }
 
     @Test void bossDustGrowsPastTheMilestoneFloor() {
@@ -32,17 +42,15 @@ class TowerRewardBandsTest {
     }
 
     @Test void observedRatesMatchTheBands() {
-        int n = 100_000, facetsFirst = 0, facetsMilestone = 0, cores = 0, fragments = 0;
+        int n = 100_000, facetsMilestone = 0, cores = 0, fragments = 0;
         for (int i = 0; i < n; i++) {
             var id = "e" + i;
             var player = new UUID(i, 7);
-            if (BANDS.payout(id, player, 1, 5).containsKey(MaterialId.FACET)) facetsFirst++;
             var milestone = BANDS.payout(id, player, 6, 10);
             if (milestone.containsKey(MaterialId.FACET)) facetsMilestone++;
             if (milestone.containsKey(MaterialId.ASCENSION_CORE)) cores++;
             fragments += milestone.get(MaterialId.UNIQUE_FRAGMENT);
         }
-        assertEquals(0.50, facetsFirst / (double) n, 0.01);
         assertEquals(1.00, facetsMilestone / (double) n, 0.0);
         assertEquals(0.075, cores / (double) n, 0.005);
         assertEquals(1.43, fragments / (double) n, 0.01);
@@ -55,7 +63,7 @@ class TowerRewardBandsTest {
         assertEquals(a.get(MaterialId.RESONANCE_DUST), b.get(MaterialId.RESONANCE_DUST));
     }
 
-    @Test void neverPaysScoutersOrCatalysts() {
+    @Test void theLegacyChampionPayNeverIncludesScoutersOrCatalysts() {
         for (int i = 0; i < 2000; i++) {
             var payout = BANDS.payout("e" + i, new UUID(i, 3), 6, 10);
             assertFalse(payout.containsKey(MaterialId.SCOUTER));

@@ -138,7 +138,7 @@
     if (detail.donorType) types.push('-10% damage from ' + cap(detail.donorType) + ' moves');
     if (types.length) line(box, '', 'Types: ' + types.join('; '));
     var p = detail.price, b = detail.balances;
-    line(box, 'gold', 'Price: ' + p[0] + ' Resonance Dust, ' + p[1] + ' Facets, ' + p[2] + ' Cores, ' + p[3] + ' Catalyst');
+    line(box, 'gold', 'Price: ' + p[0] + ' Resonance Dust, ' + p[1] + ' Facets, ' + p[2] + ' Cores, ' + p[3] + ' Catalyst, ' + p[4] + ' Tower Marks');
     line(box, 'muted', 'You have: ' + b.join(' / '));
     if (detail.block) line(box, 'bad', detail.block);
   }

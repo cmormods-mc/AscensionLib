@@ -30,6 +30,12 @@ public record TowerRewardBands(double floorDust, double floorGrowth, int firstBo
             throw new IllegalArgumentException("Chances must be 0-100 percent (cores 0-1000 permille)");
     }
 
+    /**
+     * The F5 boss is a mini chest (docs/TOWER-COMPLETION-REWARDS.md): a flat pile with a small core chance. It applies to every boss before the milestone
+     * floor; the milestone (F10) champion pays through {@link TowerCompletionBands} when the caller supports it, and through the legacy formula below otherwise.
+     */
+    public static final int MINI_CHEST_DUST = 200, MINI_CHEST_FACETS = 1, MINI_CHEST_FRAGMENTS = 1, MINI_CHEST_SCOUTERS = 1, MINI_CHEST_MARKS = 1, MINI_CHEST_CORE_PERMILLE = 50;
+
     private static boolean percent(int value) { return value >= 0 && value <= 100; }
 
     /**
@@ -41,6 +47,7 @@ public record TowerRewardBands(double floorDust, double floorGrowth, int firstBo
      */
     public Map<MaterialId, Long> payout(String encounterId, UUID player, int fromFloor, int bossFloor) {
         if (fromFloor < 1 || bossFloor < fromFloor) throw new IllegalArgumentException("Bad floor range");
+        if (bossFloor < milestoneBossFloor) return miniChest(encounterId, player, bossFloor);
         double dust = bossDust(bossFloor);
         for (int floor = fromFloor; floor < bossFloor; floor++) dust += floorDust * Math.pow(floorGrowth, floor - 1);
         var random = new Random(RewardSeed.of("tower-reward", encounterId, player, bossFloor));
@@ -53,6 +60,18 @@ public record TowerRewardBands(double floorDust, double floorGrowth, int firstBo
         // Every boss pays one Unique Fragment and sometimes a second: 1.43 on average, so a run to floor 10 (two bosses) pays
         // 2.86 and a 100-fragment Catalyst arrives about every 35 such runs (owner ruling, 2026-10-05).
         result.put(MaterialId.UNIQUE_FRAGMENT, random.nextInt(100) < bossFragmentBonusPercent ? 2L : 1L);
+        return java.util.Collections.unmodifiableMap(result);
+    }
+
+    private static Map<MaterialId, Long> miniChest(String encounterId, UUID player, int bossFloor) {
+        var random = new Random(RewardSeed.of("tower-reward", encounterId, player, bossFloor));
+        var result = new EnumMap<MaterialId, Long>(MaterialId.class);
+        result.put(MaterialId.RESONANCE_DUST, (long) MINI_CHEST_DUST);
+        result.put(MaterialId.FACET, (long) MINI_CHEST_FACETS);
+        result.put(MaterialId.UNIQUE_FRAGMENT, (long) MINI_CHEST_FRAGMENTS);
+        result.put(MaterialId.SCOUTER, (long) MINI_CHEST_SCOUTERS);
+        result.put(MaterialId.TOWER_MARK, (long) MINI_CHEST_MARKS);
+        if (random.nextInt(1000) < MINI_CHEST_CORE_PERMILLE) result.put(MaterialId.ASCENSION_CORE, 1L);
         return java.util.Collections.unmodifiableMap(result);
     }
 

@@ -149,7 +149,9 @@ public final class CraftNet {
             String overreachBlock = slot.sealed() ? "Already attempted: sealed" : slot.rank() < 5 ? "Needs rank V" : slot.rolledValue() < band.max() ? "The value must be at the band maximum"
                     : wallet.balance(MaterialId.RESONANCE_DUST) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST
                     || wallet.balance(MaterialId.FACET) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS
-                    ? "Needs " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST + " Resonance Dust + " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS + " Facets" : "";
+                    || wallet.balance(MaterialId.TOWER_MARK) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MARKS
+                    ? "Needs " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST + " Resonance Dust + " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS + " Facets + "
+                    + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MARKS + " Tower Mark" : "";
             String reforgeBlock = "";
             int pool = 0;
             try {
@@ -188,14 +190,15 @@ public final class CraftNet {
         long catalysts = wallet.balance(MaterialId.UNIQUE_CATALYST);
         var uniqueState = new CraftPayloads.UniqueState(held, catalysts, wallet.balance(MaterialId.UNIQUE_FRAGMENT),
                 com.cobbleascend.store.StoreConfig.defaults().catalystFragments(), uniqueOptions,
-                service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be replaced" : catalysts < 1 ? "Needs 1 Unique Catalyst" : "");
+                service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be replaced" : catalysts < 1 || wallet.balance(MaterialId.TOWER_MARK) < com.cobbleascend.domain.v1.RankedProgression.INSTALL_MARKS
+                        ? "Needs 1 Unique Catalyst + " + com.cobbleascend.domain.v1.RankedProgression.INSTALL_MARKS + " Tower Mark" : "");
         int nextMilestone = 0;
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
         return new CraftPayloads.View(pokemon.getUuid().toString(), pokemon.getDisplayName(false).getString(),
                 pokemon.getSpecies().getResourceIdentifier().toString(), new ArrayList<>(pokemon.getAspects()), pokemon.getLevel(),
                 profile.rarity().id(), service.uniqueLabel(profile),
                 profile.pendingCredits(), nextMilestone, profile.revision(), wallet.revision(), wallet.balance(MaterialId.RESONANCE_DUST),
-                wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE), wallet.balance(MaterialId.SCOUTER),
+                wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE), wallet.balance(MaterialId.SCOUTER), wallet.balance(MaterialId.TOWER_MARK),
                 new CraftPayloads.Price(refineCost.dust(), refineCost.facets(), refineCost.cores()),
                 new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, slots, message, open);
     }

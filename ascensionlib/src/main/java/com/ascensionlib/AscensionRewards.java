@@ -2,6 +2,7 @@ package com.ascensionlib;
 
 import com.cobbleascend.domain.v1.MaterialId;
 import com.cobbleascend.domain.v1.ScouterDrops;
+import com.cobbleascend.domain.v1.TowerCompletionBands;
 import com.cobbleascend.domain.v1.TowerRewardBands;
 import com.cobbleascend.store.EncounterRewards;
 import java.util.LinkedHashMap;
@@ -49,6 +50,82 @@ public final class AscensionRewards {
         awardAttunement("tower_boss:" + encounterId, paid);
         settleSigilDrops(encounterId, outcome, bossFloor, players);
         return result;
+    }
+
+    /**
+     * Pays a cleared tower cycle's F10 champion: the hour-long completion chest from {@code TowerCompletionBands} (a guaranteed pile, a quality tier
+     * earned by difficulty and cleanness, and a crown of one to three rolls), flat per player apart from seeded rolls. Gives each paid player's party
+     * +3 attunement, shows each newly paid player the reveal page (chat lines without WebGUI) and announces a Core, a Catalyst or a Mythic tier to the
+     * party. Same exactly-once rules and statuses as {@link #settle}; reward kind {@code tower_completion}. Amounts are seeded by (encounter, player),
+     * so a retry pays the same chest. The F5 boss stays on {@link #settleTowerBoss} (a mini chest). Armor pieces and CobbleCards tickets that the crown
+     * rolls are CobbleTowers' own items: read them with {@link #towerCompletionExtras}.
+     *
+     * @param encounterId    the champion encounter's own ID (never reused)
+     * @param outcome        as for {@link #settle}
+     * @param bossFloor      the floor just cleared (10 for the first cycle); must be at least 1
+     * @param cycle          the Ascension cycle, 0 for the first run
+     * @param challengeCards the challenge (modifier) cards the run took
+     * @param flawless       whether nobody was knocked out
+     * @param players        every participant to pay
+     * @throws IllegalArgumentException for a malformed call
+     */
+    public static Map<UUID, String> settleTowerCompletion(UUID encounterId, String outcome, int bossFloor, int cycle, int challengeCards,
+                                                          boolean flawless, java.util.Collection<UUID> players) {
+        if (bossFloor < 1) throw new IllegalArgumentException("Boss floor must be at least 1");
+        var bands = TowerCompletionBands.DEFAULTS;
+        var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
+        var completions = new LinkedHashMap<UUID, TowerCompletionBands.Completion>();
+        for (var player : players) {
+            var completion = bands.payout(encounterId.toString(), player, challengeCards, cycle, flawless);
+            completions.put(player, completion);
+            var amounts = new LinkedHashMap<String, Long>();
+            completion.materials().forEach((material, amount) -> amounts.put(material.id(), amount));
+            payouts.put(player, amounts);
+        }
+        var result = settle(encounterId, outcome, "tower_completion", payouts);
+        var paid = new java.util.ArrayList<UUID>();
+        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        awardAttunement("tower_completion:" + encounterId, paid);
+        var fresh = new java.util.ArrayList<UUID>();
+        result.forEach((player, status) -> { if (status.equals("GRANTED")) fresh.add(player); });
+        reveal(fresh, completions, cycle, challengeCards, flawless, players);
+        return result;
+    }
+
+    /**
+     * The parts of a completion chest that CobbleTowers hands over itself, computed from the same seed as {@link #settleTowerCompletion} so they agree:
+     * {@code armor} (Tower armor pieces), {@code tickets} (CobbleCards tickets) and {@code tier} (0 Bronze, 1 Silver, 2 Gold, 3 Mythic). Pure: it pays
+     * nothing, so call it only for a player whose settlement came back {@code GRANTED} (or {@code ALREADY_GRANTED} when recovering) and hand the items over once.
+     */
+    public static Map<String, Integer> towerCompletionExtras(UUID encounterId, UUID player, int cycle, int challengeCards, boolean flawless) {
+        var completion = TowerCompletionBands.DEFAULTS.payout(encounterId.toString(), player, challengeCards, cycle, flawless);
+        var extras = new LinkedHashMap<String, Integer>();
+        extras.put("armor", completion.armorPieces());
+        extras.put("tickets", completion.tickets());
+        extras.put("tier", completion.tier().ordinal());
+        return extras;
+    }
+
+    private static void reveal(java.util.Collection<UUID> fresh, Map<UUID, TowerCompletionBands.Completion> completions, int cycle, int cards,
+                               boolean flawless, java.util.Collection<UUID> party) {
+        var server = AscensionApi.server();
+        if (server == null) return;
+        try {
+            for (var player : fresh) {
+                var online = server.getPlayerList().getPlayer(player);
+                if (online == null) continue;
+                var view = com.ascensionlib.reward.CompletionReveal.view(completions.get(player), cycle, cards, flawless, VICTORY_ATTUNEMENT, false);
+                com.ascensionlib.reward.CompletionReveal.show(online, view);
+                String line = com.ascensionlib.reward.CompletionReveal.announcement(online.getGameProfile().getName(), view);
+                if (line.isEmpty()) continue;
+                for (var member : party) {
+                    var friend = server.getPlayerList().getPlayer(member);
+                    if (friend != null && !friend.getUUID().equals(player)) friend.sendSystemMessage(net.minecraft.network.chat.Component.literal(line));
+                }
+            }
+        } catch (RuntimeException exception) {
+            LOG.warn("Tower completion reveal failed; the payout already made stands: {}", exception.toString());
+        }
     }
 
     /**

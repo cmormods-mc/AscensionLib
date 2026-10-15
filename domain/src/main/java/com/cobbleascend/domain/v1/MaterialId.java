@@ -14,7 +14,9 @@ public enum MaterialId {
     /** One use reveals one enemy for one encounter. Only granted as a CobbleTowers reward for now. */
     SCOUTER("scouter"),
     /** One use gives a Pokemon with no profile a profile with a rolled rarity, and is consumed. Rare loot from tower bosses. */
-    ASCENSION_SIGIL("ascension_sigil");
+    ASCENSION_SIGIL("ascension_sigil"),
+    /** Proof of a personal Tower clear. Never withdrawn as a voucher (design/currency-items.json, "tradable": false); spent on the top-end crafts. */
+    TOWER_MARK("tower_mark");
 
     private final String id;
     MaterialId(String id) { this.id = id; }

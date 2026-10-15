@@ -15,6 +15,8 @@ public final class FusionRules {
     public static final int FACETS = 30;
     public static final int CORES = 10;
     public static final int CATALYSTS = 1;
+    /** Tower Marks: proof of a personal Tower clear, so the top rung cannot be bought (docs/TOWER-COMPLETION-REWARDS.md). */
+    public static final int MARKS = 5;
     /** Lifetime attunement the host must have earned. */
     public static final int HOST_ATTUNEMENT = 150;
     /**
@@ -31,6 +33,7 @@ public final class FusionRules {
         cost.put(MaterialId.FACET, (long) FACETS);
         cost.put(MaterialId.ASCENSION_CORE, (long) CORES);
         cost.put(MaterialId.UNIQUE_CATALYST, (long) CATALYSTS);
+        cost.put(MaterialId.TOWER_MARK, (long) MARKS);
         return java.util.Collections.unmodifiableMap(cost);
     }
 

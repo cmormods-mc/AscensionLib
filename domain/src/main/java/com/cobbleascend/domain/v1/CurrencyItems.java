@@ -24,7 +24,11 @@ public final class CurrencyItems {
     /** Every item stacks to this many. */
     public static final int STACK = 64;
 
-    public record Spec(MaterialId material, String baseItem, int model, String name, int color, List<String> lore) {}
+    /** Percent of a withdrawal taken as a fee in the same material, rounded up: a soft sink that scales with the economy. */
+    public static final int WITHDRAWAL_FEE_PERCENT = 3;
+
+    /** @param tradable false keeps the material out of vouchers (Tower Marks) */
+    public record Spec(MaterialId material, String baseItem, int model, String name, int color, List<String> lore, boolean tradable) {}
 
     private static final Map<MaterialId, Spec> SPECS = load();
 
@@ -32,6 +36,11 @@ public final class CurrencyItems {
 
     public static Spec spec(MaterialId material) {
         return SPECS.get(material);
+    }
+
+    /** The fee for withdrawing {@code amount} units, rounded up, so any withdrawal of one or more units costs at least one. */
+    public static long withdrawalFee(long amount) {
+        return amount < 1 ? 0 : (amount * WITHDRAWAL_FEE_PERCENT + 99) / 100;
     }
 
     public static Map<MaterialId, Spec> all() {
@@ -58,7 +67,8 @@ public final class CurrencyItems {
             var lore = new java.util.ArrayList<String>();
             item.getAsJsonArray("lore").forEach(line -> lore.add(line.getAsString()));
             out.put(material, new Spec(material, item.get("base").getAsString(), item.get("model").getAsInt(), item.get("name").getAsString(),
-                    Integer.parseInt(item.get("color").getAsString().substring(1), 16), List.copyOf(lore)));
+                    Integer.parseInt(item.get("color").getAsString().substring(1), 16), List.copyOf(lore),
+                    !item.has("tradable") || item.get("tradable").getAsBoolean()));
         }
         return java.util.Collections.unmodifiableMap(out);
     }

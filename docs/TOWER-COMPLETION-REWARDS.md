@@ -1,6 +1,6 @@
 # Tower completion rewards: the "huge reward" payout (proposal)
 
-Status: **proposal, 2026-10-16, nothing built.** Follows the owner's answers to `TOWER-LOOT-DESIGN.md` and the new brief: a Tower completion takes about an hour, so it must end in a
+Status: **numbers approved 2026-10-15; build steps 1 to 3 are built (2026-10-15, below), step 4 (tuning) waits for live counters and a live run.** Follows the owner's answers to `TOWER-LOOT-DESIGN.md` and the new brief: a Tower completion takes about an hour, so it must end in a
 big, memorable reward, and we must establish the right amount and quality. Every number comes from `tools/tower_loot_model.py` (a Monte Carlo model, arithmetic only, no live data);
 change the numbers there and re-run.
 
@@ -113,6 +113,26 @@ AscensionLib can show this itself (a `completion.html` page: it knows exactly wh
   `settleTowerCompletion(UUID encounterId, String outcome, int bossFloor, int cycle, int challengeCards, boolean flawless, Collection<UUID> players)`
   returning per-player statuses, exactly once per (encounter, player), seeded by (encounter, player), so a retry pays the same chest. CobbleTowers passes its run's challenge count,
   Ascension cycle and whether anyone was knocked out; the existing `settleTowerBoss` stays for F5 and older callers.
+
+## Built (AscensionLib side, not yet seen live)
+- `TowerCompletionBands` (domain): tier from score, the pile, the crown table, all seeded by (encounter, player). `AscensionRewards.settleTowerCompletion` pays it (reward kind `tower_completion`),
+  gives +3 attunement, opens `completion.html` for each newly paid player (chat lines without WebGUI) and announces a Core, a Catalyst or a Mythic tier to the party.
+  `AscensionRewards.towerCompletionExtras(encounter, player, cycle, cards, flawless)` returns the crown items CobbleTowers hands over itself (`armor`, `tickets`) and the `tier` (0 to 3).
+- `MaterialId.TOWER_MARK` with a `tradable: false` flag in `design/currency-items.json` (never withdrawn as a voucher); a 3 percent withdrawal fee, rounded up, paid on top by the wallet
+  (the voucher holds the amount asked for). Marks are costs: Overreach 1, a Unique install or replace 1, a Fusion 5 (craft, fusion and wallet pages show them).
+- The F5 boss pays the mini chest (200 dust, 1 facet, 1 fragment, 1 scouter, 1 Mark, 5 percent core) through `settleTowerBoss`; the F10 champion through `settleTowerBoss` still pays the old
+  small formula until CobbleTowers calls `settleTowerCompletion` instead.
+- Dungeon bands lowered as proposed (arena 10, boss 12 per tier) and the boss pays one fragment 35 percent of the time. The listing-fee request to the auction mod is written up in
+  `AUCTION-LISTING-FEE-REQUEST.md` (nothing to build here).
+- Test seam: `/ascend admin completion <bronze|silver|gold|mythic>` shows the reveal with nothing paid; add `pay` to settle a real chest for yourself.
+
+## Built in CobbleTowers (2026-10-15, uncommitted, not seen live)
+- `FloorPayout`: the champion floor of a cycle (`contentFloor == floorCount`, every Ascension cycle) now calls `AscensionLibRewards.settleCompletion` when the installed library has
+  `settleTowerCompletion` (an older library keeps the milestone formula). The inputs: challenge cards = the run's accumulated challenges, cycle = `tower.ascensionOf(floor)`,
+  flawless = no player Pokemon fainted in the cycle (the mastery stats, reset at the cycle's first floor). F5 stays on `settleTowerBoss`.
+- `PendingLibSettlement` gained `Kind.COMPLETION` plus `cycle` and `towerId` (older saved tags still load), so a completion is written to disk before the call and retried like the others.
+- `CompletionExtras` picks the armor pieces and CobbleCards booster packs the crown rolled from the tower's own boss reward table, and `AscensionLibRewards` queues them (idempotently,
+  `addIfAbsent`) for each GRANTED or ALREADY_GRANTED player before the settlement is trimmed, then delivers them. Tests: `CompletionExtrasTest`, `PendingLibSettlementTest`.
 
 ## Build plan (after you approve the numbers)
 1. **Domain:** `TowerCompletionBands` (tier from score, the pile, the crown table, all seeded), `TowerMark` material, `tradable` flag, fee in `mintVoucher`; dungeon bands lowered.

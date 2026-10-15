@@ -170,7 +170,8 @@ public final class WalletItems {
             service.store().mintVoucher(op, player.getUUID(), material, amount, CraftRequest.ANY_REVISION);
         } catch (CraftException exception) {
             return new Result(false, exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS
-                    ? "You do not have " + amount + " " + CurrencyItems.spec(material).name() + "." : "That withdrawal is not allowed: " + exception.getMessage());
+                    ? "You need " + (amount + CurrencyItems.withdrawalFee(amount)) + " " + CurrencyItems.spec(material).name() + " (" + amount + " plus a "
+                    + CurrencyItems.WITHDRAWAL_FEE_PERCENT + "% fee of " + CurrencyItems.withdrawalFee(amount) + ")." : "That withdrawal is not allowed: " + exception.getMessage());
         } catch (StoreException exception) {
             LOG.warn("Withdrawal failed for {}: {}", player.getGameProfile().getName(), exception.getMessage());
             return new Result(false, "The wallet could not be changed right now. Nothing was taken.");
@@ -179,7 +180,7 @@ public final class WalletItems {
         give(player, material, amount, batch);
         service.store().markVoucherDelivered(batch);
         LOG.info("{} withdrew {} {} as voucher batch {}", player.getGameProfile().getName(), amount, material.id(), batch);
-        return new Result(true, "Withdrew " + amount + " " + CurrencyItems.spec(material).name() + " as voucher items.");
+        return new Result(true, "Withdrew " + amount + " " + CurrencyItems.spec(material).name() + " as voucher items (fee " + CurrencyItems.withdrawalFee(amount) + ").");
     }
 
     private static void give(ServerPlayer player, MaterialId material, int units, UUID batch) {

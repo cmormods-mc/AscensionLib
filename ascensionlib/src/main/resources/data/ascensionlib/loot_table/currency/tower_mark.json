@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:disc_fragment_5",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "tower_mark"
+                  }
+                },
+                "minecraft:custom_model_data": 8108,
+                "minecraft:custom_name": "{\"text\":\"Tower Mark\",\"color\":\"#e8e1c9\",\"italic\":false}",
+                "minecraft:lore": [
+                  "{\"text\":\"Proof of a Tower clear.\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"Bound to you; it cannot be traded.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

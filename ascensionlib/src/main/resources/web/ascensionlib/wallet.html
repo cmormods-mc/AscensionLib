@@ -25,7 +25,7 @@
 <div class="frame">
   <div class="head"><span>WALLET</span><button class="x" id="close" title="Close">X</button></div>
   <div class="main">
-    <div class="hint">Take currency out as items you can trade, then redeem them back with Deposit. Loot you pick up joins your wallet by itself.</div>
+    <div class="hint">Take currency out as items you can trade (a 3% fee, rounded up, is paid on top), then redeem them back with Deposit. Tower Marks are bound to you. Loot you pick up joins your wallet by itself.</div>
     <div class="lines" id="lines"></div>
     <div class="banner" id="banner"></div>
   </div>
@@ -55,7 +55,7 @@
       var amt = A.el('div', 'amt', A.num(l.amount)); row.appendChild(amt);
       var wd = A.el('div', 'withdraw');
       var input = A.el('input'); input.type = 'number'; input.min = '1'; input.max = '2304'; input.value = String(Math.min(64, Math.max(1, l.amount))); wd.appendChild(input);
-      var go = A.el('button', '', 'Take'); go.disabled = l.amount < 1;
+      var go = A.el('button', '', l.tradable === false ? 'Bound' : 'Take'); go.disabled = l.amount < 1 || l.tradable === false;
       go.addEventListener('click', function () { var n = parseInt(input.value, 10); if (n > 0) A.send('ascension_wallet_withdraw', { material: l.id, amount: n }); });
       wd.appendChild(go); row.appendChild(wd);
       var dep = A.el('div', 'car');

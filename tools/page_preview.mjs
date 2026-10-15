@@ -21,7 +21,7 @@ const MOCK = `<script>
     { slotId: 'p2', category: 'prefix', name: 'Fury', condition: '', rank: 1, value: 8, bandMin: 6, bandMax: 9, nextMin: 10, nextMax: 13, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
     { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: '', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40, floor: 29 } ];
   var view = { pokemonId: 'mew2', name: 'Mewtwo', speciesId: 'cobblemon:mewtwo', aspects: [], level: 52, rarityId: 'mythical', uniqueName: '777', pending: 2, nextMilestone: 60,
-    profileRevision: 7, walletRevision: 8, dust: 1234, facets: 40, cores: 3, scouters: 5, refine: price, reforge: price,
+    profileRevision: 7, walletRevision: 8, dust: 1234, facets: 40, cores: 3, scouters: 5, marks: 6, refine: price, reforge: price,
     promotion: { toRarity: '', price: price, attunement: 90, attunementNeeded: 0, block: 'Already Mythical' },
     unique: { currentId: '777', catalysts: 1, fragments: 3, fragmentsNeeded: 5, block: '', options: [
       { id: '777', name: '777', benefit: 'More item rewards.', drawback: 'Lower defence.', current: true },
@@ -53,7 +53,7 @@ const MOCK = `<script>
         case 'ascension_fusion_preview':
           emit('fusionDetail', { hostId: m.hostId, donorId: m.donorId, block: '', name: 'Mewmew', fromUniques: 'Overmind + Overmind', harmony: 'mild', benefit: 70, drawback: 30, blurb: 'Two minds, one.',
             core: 'Psychic pulses hit twice.', clutch: 'Heals when low.', drawbackText: 'Slower.', twistName: 'Echo', twistText: 'Repeats the first move.', riderText: 'Burn Boost +12%', hostType: 'psychic', donorType: 'psychic',
-            price: [600, 30, 10, 1], balances: [1200, 40, 12, 2], hostRevision: 3, donorRevision: 4, walletRevision: 5 }); break;
+            price: [600, 30, 10, 1, 5], balances: [1200, 40, 12, 2, 6], hostRevision: 3, donorRevision: 4, walletRevision: 5 }); break;
         case 'ascension_fusion_confirm': emit('fusionResult', { operationId: m.operationId, ok: true, message: '', name: 'Mewmew' }); break;
         case 'ascension_inspect_ready':
           emit('sprites', { arcanine: PNG });

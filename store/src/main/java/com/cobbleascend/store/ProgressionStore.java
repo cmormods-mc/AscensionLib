@@ -482,17 +482,20 @@ public final class ProgressionStore implements AutoCloseable {
     }
 
     /**
-     * Withdraws {@code amount} of a material from the wallet into a new voucher batch, in one transaction: the debit and the batch row commit
+     * Withdraws {@code amount} of a material from the wallet into a new voucher batch, in one transaction (the wallet pays the amount plus the
+     * {@link CurrencyItems#withdrawalFee fee}, the batch holds the amount; a bound material such as a Tower Mark is refused): the debit and the batch row commit
      * together. The batch is not yet {@code delivered}; the caller hands the items over and then calls {@link #markVoucherDelivered}.
      * Idempotent per operation ID. At most {@link #MAX_MINT} units.
      */
     public synchronized Outcome mintVoucher(UUID operationId, UUID playerId, MaterialId material, long amount, long expectedWalletRevision) {
         if (amount < 1 || amount > MAX_MINT) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "A withdrawal is 1 to " + MAX_MINT);
+        if (!CurrencyItems.spec(material).tradable())
+            throw new CraftException(CraftException.Reason.INVALID_AMOUNT, CurrencyItems.spec(material).name() + " is bound to you and cannot be withdrawn");
         return run(operationId, "MINT|" + playerId + "|" + material.id() + "|" + amount + "|" + expectedWalletRevision, () -> {
             var before = loadWallet(playerId);
             if (expectedWalletRevision != CraftRequest.ANY_REVISION && before.revision() != expectedWalletRevision)
                 throw new StoreException(Code.STALE_WALLET, "Wallet changed since it was shown");
-            var after = before.debit(Map.of(material, amount));
+            var after = before.debit(Map.of(material, amount + CurrencyItems.withdrawalFee(amount)));
             options.faults().at(Faults.Point.AFTER_VALIDATION);
             saveWallet(playerId, before, after);
             try (var statement = db.prepareStatement(

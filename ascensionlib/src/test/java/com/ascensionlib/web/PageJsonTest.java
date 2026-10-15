@@ -23,7 +23,7 @@ class PageJsonTest {
         var slot = new CraftPayloads.SlotView("p1", "prefix", "Burn Boost", "cond", 2, 12, 10, 14, 15, 19, "", "", "", 4, "Needs rank V", 0, 10,
                 "Needs rank V", false, 60, 2, 45, 35, 40);
         var unique = new CraftPayloads.UniqueState("", 1, 2, 3, List.of(new CraftPayloads.UniqueOption("u1", "777", "b", "d", false)), "");
-        var view = new CraftPayloads.View("id", "Name", "cobblemon:mewtwo", List.of(), 50, "mythical", "777", 1, 60, 7, 8, 100, 20, 3, 4,
+        var view = new CraftPayloads.View("id", "Name", "cobblemon:mewtwo", List.of(), 50, "mythical", "777", 1, 60, 7, 8, 100, 20, 3, 4, 2,
                 price, price, new CraftPayloads.Promotion("", price, 10, 90, ""), unique, List.of(slot), "", false);
         var json = JsonParser.parseString(gson.toJson(view)).getAsJsonObject();
         has(json, "pokemonId", "name", "speciesId", "level", "rarityId", "uniqueName", "pending", "nextMilestone", "profileRevision", "walletRevision",

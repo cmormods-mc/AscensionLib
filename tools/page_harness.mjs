@@ -54,7 +54,7 @@ const slots = [
 ];
 const craftView = {
   pokemonId: '00000000-0000-0000-0000-000000000001', name: 'Mewtwo', speciesId: 'cobblemon:mewtwo', aspects: [], level: 52, rarityId: 'mythical', uniqueName: '777',
-  pending: 1, nextMilestone: 60, profileRevision: 7, walletRevision: 8, dust: 1234, facets: 40, cores: 3, scouters: 5, refine: price, reforge: price,
+  pending: 1, nextMilestone: 60, profileRevision: 7, walletRevision: 8, dust: 1234, facets: 40, cores: 3, scouters: 5, marks: 6, refine: price, reforge: price,
   promotion: { toRarity: '', price, attunement: 90, attunementNeeded: 0, block: 'Already Mythical' },
   unique: { currentId: '777', catalysts: 1, fragments: 3, fragmentsNeeded: 5, block: '', options: [
     { id: '777', name: '777', benefit: 'More item rewards.', drawback: 'Lower defence.', current: true },
@@ -111,7 +111,7 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   eq(await p.locator('.tab').count(), 7, 'tabs');
   eq(await p.locator('#list .row').count(), 2, 'affix rows');
   yes((await p.textContent('#wallet')).includes('1,234'), 'wallet shows dust with separators');
-  eq(await p.locator('#wallet img.dot').count(), 6, 'the craft wallet column shows the item icons');
+  eq(await p.locator('#wallet img.dot').count(), 7, 'the craft wallet column shows the item icons');
   yes(await p.locator('#art img').count() === 1, 'sprite image appears from the data URL');
   await shot(p, 'craft-upgrade');
   // Upgrade tab is selected (pending > 0): Review is enabled for Burn Boost, then confirm sends one request
@@ -227,6 +227,40 @@ await check('wallet: balances with icons, withdraw and deposit requests, result 
   noErrors(p);
 });
 
+await check('wallet: a bound material (Tower Mark) cannot be taken out', async () => {
+  const p = await open(null, 'wallet.html');
+  await emit(p, 'walletView', { lines: [{ id: 'facet', name: 'Facet', color: '#4f9ad9', amount: 9, carried: 0, tradable: true },
+    { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 4, carried: 0, tradable: false }], freeSlots: 5 });
+  const mark = p.locator('.line', { hasText: 'Tower Mark' }).first();
+  eq(await mark.locator('button').first().isDisabled(), true, 'the Mark has no Take');
+  yes((await mark.textContent()).includes('Bound'), 'it says Bound');
+  eq(await p.locator('.line', { hasText: 'Facet' }).first().locator('button').first().isDisabled(), false, 'a tradable material can be taken');
+  noErrors(p);
+});
+
+// ---------------------------------------------------------------- completion
+await check('completion: banner, pile counted up, crown rolled one at a time, collect closes', async () => {
+  const p = await open(null, 'completion.html', 900, 700);
+  eq((await sent(p)).map(m => m.channel), ['ascension_completion_ready'], 'asks for its data');
+  const view = { tier: 'mythic', tierName: 'MYTHIC', score: 9, cycle: 1, cards: 5, flawless: true, attunement: 3, preview: false,
+    pile: [{ id: 'resonance_dust', name: 'Resonance Dust', color: '#d9a441', amount: 1800 }, { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 5 }],
+    crowns: [{ kind: 'core', id: 'ascension_core', label: 'Ascension Core', color: '#c9694f', amount: 1, big: true },
+      { kind: 'armor', id: '', label: 'Tower armor piece', color: '#c9d4e0', amount: 1, big: false }] };
+  await emit(p, 'completionView', view);
+  yes((await p.textContent('#banner')).includes('MYTHIC COMPLETION'), 'tier banner');
+  yes((await p.textContent('#sub')).includes('Score 9'), 'score line');
+  await p.waitForSelector('.pl.on', { timeout: 4000 });
+  await p.waitForFunction(() => document.querySelectorAll('.pl').length === 2, null, { timeout: 4000 });
+  await p.waitForFunction(() => document.querySelector('.pl .amt') && document.querySelector('.pl .amt').textContent === '+1,800', null, { timeout: 4000 });
+  await p.waitForFunction(() => document.querySelectorAll('.cr').length === 2 && !document.querySelector('.cr.spin'), null, { timeout: 9000 });
+  yes((await p.textContent('#crowns')).includes('Ascension Core'), 'the core is revealed');
+  eq(await p.locator('.cr.big').count(), 1, 'only the headline item glows');
+  yes((await p.textContent('#crowns')).includes('Handed over by the Tower'), 'a Tower-owned item says who hands it over');
+  await p.click('#done');
+  yes((await sent(p)).some(x => x.channel === 'close'), 'Collect closes the page');
+  noErrors(p);
+});
+
 // ---------------------------------------------------------------- fusion
 await check('fusion: pick, preview, review, confirm, result', async () => {
   const p = await open(null, 'fusion.html');
@@ -247,7 +281,7 @@ await check('fusion: pick, preview, review, confirm, result', async () => {
   await p.locator('.tile').first().click();
   yes((await sent(p)).some(x => x.channel === 'ascension_fusion_preview' && x.donorId === 'd1'), 'picking asks for a preview');
   await emit(p, 'fusionDetail', { hostId: 'h1', donorId: 'd1', block: '', name: 'Mewmew', fromUniques: 'Overmind + Overmind', harmony: 'mild', benefit: 70, drawback: 30, blurb: 'b',
-    core: 'c', clutch: 'cl', drawbackText: 'd', twistName: 'T', twistText: 'tt', riderText: 'r', hostType: 'psychic', donorType: 'psychic', price: [600, 30, 10, 1], balances: [1, 2, 3, 4],
+    core: 'c', clutch: 'cl', drawbackText: 'd', twistName: 'T', twistText: 'tt', riderText: 'r', hostType: 'psychic', donorType: 'psychic', price: [600, 30, 10, 1, 5], balances: [1, 2, 3, 4, 6],
     hostRevision: 3, donorRevision: 4, walletRevision: 5 }, true);
   await shot(p, 'fusion-preview');
   yes((await p.textContent('#result')).includes('Mewmew'), 'preview shown');

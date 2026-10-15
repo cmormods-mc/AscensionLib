@@ -187,16 +187,16 @@ public final class FusionNet {
                 cap(blockFor(host, hostProfile.get(), donor, donorProfile.get(), wallet, fusedSet), 250), t.name(), from, t.harmony().name().toLowerCase(java.util.Locale.ROOT), t.benefitPercent(),
                 t.drawbackPercent(), t.blurb(), t.signature().core(), t.signature().clutch(), t.signature().drawback(), t.twist().name(), twist.toString(),
                 rider, t.hostType() == null ? "" : t.hostType(), t.donorType() == null ? "" : t.donorType(),
-                new long[] {cost.get(MaterialId.RESONANCE_DUST), cost.get(MaterialId.FACET), cost.get(MaterialId.ASCENSION_CORE), cost.get(MaterialId.UNIQUE_CATALYST)},
+                new long[] {cost.get(MaterialId.RESONANCE_DUST), cost.get(MaterialId.FACET), cost.get(MaterialId.ASCENSION_CORE), cost.get(MaterialId.UNIQUE_CATALYST), cost.get(MaterialId.TOWER_MARK)},
                 new long[] {wallet.balance(MaterialId.RESONANCE_DUST), wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE),
-                        wallet.balance(MaterialId.UNIQUE_CATALYST)},
+                        wallet.balance(MaterialId.UNIQUE_CATALYST), wallet.balance(MaterialId.TOWER_MARK)},
                 hostProfile.get().revision(), donorProfile.get().revision(), wallet.revision()));
     }
 
     /** A Detail with only a reason, so the screen stops waiting and shows why. */
     private static void sendRefusal(ServerPlayer player, String hostId, String donorId, String reason) {
         FusionWeb.emit(player, "fusionDetail", new FusionPayloads.Detail(cap(hostId, 36), cap(donorId, 36), cap(reason, 250), "", "", "", 1, 1, "", "", "", "", "", "", "",
-                "", "", new long[4], new long[4], 0, 0, -1));
+                "", "", new long[5], new long[5], 0, 0, -1));
     }
 
     /** What a page sends to make a fusion: the operation it chose and the revisions it was shown. */

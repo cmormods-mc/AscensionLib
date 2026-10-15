@@ -354,7 +354,7 @@ class ProgressionStoreTest {
         var store = open();
         var pokemon = UUID.randomUUID();
         var profile = acquire(store, pokemon, Rarity.RARE, 100);
-        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 5000L, MaterialId.FACET, 20L), "test");
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 5000L, MaterialId.FACET, 20L, MaterialId.TOWER_MARK, 10L), "test");
         var progression = new RankedProgression(rules);
         var current = profile;
         for (int n = 0; n < 4; n++)
@@ -390,7 +390,7 @@ class ProgressionStoreTest {
                 base.rarity(), base.initialRarity(), base.origin(), base.catalogVersion(), 3, base.highestLevelObserved(),
                 base.awardedMilestones(), base.spentUpgradeCredits(), base.ordinarySlots(), null);
         store.acquire(UUID.randomUUID(), pokemon, () -> attuned);
-        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 20L, MaterialId.UNIQUE_CATALYST, 1L), "test");
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.RESONANCE_DUST, 20L, MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, 5L), "test");
         var wallet = store.wallet(player);
         var promoted = store.craft(CraftRequest.promote(UUID.randomUUID(), player, pokemon, types, 1, wallet.revision()));
         assertEquals(Rarity.UNCOMMON, promoted.profile().rarity());
@@ -444,7 +444,7 @@ class ProgressionStoreTest {
         var store = open(multi, ProgressionStore.Options.defaults().withRandom(new Random(2)));
         var pokemon = UUID.randomUUID();
         var profile = acquire(store, pokemon, Rarity.EPIC, 20);
-        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.UNIQUE_CATALYST, 2L), "test");
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.UNIQUE_CATALYST, 2L, MaterialId.TOWER_MARK, 5L), "test");
         var first = store.craft(CraftRequest.installUnique(UUID.randomUUID(), player, pokemon, "ashen_heart", profile.revision(), 1));
         var second = store.craft(CraftRequest.replaceUnique(UUID.randomUUID(), player, pokemon, "second_wind",
                 first.profile().revision(), first.wallet().revision()));
@@ -854,7 +854,7 @@ class ProgressionStoreTest {
         var op = UUID.randomUUID();
         var wallet = store.wallet(player);
         var minted = store.mintVoucher(op, player, MaterialId.RESONANCE_DUST, 120, wallet.revision());
-        assertEquals(380, minted.wallet().balance(MaterialId.RESONANCE_DUST));
+        assertEquals(500 - 120 - 4, minted.wallet().balance(MaterialId.RESONANCE_DUST));
         var batch = ProgressionStore.voucherBatchId(op);
         var voucher = store.voucher(batch).orElseThrow();
         assertEquals(120, voucher.minted());
@@ -863,11 +863,35 @@ class ProgressionStoreTest {
         assertEquals(MaterialId.RESONANCE_DUST, voucher.material());
         assertEquals(List.of(voucher), store.undeliveredVouchers(player));
         assertTrue(store.mintVoucher(op, player, MaterialId.RESONANCE_DUST, 120, wallet.revision()).replayed());
-        assertEquals(380, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "A replay does not charge twice");
+        assertEquals(376, store.wallet(player).balance(MaterialId.RESONANCE_DUST), "A replay does not charge twice");
         store.markVoucherDelivered(batch);
         store.markVoucherDelivered(batch);
         assertTrue(store.undeliveredVouchers(player).isEmpty());
         assertTrue(store.voucher(batch).orElseThrow().delivered());
+    }
+
+    @Test void theFeeComesOutOfTheWalletButNotTheBatchAndIsRoundedUp() {
+        assertEquals(0, CurrencyItems.withdrawalFee(0));
+        assertEquals(1, CurrencyItems.withdrawalFee(1));
+        assertEquals(1, CurrencyItems.withdrawalFee(33));
+        assertEquals(2, CurrencyItems.withdrawalFee(34));
+        assertEquals(3, CurrencyItems.withdrawalFee(100));
+        var store = fundedStore();
+        var op = UUID.randomUUID();
+        store.mintVoucher(op, player, MaterialId.FACET, 9, CraftRequest.ANY_REVISION);
+        assertEquals(0, store.wallet(player).balance(MaterialId.FACET) - (10 - 9 - 1), "9 plus a fee of 1");
+        assertEquals(9, store.voucher(ProgressionStore.voucherBatchId(op)).orElseThrow().minted());
+        // the balance of 10 cannot cover 10 plus its fee
+        assertEquals(Reason.INSUFFICIENT_FUNDS, reasonOf(() -> fundedStore().mintVoucher(UUID.randomUUID(), player, MaterialId.FACET, 10, CraftRequest.ANY_REVISION)));
+    }
+
+    @Test void aTowerMarkIsBoundAndCanNeverBeWithdrawn() {
+        var store = open();
+        store.grant(UUID.randomUUID(), player, Map.of(MaterialId.TOWER_MARK, 5L), "test");
+        var op = UUID.randomUUID();
+        assertEquals(Reason.INVALID_AMOUNT, reasonOf(() -> store.mintVoucher(op, player, MaterialId.TOWER_MARK, 1, CraftRequest.ANY_REVISION)));
+        assertFalse(store.hasOperation(op));
+        assertEquals(5, store.wallet(player).balance(MaterialId.TOWER_MARK));
     }
 
     @Test void aWithdrawalRefusesOverdraftsBadAmountsAndAStaleWalletAndRecordsNothing() {
@@ -901,7 +925,7 @@ class ProgressionStoreTest {
         var worthless = store.redeemVoucher(UUID.randomUUID(), player, batch, 64);
         assertTrue(worthless.cost().isEmpty());
         long total = store.wallet(player).balance(MaterialId.RESONANCE_DUST) + store.wallet(thief).balance(MaterialId.RESONANCE_DUST);
-        assertEquals(500, total, "The currency in existence is exactly what it was before the withdrawal");
+        assertEquals(500 - CurrencyItems.withdrawalFee(100), total, "The currency in existence is what it was before the withdrawal, less the fee");
     }
 
     @Test void aRedemptionReplaysByOperationAndAnUnknownBatchIsRefusedWithoutARecord() {
@@ -911,11 +935,11 @@ class ProgressionStoreTest {
         var batch = ProgressionStore.voucherBatchId(mintOp);
         var op = UUID.randomUUID();
         var first = store.redeemVoucher(op, player, batch, 4);
-        assertEquals(10, first.wallet().balance(MaterialId.FACET));
+        assertEquals(9, first.wallet().balance(MaterialId.FACET));
         var replay = store.redeemVoucher(op, player, batch, 4);
         assertTrue(replay.replayed());
         assertEquals(Map.of(MaterialId.FACET, 4L), replay.cost(), "A replay reports the same credit");
-        assertEquals(10, store.wallet(player).balance(MaterialId.FACET), "A replay does not credit twice");
+        assertEquals(9, store.wallet(player).balance(MaterialId.FACET), "A replay does not credit twice");
         var forged = UUID.randomUUID();
         var forgedOp = UUID.randomUUID();
         assertEquals(Code.UNKNOWN_VOUCHER, codeOf(() -> store.redeemVoucher(forgedOp, player, forged, 64)));
@@ -925,7 +949,7 @@ class ProgressionStoreTest {
     @Test void vouchersSurviveARestart() {
         var mintOp = UUID.randomUUID();
         try (var store = ProgressionStore.open(file(), rules, AUTH)) {
-            store.grant(UUID.randomUUID(), player, Map.of(MaterialId.UNIQUE_FRAGMENT, 9L), "test");
+            store.grant(UUID.randomUUID(), player, Map.of(MaterialId.UNIQUE_FRAGMENT, 10L), "test");
             store.mintVoucher(mintOp, player, MaterialId.UNIQUE_FRAGMENT, 9, CraftRequest.ANY_REVISION);
         }
         try (var store = ProgressionStore.open(file(), rules, AUTH)) {

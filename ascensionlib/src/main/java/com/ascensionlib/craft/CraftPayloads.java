@@ -43,7 +43,7 @@ public final class CraftPayloads {
      * Server to page: the screen's data (the page asks for it once it has loaded, and gets a fresh one after every action). {@code open} is unused. {@code message} is a one-line notice (an error from the last action, or empty).
      */
     public record View(String pokemonId, String name, String speciesId, List<String> aspects, int level, String rarityId, String uniqueName,
-                       int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores, long scouters,
+                       int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores, long scouters, long marks,
                        Price refine, Price reforge, Promotion promotion, UniqueState unique, List<SlotView> slots, String message, boolean open) {}
 
     /** Server to page: how a confirmed craft ended. On success the slot before and after; on failure only the reason. */

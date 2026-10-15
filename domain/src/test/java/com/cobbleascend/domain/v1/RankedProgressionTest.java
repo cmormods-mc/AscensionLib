@@ -301,7 +301,7 @@ class RankedProgressionTest {
         assertEquals(2, multi.eligibleUniques(profile).size());
         var operation = UUID.randomUUID();
         var installed = multi.installUnique(profile, "ashen_heart", operation);
-        assertEquals(Map.of(MaterialId.UNIQUE_CATALYST, 1L), installed.cost());
+        assertEquals(Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, 1L), installed.cost());
         assertEquals(new UniqueInstance("ashen_heart", 1, operation), installed.profile().unique());
         assertEquals(profile.ordinarySlots(), installed.profile().ordinarySlots());
         assertEquals(profile.pendingCredits(), installed.profile().pendingCredits());
@@ -317,7 +317,7 @@ class RankedProgressionTest {
 
         var replaceOperation = UUID.randomUUID();
         var replaced = multi.replaceUnique(current, "second_wind", replaceOperation);
-        assertEquals(Map.of(MaterialId.UNIQUE_CATALYST, 1L), replaced.cost());
+        assertEquals(Map.of(MaterialId.UNIQUE_CATALYST, 1L, MaterialId.TOWER_MARK, 1L), replaced.cost());
         assertEquals(new UniqueInstance("second_wind", 1, replaceOperation), replaced.profile().unique());
         assertEquals(current.ordinarySlots(), replaced.profile().ordinarySlots());
     }
@@ -341,7 +341,7 @@ class RankedProgressionTest {
     @Test void uniqueIsAvailableOnEveryRarity() {
         for (var rarity : Rarity.values()) {
             var profile = create(rarity, 1, new Random(rarity.ordinal()));
-            assertEquals(1, progression.installUnique(profile, "ashen_heart", UUID.randomUUID()).cost().size());
+            assertEquals(2, progression.installUnique(profile, "ashen_heart", UUID.randomUUID()).cost().size(), "a Catalyst and a Tower Mark");
         }
     }
 
@@ -537,7 +537,7 @@ class RankedProgressionTest {
         int wins = 0, losses = 0;
         for (int seed = 0; seed < 4000; seed++) {
             var result = progression.overreach(top, "prefix:0", new Random(seed));
-            assertEquals(Map.of(MaterialId.RESONANCE_DUST, 60L, MaterialId.FACET, 2L), result.cost());
+            assertEquals(Map.of(MaterialId.RESONANCE_DUST, 60L, MaterialId.FACET, 2L, MaterialId.TOWER_MARK, 1L), result.cost());
             var slot = result.profile().slot("prefix:0").orElseThrow();
             assertTrue(slot.sealed());
             assertEquals(0, slot.floor(), "A sealed slot has no floor");

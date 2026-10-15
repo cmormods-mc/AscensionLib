@@ -1,7 +1,7 @@
 {
   "version": 1,
   "namespace": "ascensionlib",
-  "note": "Each wallet material as a vanilla item: tagged with custom_data {ascensionlib:{material, batch?}} and a custom_model_data the server resource pack maps to art. Base items are inert and stack to 64. An item with no batch is LOOT FORM (absorbed into the wallet when carried); an item with a batch is a VOUCHER (tradable, redeemed with /ascend wallet deposit).",
+  "note": "Each wallet material as a vanilla item: tagged with custom_data {ascensionlib:{material, batch?}} and a custom_model_data the server resource pack maps to art. Base items are inert and stack to 64. A tradable value of false keeps a material out of withdrawal (default true). An item with no batch is LOOT FORM (absorbed into the wallet when carried); an item with a batch is a VOUCHER (tradable, redeemed with /ascend wallet deposit).",
   "items": {
     "resonance_dust": {"base": "minecraft:glowstone_dust", "model": 8101, "name": "Resonance Dust", "color": "#d9a441",
                        "lore": ["Raw resonance, spent on upgrades,", "refining and perfecting."]},
@@ -16,6 +16,8 @@
     "scouter": {"base": "minecraft:prismarine_crystals", "model": 8106, "name": "Scouter", "color": "#6f9a52",
                 "lore": ["Reveals one enemy's rating."]},
     "ascension_sigil": {"base": "minecraft:nautilus_shell", "model": 8107, "name": "Ascension Sigil", "color": "#ffd437",
-                        "lore": ["Gives a Pokemon with no profile", "a rolled rarity."]}
+                        "lore": ["Gives a Pokemon with no profile", "a rolled rarity."]},
+    "tower_mark": {"base": "minecraft:disc_fragment_5", "model": 8108, "name": "Tower Mark", "color": "#e8e1c9", "tradable": false,
+                   "lore": ["Proof of a Tower clear.", "Bound to you; it cannot be traded."]}
   }
 }

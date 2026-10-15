@@ -229,6 +229,13 @@ final class AscendWiring {
                                         .then(Commands.argument("points", IntegerArgumentType.integer(1, 10_000))
                                                 .executes(ctx -> grantAttunement(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot"),
                                                         IntegerArgumentType.getInteger(ctx, "points"))))))
+                        // /ascend admin completion <tier> [pay]: show the Tower completion reveal for a tier; with "pay" it settles a real chest for you.
+                        .then(Commands.literal("completion")
+                                .then(Commands.argument("tier", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(List.of("bronze", "silver", "gold", "mythic"), builder))
+                                        .executes(ctx -> completionDemo(ctx.getSource(), StringArgumentType.getString(ctx, "tier"), false))
+                                        .then(Commands.literal("pay")
+                                                .executes(ctx -> completionDemo(ctx.getSource(), StringArgumentType.getString(ctx, "tier"), true)))))
                         .then(Commands.literal("grant")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .then(Commands.argument("material", StringArgumentType.word())
@@ -506,6 +513,24 @@ final class AscendWiring {
             source.sendFailure(Component.literal("Refused: " + exception.getMessage()));
             return 0;
         }
+    }
+
+    private int completionDemo(CommandSourceStack source, String tierName, boolean pay) throws CommandSyntaxException {
+        int cards = switch (tierName.toLowerCase(java.util.Locale.ROOT)) {
+            case "bronze" -> 0; case "silver" -> 2; case "gold" -> 5; case "mythic" -> 8;
+            default -> -1;
+        };
+        if (cards < 0) { source.sendFailure(Component.literal("Tier is bronze, silver, gold or mythic.")); return 0; }
+        var player = source.getPlayerOrException();
+        var encounter = java.util.UUID.randomUUID();
+        if (pay) {
+            var status = AscensionRewards.settleTowerCompletion(encounter, "VICTORY", 10, 0, cards, false, List.of(player.getUUID()));
+            source.sendSuccess(() -> Component.literal("[Ascend] Settled a " + tierName + " completion: " + status.get(player.getUUID())), false);
+            return 1;
+        }
+        var completion = com.cobbleascend.domain.v1.TowerCompletionBands.DEFAULTS.payout(encounter.toString(), player.getUUID(), cards, 0, false);
+        com.ascensionlib.reward.CompletionReveal.show(player, com.ascensionlib.reward.CompletionReveal.view(completion, 0, cards, false, 3, true));
+        return 1;
     }
 
     private int initialize(CommandSourceStack source, int slot) throws CommandSyntaxException {

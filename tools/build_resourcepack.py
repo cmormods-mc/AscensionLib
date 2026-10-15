@@ -153,6 +153,24 @@ ART = {
         ".....oooooo.....",
         "................",
     ]),
+    'tower_mark': ({'S': 'e8e1c9', 's': 'a89f7e', 'K': '5b5340', 'L': 'fffbe8'}, [
+        "................",
+        "................",
+        "....oooooooo....",
+        "...oLSSSSSSso...",
+        "...oSSSKKSSso...",
+        "...oSSKSSKSso...",
+        "...oSSSSSKSso...",
+        "...oSSSSKSSso...",
+        "...oSSSKSSSso...",
+        "...oSSSSSSSso...",
+        "...oSSSKSSSso...",
+        "...oSSSSSSsso...",
+        "....oosssssoo...",
+        ".....ooooooo....",
+        "................",
+        "................",
+    ]),
 }
 
 
