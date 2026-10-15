@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8108,
                 "minecraft:custom_name": "{\"text\":\"Tower Mark\",\"color\":\"#e8e1c9\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"RARE\",\"color\":\"#38ccef\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Currency\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"Proof of a Tower clear.\",\"color\":\"gray\",\"italic\":false}",
                   "{\"text\":\"Bound to you; it cannot be traded.\",\"color\":\"gray\",\"italic\":false}"
                 ]

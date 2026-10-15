@@ -55,6 +55,7 @@ public final class DexItem {
         var plain = Style.EMPTY.withItalic(false);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(spec.name()).withStyle(plain.withColor(TextColor.fromRgb(spec.color()))));
         var lore = new ArrayList<Component>();
+        lore.add(com.ascensionlib.wallet.WalletItems.rarityLine(spec.rarity(), spec.kind()));
         for (var line : spec.lore()) lore.add(Component.literal(line).withStyle(plain.withColor(net.minecraft.ChatFormatting.GRAY)));
         stack.set(DataComponents.LORE, new ItemLore(lore));
         stack.set(DataComponents.MAX_STACK_SIZE, 1);

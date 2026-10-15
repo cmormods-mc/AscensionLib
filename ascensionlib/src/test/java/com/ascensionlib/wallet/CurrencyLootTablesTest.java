@@ -23,7 +23,7 @@ class CurrencyLootTablesTest {
             assertEquals(material.id(), components.getAsJsonObject("minecraft:custom_data").getAsJsonObject(CurrencyItems.TAG).get("material").getAsString());
             assertEquals(spec.model(), components.get("minecraft:custom_model_data").getAsInt());
             assertTrue(components.get("minecraft:custom_name").getAsString().contains(spec.name()));
-            assertEquals(spec.lore().size(), components.getAsJsonArray("minecraft:lore").size());
+            assertEquals(spec.lore().size() + 1, components.getAsJsonArray("minecraft:lore").size(), "the rarity line plus the lore");
             assertFalse(components.getAsJsonObject("minecraft:custom_data").getAsJsonObject(CurrencyItems.TAG).has(CurrencyItems.BATCH_KEY), "A loot table makes loot form, never a voucher");
         }
     }

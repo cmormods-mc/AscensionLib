@@ -12,6 +12,21 @@ class CurrencyItemsTest {
     private static final Set<String> INERT_STACKABLE = Set.of("minecraft:glowstone_dust", "minecraft:amethyst_shard", "minecraft:heart_of_the_sea",
             "minecraft:echo_shard", "minecraft:nether_star", "minecraft:prismarine_crystals", "minecraft:nautilus_shell", "minecraft:disc_fragment_5");
 
+    @Test void everyItemHasARarityThatExistsAndTheTiersAreOrderedByValue() {
+        for (var spec : CurrencyItems.all().values()) {
+            var rarity = CurrencyItems.rarity(spec.rarity());
+            assertEquals(spec.rarity(), rarity.id(), spec.material().id() + " names a rarity that exists");
+            assertFalse(rarity.label().isBlank());
+            assertFalse(spec.kind().isBlank());
+        }
+        assertEquals("EPIC", CurrencyItems.rarity("epic").label());
+        assertEquals("MYTHIC", CurrencyItems.rarity("mythical").label(), "the top tier reads Mythic, as on the pages");
+        assertEquals("common", CurrencyItems.rarity("no-such-tier").id(), "an unknown tier falls back to common");
+        assertEquals("common", CurrencyItems.all().get(MaterialId.RESONANCE_DUST).rarity(), "the everyday currency is common");
+        assertEquals("legendary", CurrencyItems.all().get(MaterialId.UNIQUE_CATALYST).rarity(), "the rarest is legendary");
+        assertTrue(java.util.List.of("common", "uncommon", "rare", "epic", "legendary", "mythical").contains(CurrencyItems.dex().rarity()));
+    }
+
     @Test void everyMaterialHasAnItem() {
         for (var material : MaterialId.values()) {
             var spec = CurrencyItems.spec(material);

@@ -72,11 +72,20 @@ public final class WalletItems {
         var plain = Style.EMPTY.withItalic(false);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(spec.name()).withStyle(plain.withColor(TextColor.fromRgb(spec.color()))));
         var lore = new ArrayList<Component>();
+        lore.add(rarityLine(spec.rarity(), spec.kind()));
         for (var line : spec.lore()) lore.add(Component.literal(line).withStyle(plain.withColor(net.minecraft.ChatFormatting.GRAY)));
         lore.add(Component.literal(batch == null ? "Joins your wallet when you carry it." : "Voucher: /ascend wallet deposit redeems it.")
                 .withStyle(plain.withColor(net.minecraft.ChatFormatting.DARK_GRAY)));
         stack.set(DataComponents.LORE, new ItemLore(lore));
         return stack;
+    }
+
+    /** The first line of every tooltip: the rarity in its colour, bold, then what kind of item it is. Shared with the AscensionDex. */
+    public static Component rarityLine(String rarityId, String kind) {
+        var rarity = CurrencyItems.rarity(rarityId);
+        var plain = Style.EMPTY.withItalic(false);
+        return Component.literal(rarity.label()).withStyle(plain.withBold(true).withColor(TextColor.fromRgb(rarity.color())))
+                .append(Component.literal(" \u00b7 " + kind).withStyle(plain.withBold(false).withColor(net.minecraft.ChatFormatting.DARK_GRAY)));
     }
 
     /** Reads a stack: present only for our tag on the base item that material uses (a tagged dirt block is not currency). */

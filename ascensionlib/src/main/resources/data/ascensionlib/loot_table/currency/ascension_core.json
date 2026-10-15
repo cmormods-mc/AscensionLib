@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8103,
                 "minecraft:custom_name": "{\"text\":\"Ascension Core\",\"color\":\"#c9694f\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"EPIC\",\"color\":\"#af69ff\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Currency\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"The heart of a promotion.\",\"color\":\"gray\",\"italic\":false}",
                   "{\"text\":\"Earned in the Tower.\",\"color\":\"gray\",\"italic\":false}"
                 ]

@@ -28,6 +28,9 @@ class DexItemTest {
         assertEquals(CurrencyItems.dex().model(), dex.get(DataComponents.CUSTOM_MODEL_DATA).value());
         assertEquals(1, dex.get(DataComponents.MAX_STACK_SIZE));
         assertFalse(dex.get(DataComponents.LORE).lines().isEmpty());
+        var first = dex.get(DataComponents.LORE).lines().get(0);
+        assertEquals(CurrencyItems.rarity(CurrencyItems.dex().rarity()).label() + " · " + CurrencyItems.dex().kind(), first.getString());
+        assertEquals(CurrencyItems.rarity(CurrencyItems.dex().rarity()).color(), first.getStyle().getColor().getValue());
     }
 
     @Test void onlyOurTagOnTheRightBaseItemCounts() {

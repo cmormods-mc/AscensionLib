@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8106,
                 "minecraft:custom_name": "{\"text\":\"Scouter\",\"color\":\"#6f9a52\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"UNCOMMON\",\"color\":\"#1bd7e8\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Currency\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"Reveals one enemy's rating.\",\"color\":\"gray\",\"italic\":false}"
                 ]
               }

@@ -42,6 +42,13 @@ def write(path, data):
     path.write_bytes(data)
 
 
+def rarity_lore(rarity_id, kind):
+    """The tooltip's first line as a loot-table text component: the rarity bold in its colour, then the kind in dark gray."""
+    r = DESIGN['rarities'][rarity_id]
+    return json.dumps(['', {'text': r['label'], 'color': r['color'], 'bold': True, 'italic': False},
+                       {'text': ' \u00b7 ' + kind, 'color': 'dark_gray', 'bold': False, 'italic': False}], separators=(',', ':'))
+
+
 def component_text(text, color):
     return json.dumps({'text': text, 'color': color, 'italic': False}, separators=(',', ':'))
 
@@ -64,7 +71,7 @@ def main():
             'minecraft:custom_data': {NS: {'material': material}},
             'minecraft:custom_model_data': spec['model'],
             'minecraft:custom_name': component_text(spec['name'], spec['color']),
-            'minecraft:lore': [component_text(line, 'gray') for line in spec['lore']],
+            'minecraft:lore': [rarity_lore(spec['rarity'], spec['kind'])] + [component_text(line, 'gray') for line in spec['lore']],
         }
         table = {'type': 'minecraft:generic', 'pools': [{'rolls': 1, 'entries': [
             {'type': 'minecraft:item', 'name': spec['base'], 'functions': [{'function': 'minecraft:set_components', 'components': components}]}]}]}
@@ -81,7 +88,7 @@ def main():
         'minecraft:custom_data': {NS: {'dex': True}},
         'minecraft:custom_model_data': dex['model'],
         'minecraft:custom_name': component_text(dex['name'], dex['color']),
-        'minecraft:lore': [component_text(line, 'gray') for line in dex['lore']],
+        'minecraft:lore': [rarity_lore(dex['rarity'], dex['kind'])] + [component_text(line, 'gray') for line in dex['lore']],
     }
     write(LOOT.parent / 'ascension_dex.json', json.dumps({'type': 'minecraft:generic', 'pools': [{'rolls': 1, 'entries': [
         {'type': 'minecraft:item', 'name': dex['base'], 'functions': [{'function': 'minecraft:set_components', 'components': dex_components}]}]}]}, indent=2) + '\n')

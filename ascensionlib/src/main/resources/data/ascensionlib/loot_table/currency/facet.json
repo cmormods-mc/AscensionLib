@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8102,
                 "minecraft:custom_name": "{\"text\":\"Facet\",\"color\":\"#4f9ad9\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"UNCOMMON\",\"color\":\"#1bd7e8\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Currency\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"A cut crystal that sharpens an affix.\",\"color\":\"gray\",\"italic\":false}",
                   "{\"text\":\"Spent on reforging and overreaching.\",\"color\":\"gray\",\"italic\":false}"
                 ]

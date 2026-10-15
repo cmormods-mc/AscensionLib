@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8110,
                 "minecraft:custom_name": "{\"text\":\"AscensionDex\",\"color\":\"#ff6b78\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"RARE\",\"color\":\"#38ccef\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Tool\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"Right-click to review your party\",\"color\":\"gray\",\"italic\":false}",
                   "{\"text\":\"and pick a Pokemon to inspect.\",\"color\":\"gray\",\"italic\":false}"
                 ]

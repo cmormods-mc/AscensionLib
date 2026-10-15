@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8107,
                 "minecraft:custom_name": "{\"text\":\"Ascension Sigil\",\"color\":\"#ffd437\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"EPIC\",\"color\":\"#af69ff\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Currency\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"Gives a Pokemon with no profile\",\"color\":\"gray\",\"italic\":false}",
                   "{\"text\":\"a rolled rarity.\",\"color\":\"gray\",\"italic\":false}"
                 ]

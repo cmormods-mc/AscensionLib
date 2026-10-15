@@ -21,6 +21,20 @@ class WalletItemsTest {
         Bootstrap.bootStrap();
     }
 
+    @Test void everyTooltipOpensWithTheRarityInItsColourThenTheKind() {
+        for (var material : MaterialId.values()) {
+            var spec = CurrencyItems.spec(material);
+            var rarity = CurrencyItems.rarity(spec.rarity());
+            for (var stack : new net.minecraft.world.item.ItemStack[] {WalletItems.create(material, 1, null), WalletItems.create(material, 1, UUID.randomUUID())}) {
+                var first = stack.get(DataComponents.LORE).lines().get(0);
+                assertEquals(rarity.label() + " · " + spec.kind(), first.getString(), material.id());
+                assertEquals(rarity.color(), first.getStyle().getColor().getValue(), material.id() + " rarity colour");
+                assertTrue(first.getStyle().isBold(), "the rarity word is bold");
+                assertEquals(spec.lore().get(0), stack.get(DataComponents.LORE).lines().get(1).getString(), "then the item's own lore");
+            }
+        }
+    }
+
     @Test void everyMaterialRoundTripsAsLootFormAndAsAVoucher() {
         var batch = UUID.randomUUID();
         for (var material : MaterialId.values()) {

@@ -19,6 +19,7 @@
                 "minecraft:custom_model_data": 8101,
                 "minecraft:custom_name": "{\"text\":\"Resonance Dust\",\"color\":\"#d9a441\",\"italic\":false}",
                 "minecraft:lore": [
+                  "[\"\",{\"text\":\"COMMON\",\"color\":\"#c1c5cf\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Currency\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
                   "{\"text\":\"Raw resonance, spent on upgrades,\",\"color\":\"gray\",\"italic\":false}",
                   "{\"text\":\"refining and perfecting.\",\"color\":\"gray\",\"italic\":false}"
                 ]
