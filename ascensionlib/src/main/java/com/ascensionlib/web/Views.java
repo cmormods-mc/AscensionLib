@@ -18,6 +18,9 @@ public final class Views {
     /** One party member in the HUD's team list. */
     public record TeamView(String id, String name, String speciesId, String rarityId, int level) {}
 
+    /** One bleeding Pokemon on the overlay: {@code side} is "ally" or "foe". */
+    public record BleedView(String name, String side, int stacks, int turnsLeft) {}
+
     public static StateView state(ScoutPayloads.State state) {
         return new StateView(state.encounterId(), state.scouters(),
                 state.entries().stream().map(e -> new EntryView(e.subjectId(), e.name(), e.detail().orElse(null), e.speciesId())).toList());

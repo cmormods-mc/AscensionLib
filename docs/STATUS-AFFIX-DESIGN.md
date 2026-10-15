@@ -65,3 +65,13 @@ Related Uniques that share the bleed: Rupture (physical moves always bleed, stac
 so the three affixes roll for new captures immediately and existing profiles stay valid.
 
 Still open: live confirmation that the Cobblemon client renders the plain `-damage` line plus "<name> is bleeding!" without errors.
+
+## Bleed badge on the overlay (2026-10-15, built, NOT seen live)
+Cobblemon draws icons only for the native statuses (burn, freeze, paralysis, poison, sleep, toxic, faint), so a bleed was a chat line and nothing else. Findings from reading the Cobblemon jar:
+a custom `-start` or an unknown protocol line would print in red chat (`UnknownInstruction`), and there is no event for battle messages; but `PokemonBattle.getShowdownMessages()` keeps every raw protocol
+line. So: `ascension-fx.js` now writes bleed lines whose wording is a contract, `X is bleeding! (stack 2, 3 turns)` (stack grew), `X is still bleeding! (stack 3, 3 turns)` (refreshed) and
+`X's bleeding stopped.` (expired, fainted or switched out); `battle/BleedTracker` (pure, tested) reads them plus `|turn|` lines; `battle/BleedWatch` polls the in-battle players every half second, resolves each name
+to the player's side or the foe's, and `HudWeb.pushBleed` draws a chip per bleeding Pokemon in `hud.html` (red drop, name, `BLEED x2 - 3 turns`; your side red, the foe's orange). The overlay stays open while anyone bleeds.
+Tests: `BleedTrackerTest`, simulator test 14d (the lines match the regexes the tracker uses), a page-harness check. To confirm live: that the raw lines really reach `getShowdownMessages` in this form, that two Pokemon sharing a
+display name resolve to the right side, and how the strip sits over Cobblemon's own battle UI. The same tracker can carry other hidden conditions (Wardstone, Ensnaring) by adding lines.
+

@@ -370,6 +370,23 @@ test('14c. rending: at most one application per move use', async () => {
   }
 });
 
+test('14d. rending: the bleed lines carry stacks and turns and end with a stop line (BleedTracker.java reads exactly these)', async () => {
+  const START = /^\|-message\|(.+?) is (?:still )?bleeding! \(stack (\d+), (\d+) turns?\)$/;
+  const STOP = /^\|-message\|(.+?)'s bleeding stopped\.$/;
+  let started = 0, stopped = 0;
+  for (let s = 1; s <= 40 && !stopped; s++) {
+    const b = await battle({teams: [MAGIKARP(), INFLICTOR(['tackle'])], moves: ['move 1', 'move 1'], turns: 8, seed: [s, 2, 3, 4],
+      fx: {v: 1, mons: {[U2]: [{id: 'rending', pct: 10}]}}});
+    for (const line of b.lines) {
+      const m = START.exec(line);
+      if (m) { started++; assert.ok(Number(m[2]) >= 1 && Number(m[2]) <= 3 && Number(m[3]) === 3, 'stack 1-3 and 3 turns: ' + line); }
+      if (STOP.test(line)) stopped++;
+    }
+    assert.ok(!b.lines.some(l => /bleeding/.test(l) && l.startsWith('|-message|') && !START.test(l) && !STOP.test(l)), 'every bleed line matches the contract');
+  }
+  assert.ok(started > 0 && stopped > 0, `a bleed started (${started}) and stopped (${stopped})`);
+});
+
 // ---- Uniques (docs/UNIQUES-DESIGN.md): each has a benefit and a fixed drawback ----
 const on = (uuid, ...ids) => ({v: 1, mons: {[uuid]: ids.map(id => ({id, pct: 1}))}});
 

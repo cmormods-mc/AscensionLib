@@ -44,7 +44,7 @@ public final class AscensionRewards {
                     .forEach((material, amount) -> amounts.put(material.id(), amount));
             payouts.put(player, amounts);
         }
-        var result = settle(encounterId, outcome, "tower_boss", payouts);
+        var result = settleBudgeted(encounterId, outcome, "tower_boss", payouts);
         var paid = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
         awardAttunement("tower_boss:" + encounterId, paid);
@@ -82,7 +82,7 @@ public final class AscensionRewards {
             completion.materials().forEach((material, amount) -> amounts.put(material.id(), amount));
             payouts.put(player, amounts);
         }
-        var result = settle(encounterId, outcome, "tower_completion", payouts);
+        var result = settleBudgeted(encounterId, outcome, "tower_completion", payouts);
         var paid = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
         awardAttunement("tower_completion:" + encounterId, paid);
@@ -171,7 +171,7 @@ public final class AscensionRewards {
                     .forEach((material, amount) -> amounts.put(material.id(), amount));
             payouts.put(player, amounts);
         }
-        var result = settle(runId, outcome, "dungeon_run", payouts);
+        var result = settleBudgeted(runId, outcome, "dungeon_run", payouts);
         var paid = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
         awardAttunement("dungeon:" + runId, paid);
@@ -202,7 +202,7 @@ public final class AscensionRewards {
         com.cobbleascend.domain.v1.TrialRewardBands.payout(rank).forEach((material, amount) -> amounts.put(material.id(), amount));
         var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
         for (var player : players) payouts.put(player, amounts);
-        var result = settle(encounterId, outcome, "trial_rank_" + rank, payouts);
+        var result = settleBudgeted(encounterId, outcome, "trial_rank_" + rank, payouts);
         var paid = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
         awardAttunement("trial:" + encounterId, paid);
@@ -280,6 +280,40 @@ public final class AscensionRewards {
         }
         if (payouts.isEmpty()) return new LinkedHashMap<>();
         return settle(encounterId, outcome, "scouter_drop", payouts);
+    }
+
+    /**
+     * Like {@link #settle} for a main chest (a tower boss or completion, a trial or a dungeon run): it counts against the player's daily full-reward
+     * budget ({@code DailyRewardBudget}: 20 full chests a UTC day, then dust at 25 percent). A player whose chest was cut is told in chat.
+     */
+    static Map<UUID, String> settleBudgeted(UUID encounterId, String outcome, String rewardKind, Map<UUID, Map<String, Long>> payouts) {
+        var parsed = new java.util.ArrayList<EncounterRewards.Payout>();
+        payouts.forEach((player, materials) -> {
+            var amounts = new java.util.EnumMap<MaterialId, Long>(MaterialId.class);
+            materials.forEach((id, amount) -> amounts.put(MaterialId.fromId(id), amount));
+            parsed.add(new EncounterRewards.Payout(player, amounts));
+        });
+        var settlement = new EncounterRewards.Settlement(encounterId.toString(),
+                EncounterRewards.EncounterOutcome.valueOf(outcome), rewardKind, parsed);
+        var rewards = AscensionApi.encounterRewards();
+        var result = new LinkedHashMap<UUID, String>();
+        if (rewards.isEmpty()) {
+            parsed.forEach(payout -> result.put(payout.playerId(), "DISABLED"));
+            return result;
+        }
+        var budget = com.cobbleascend.domain.v1.DailyRewardBudget.DEFAULTS;
+        rewards.get().settleBudgeted(settlement, budget).forEach((player, answer) -> {
+            result.put(player, answer.status().name());
+            if (answer.reduced() && answer.status() == EncounterRewards.Status.GRANTED) tellReduced(player, budget);
+        });
+        return result;
+    }
+
+    private static void tellReduced(UUID player, com.cobbleascend.domain.v1.DailyRewardBudget budget) {
+        var server = AscensionApi.server();
+        var online = server == null ? null : server.getPlayerList().getPlayer(player);
+        if (online != null) online.sendSystemMessage(net.minecraft.network.chat.Component.literal("[Ascend] Daily reward limit reached ("
+                + budget.fullPerDay() + " full chests today): this chest paid " + budget.reducedDustPercent() + "% of its Resonance Dust. Everything else was paid in full. It resets at midnight UTC."));
     }
 
     /**

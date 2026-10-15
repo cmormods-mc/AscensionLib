@@ -483,7 +483,9 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale, shared) {
     state.leech = opts.leech || 0;
     state.source = source;
     bleeds.set(target, state);
-    if (state.stacks > before) note(battle, `${target.name} is bleeding!`);
+    // The wording is a contract with BleedWatch.java, which reads these lines to draw the bleed badge on the overlay: keep it in step.
+    note(battle, state.stacks > before ? `${target.name} is bleeding! (stack ${state.stacks}, ${state.turns} turns)`
+      : `${target.name} is still bleeding! (stack ${state.stacks}, ${state.turns} turns)`);
   };
   const rawSpread = battle.spreadDamage;
   if (typeof rawSpread === 'function') {
@@ -526,6 +528,7 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale, shared) {
           if (!(mon.hp > 0) || !mon.isActive) {
             // A fainted or switched-out Pokemon loses its bleed, as a native volatile would.
             bleeds.delete(mon);
+            note(this, `${mon.name}'s bleeding stopped.`);
             continue;
           }
           const bleed = {id: 'ascensionbleed', name: 'Bleed', fullname: 'bleed', effectType: 'Status'};
@@ -551,7 +554,10 @@ function applyStatusDamage(battle, byUuid, caps, of, has, scale, shared) {
             }
           }
           state.age++;
-          if (--state.turns <= 0) bleeds.delete(mon);
+          if (--state.turns <= 0) {
+            bleeds.delete(mon);
+            note(this, `${mon.name}'s bleeding stopped.`);
+          }
         } catch (err) { bleeds.delete(mon); }
       }
       return result;

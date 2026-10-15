@@ -371,6 +371,21 @@ await check('hud: closes itself after the last card has been shown', async () =>
   yes(ch.includes('ascension_hud_closed') && ch.includes('close'), 'idle overlay closes: ' + ch.join(','));
 });
 
+await check('hud: bleed badges show side, stacks and turns, stay open while anyone bleeds, and clear', async () => {
+  const p = await open(null, 'hud.html');
+  await emit(p, 'hudBleed', [{ name: 'Growlithe', side: 'ally', stacks: 2, turnsLeft: 3 }, { name: 'Houndoom', side: 'foe', stacks: 1, turnsLeft: 1 }]);
+  eq(await p.locator('.bleed').count(), 2, 'a badge per bleeding Pokemon');
+  yes((await p.locator('.bleed').first().textContent()).includes('Growlithe') && (await p.locator('.bleed').first().textContent()).includes('BLEED x2'), 'name and stacks');
+  yes((await p.locator('.bleed.foe').textContent()).includes('1 turn') && !(await p.locator('.bleed.foe').textContent()).includes('1 turns'), 'singular turn');
+  await p.waitForTimeout(3200);
+  yes(!(await sent(p)).some(m => m.channel === 'close'), 'the overlay stays open while a bleed is on');
+  await emit(p, 'hudBleed', []);
+  eq(await p.locator('.bleed').count(), 0, 'cleared');
+  await p.waitForTimeout(3200);
+  yes((await sent(p)).some(m => m.channel === 'close'), 'then it closes itself');
+  noErrors(p);
+});
+
 await check('pages degrade without WebGUI (no window.webgui): no crash', async () => {
   const ctx = await browser.newContext(); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', e => errors.push(e.message));

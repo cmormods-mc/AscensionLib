@@ -124,6 +124,10 @@ AscensionLib can show this itself (a `completion.html` page: it knows exactly wh
   small formula until CobbleTowers calls `settleTowerCompletion` instead.
 - Dungeon bands lowered as proposed (arena 10, boss 12 per tier) and the boss pays one fragment 35 percent of the time. The listing-fee request to the auction mod is written up in
   `AUCTION-LISTING-FEE-REQUEST.md` (nothing to build here).
+- **Daily full-reward budget** (decision 4 of `TOWER-LOOT-DESIGN.md`, built 2026-10-15): `DailyRewardBudget.DEFAULTS` = 20 full chests per UTC day per player, then the chest's dust is paid at 25 percent (never below 1; cores, fragments,
+  Marks and everything else are never cut). It counts the main chests only: `settleTowerCompletion`, `settleTowerBoss`, `settleTrial` and `settleDungeonRun` (a Scouter or Sigil roll does not use it). Applied inside the store transaction
+  (`ProgressionStore.grantBudgeted`, store schema 4, table `daily_budget`), so a retried settlement replays what it first paid and uses no more budget; the player is told in chat when a chest was cut. Both numbers are the constants in
+  `DailyRewardBudget`. With hour-long completions the limit mostly bites dungeons and trials (a Tower run is two chests, the F5 mini chest and the completion).
 - Test seam: `/ascend admin completion <bronze|silver|gold|mythic>` shows the reveal with nothing paid; add `pay` to settle a real chest for yourself.
 
 ## Built in CobbleTowers (2026-10-15, uncommitted, not seen live)

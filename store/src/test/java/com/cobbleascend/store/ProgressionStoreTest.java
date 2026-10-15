@@ -160,7 +160,7 @@ class ProgressionStoreTest {
         open().close();
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
              var statement = connection.createStatement()) {
-            statement.executeUpdate("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
+            statement.executeUpdate("UPDATE meta SET value = '5' WHERE key = 'schema_version'");
         }
         assertEquals(Code.STORE_SCHEMA_UNKNOWN, codeOf(() -> ProgressionStore.open(file(), rules, AUTH)));
     }
@@ -819,7 +819,7 @@ class ProgressionStoreTest {
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file().toAbsolutePath());
              var rows = connection.createStatement().executeQuery("SELECT value FROM meta WHERE key = 'schema_version'")) {
             assertTrue(rows.next());
-            assertEquals("3", rows.getString(1));
+            assertEquals("4", rows.getString(1));
         }
     }
 

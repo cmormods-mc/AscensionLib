@@ -1,6 +1,7 @@
 package com.cobbleascend.store;
 
 import com.cobbleascend.domain.v1.CraftException;
+import com.cobbleascend.domain.v1.DailyRewardBudget;
 import com.cobbleascend.domain.v1.MaterialId;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
@@ -70,6 +71,9 @@ public final class EncounterRewards {
         }
     }
 
+    /** The answer for one budgeted payout: the status, and whether the daily budget cut its dust. */
+    public record Budgeted(Status status, boolean reduced) {}
+
     private final ProgressionStore store;
 
     public EncounterRewards(ProgressionStore store) { this.store = Objects.requireNonNull(store); }
@@ -89,6 +93,33 @@ public final class EncounterRewards {
                 continue;
             }
             result.put(payout.playerId(), pay(settlement, payout));
+        }
+        return result;
+    }
+
+    /**
+     * Like {@link #settle}, but each paid chest counts against the player's daily budget: after {@code budget.fullPerDay()} chests in a UTC day its dust
+     * is cut (see {@link ProgressionStore#grantBudgeted}). A retry replays the first payment and uses no more budget.
+     */
+    public synchronized Map<UUID, Budgeted> settleBudgeted(Settlement settlement, DailyRewardBudget budget) {
+        var result = new LinkedHashMap<UUID, Budgeted>();
+        for (var payout : settlement.payouts()) {
+            if (settlement.outcome() != EncounterOutcome.VICTORY) {
+                result.put(payout.playerId(), new Budgeted(Status.NOT_PAID, false));
+                continue;
+            }
+            try {
+                var outcome = store.grantBudgeted(operationId(settlement.encounterId(), payout.playerId(), settlement.rewardKind()),
+                        payout.playerId(), payout.materials(), "encounter " + settlement.encounterId() + " " + settlement.rewardKind(), budget);
+                long asked = payout.materials().getOrDefault(MaterialId.RESONANCE_DUST, 0L);
+                long paid = outcome.cost().getOrDefault(MaterialId.RESONANCE_DUST, 0L);
+                result.put(payout.playerId(), new Budgeted(outcome.replayed() ? Status.ALREADY_GRANTED : Status.GRANTED, paid < asked));
+            } catch (StoreException exception) {
+                if (exception.code() != StoreException.Code.OPERATION_REUSED) throw exception;
+                result.put(payout.playerId(), new Budgeted(Status.CONFLICT, false));
+            } catch (CraftException exception) {
+                result.put(payout.playerId(), new Budgeted(Status.REFUSED, false));
+            }
         }
         return result;
     }

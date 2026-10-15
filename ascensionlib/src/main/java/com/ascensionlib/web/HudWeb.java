@@ -29,6 +29,8 @@ public final class HudWeb {
     private static final Set<UUID> OPEN = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> OPENING = ConcurrentHashMap.newKeySet();
     private static final Map<UUID, Deque<CaptureRevealPayload>> QUEUED = new ConcurrentHashMap<>();
+    /** The bleeds last pushed to each player, re-sent when the overlay finishes loading. */
+    private static final Map<UUID, List<Views.BleedView>> BLEEDS = new ConcurrentHashMap<>();
 
     private HudWeb() {}
 
@@ -38,6 +40,8 @@ public final class HudWeb {
             OPENING.remove(player.getUUID());
             var queued = QUEUED.remove(player.getUUID());
             if (queued != null) queued.forEach(reveal -> { WebSprites.feed(player, List.of(reveal.speciesId())); WebUi.emit(player, "hudReveal", reveal); });
+            var bleeds = BLEEDS.get(player.getUUID());
+            if (bleeds != null && !bleeds.isEmpty()) WebUi.emit(player, "hudBleed", bleeds);
             var state = com.ascensionlib.scout.ScoutEncounters.stateFor(player.getUUID());
             WebUi.emit(player, "hudScout", Views.state(state));
             if (!state.entries().isEmpty()) sendTeam(player);
@@ -50,6 +54,8 @@ public final class HudWeb {
         OPEN.remove(player);
         OPENING.remove(player);
         QUEUED.remove(player);
+        BLEEDS.remove(player);
+        com.ascensionlib.battle.BleedWatch.forget(player);
     }
 
     private static void ensureOpen(ServerPlayer player) {
@@ -80,6 +86,15 @@ public final class HudWeb {
             WebUi.emit(player, "hudScout", Views.state(state));
             if (!state.entries().isEmpty()) sendTeam(player);
         }
+    }
+
+    /** The bleeds in this player's battle changed: show the badge strip, opening the overlay for the first one. An empty list clears it. */
+    public static void pushBleed(ServerPlayer player, List<Views.BleedView> bleeds) {
+        if (bleeds.isEmpty()) BLEEDS.remove(player.getUUID()); else BLEEDS.put(player.getUUID(), List.copyOf(bleeds));
+        if (!WebUi.canShow(player)) return;
+        if (bleeds.isEmpty() && !OPEN.contains(player.getUUID())) return;
+        if (!bleeds.isEmpty()) ensureOpen(player);
+        if (OPEN.contains(player.getUUID())) WebUi.emit(player, "hudBleed", bleeds);
     }
 
     private static void sendTeam(ServerPlayer player) {

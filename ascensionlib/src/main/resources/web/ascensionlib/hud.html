@@ -24,11 +24,18 @@
   #panel .tag { font-size: 11px; font-weight: 700; padding: 0 6px; color: #fff; background: #46526a; }
   #panel button { padding: 2px 8px; font-size: 12px; }
   #panel.min .body { display: none; }
+  #bleeds { position: fixed; left: 12px; top: 90px; display: flex; flex-direction: column; gap: 5px; }
+  .bleed { display: flex; align-items: center; gap: 7px; padding: 3px 9px 3px 6px; background: #2a0b12; border: 2px solid #c4283c; box-shadow: 0 0 0 2px #1b120d; color: #ffd6da; font-size: 12px; animation: in .25s ease-out; }
+  .bleed.foe { border-color: #e08a2c; background: #2a1a0b; color: #ffe6c8; }
+  .bleed .drop { width: 10px; height: 14px; flex: none; background: #ff3448; border: 2px solid #1b120d; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; }
+  .bleed.foe .drop { background: #ff9a3c; }
+  .bleed .st { color: #ff8896; font-weight: 700; } .bleed.foe .st { color: #ffc078; }
   #panel .hint { padding: 4px 10px 6px; font-size: 11px; color: var(--muted); }
 </style>
 </head>
 <body class="hud">
 <div id="toasts"></div>
+<div id="bleeds"></div>
 <div id="panel">
   <div class="h" id="ph"><span id="ptitle">Ascension</span><span id="pcaret">&#9662;</span></div>
   <div class="body">
@@ -45,7 +52,7 @@
   'use strict';
   var A = window.A, $ = A.$;
   var SHOW_MS = 9000, MAX_TOASTS = 3, idleTimer = 0;
-  var scout = { entries: [], scouters: 0, encounterId: '' }, team = [], shownToasts = 0;
+  var scout = { entries: [], scouters: 0, encounterId: '' }, team = [], shownToasts = 0, bleeds = [];
 
   function rarityTag(id) {
     var t = A.el('span', 'tag', id ? A.rarityName(id) : '?');
@@ -104,13 +111,28 @@
   /** When nothing is left to show, the overlay closes itself so it never lingers over the game. */
   function maybeIdle() {
     clearTimeout(idleTimer);
-    if (shownToasts > 0 || scout.entries.length > 0) return;
+    if (shownToasts > 0 || scout.entries.length > 0 || bleeds.length > 0) return;
     idleTimer = setTimeout(function () {
-      if (shownToasts > 0 || scout.entries.length > 0) return;
+      if (shownToasts > 0 || scout.entries.length > 0 || bleeds.length > 0) return;
       A.send('ascension_hud_closed'); A.send('close');
     }, 2500);
   }
 
+  /** A badge per bleeding Pokemon: a drop, the name, the stacks and the turns left. Your side is red, the foe's orange. */
+  function drawBleeds() {
+    var box = $('bleeds'); box.innerHTML = '';
+    bleeds.forEach(function (b) {
+      var chip = A.el('div', 'bleed' + (b.side === 'foe' ? ' foe' : ''));
+      chip.appendChild(A.el('span', 'drop'));
+      chip.appendChild(A.el('span', '', b.name));
+      chip.appendChild(A.el('span', 'st', 'BLEED x' + b.stacks + ' \u00b7 ' + b.turnsLeft + (b.turnsLeft === 1 ? ' turn' : ' turns')));
+      chip.title = 'Bleeding: ' + b.stacks + ' stack' + (b.stacks === 1 ? '' : 's') + ', ' + b.turnsLeft + ' turn' + (b.turnsLeft === 1 ? '' : 's') + ' left';
+      box.appendChild(chip);
+    });
+    if (bleeds.length) clearTimeout(idleTimer); else maybeIdle();
+  }
+
+  A.on('hudBleed', function (list) { bleeds = list || []; drawBleeds(); });
   A.on('hudReveal', function (r) { toast(r); });
   A.on('hudScout', function (s) { scout = s; drawPanel(); });
   A.on('hudTeam', function (t) { team = t; drawPanel(); });

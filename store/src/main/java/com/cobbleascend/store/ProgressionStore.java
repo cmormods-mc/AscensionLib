@@ -28,7 +28,7 @@ import java.util.random.RandomGenerator;
  * <p>All access is serialized through this instance. Use one instance per world.
  */
 public final class ProgressionStore implements AutoCloseable {
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
     /** The most one withdrawal may mint: 36 stacks of 64. */
     public static final long MAX_MINT = 2304;
 
@@ -160,10 +160,11 @@ public final class ProgressionStore implements AutoCloseable {
                 putMeta("authority_id", authorityId.toString());
                 putMeta("catalog_version", Integer.toString(rules.catalogVersion()));
             } else {
-                if (version.equals("1") || version.equals("2")) {
-                    // Schema 2 added the fusions table and schema 3 the vouchers table: existing rows are untouched.
+                if (version.equals("1") || version.equals("2") || version.equals("3")) {
+                    // Schema 2 added the fusions table, 3 the vouchers table and 4 the daily reward budget: existing rows are untouched.
                     createFusionsTable();
                     createVouchersTable();
+                    createBudgetTable();
                     try (var update = db.prepareStatement("UPDATE meta SET value = ? WHERE key = 'schema_version'")) {
                         update.setString(1, Integer.toString(SCHEMA_VERSION));
                         update.executeUpdate();
@@ -218,9 +219,21 @@ public final class ProgressionStore implements AutoCloseable {
         }
     }
 
+    private void createBudgetTable() throws SQLException {
+        try (var statement = db.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS daily_budget(
+                        player_id TEXT NOT NULL,
+                        day INTEGER NOT NULL,
+                        used INTEGER NOT NULL CHECK(used >= 0),
+                        PRIMARY KEY(player_id, day)) STRICT""");
+        }
+    }
+
     private void createSchema() throws SQLException {
         createFusionsTable();
         createVouchersTable();
+        createBudgetTable();
         try (var statement = db.createStatement()) {
             statement.execute("""
                     CREATE TABLE profiles(
@@ -442,6 +455,59 @@ public final class ProgressionStore implements AutoCloseable {
             if (after == before) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to grant");
             saveWallet(playerId, before, after);
             return new Fresh(Kind.GRANT, playerId, null, null, after, Map.of(), 0);
+        });
+    }
+
+    /** The UTC day number the daily budget counts in. */
+    private long budgetDay() { return Math.floorDiv(options.clock().millis(), 86_400_000L); }
+
+    /** How many budgeted chests this player has been paid today (UTC). */
+    public synchronized int budgetUsedToday(UUID playerId) {
+        return read(() -> {
+            try (var statement = db.prepareStatement("SELECT used FROM daily_budget WHERE player_id = ? AND day = ?")) {
+                statement.setString(1, playerId.toString());
+                statement.setLong(2, budgetDay());
+                try (var rows = statement.executeQuery()) { return rows.next() ? rows.getInt(1) : 0; }
+            }
+        });
+    }
+
+    /**
+     * Credits a chest against the daily budget: once the player has been paid {@code budget.fullPerDay()} chests today, this one pays with its dust cut to
+     * {@code budget.reducedDustPercent()} percent. The request is hashed with the amounts the caller asked for, so a retry (same operation ID, same amounts)
+     * replays exactly what was paid, however the counter has moved since, and a replay never uses another unit of the budget. The wallet receives the
+     * possibly reduced amounts, which come back in {@link Outcome#cost()}.
+     */
+    public synchronized Outcome grantBudgeted(UUID operationId, UUID playerId, Map<MaterialId, Long> materials, String reason,
+                                              com.cobbleascend.domain.v1.DailyRewardBudget budget) {
+        Objects.requireNonNull(reason);
+        var canonical = new TreeMap<String, Long>();
+        materials.forEach((id, amount) -> canonical.put(id.id(), amount));
+        return run(operationId, "GRANT_BUDGETED|" + playerId + "|" + canonical + "|" + reason, () -> {
+            long day = budgetDay();
+            int used = 0;
+            try (var statement = db.prepareStatement("SELECT used FROM daily_budget WHERE player_id = ? AND day = ?")) {
+                statement.setString(1, playerId.toString());
+                statement.setLong(2, day);
+                try (var rows = statement.executeQuery()) { if (rows.next()) used = rows.getInt(1); }
+            }
+            var paid = budget.reduces(used) ? budget.reduced(materials) : materials;
+            var before = loadWallet(playerId);
+            var after = before.credit(paid);
+            if (after == before) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to grant");
+            saveWallet(playerId, before, after);
+            try (var statement = db.prepareStatement("""
+                    INSERT INTO daily_budget(player_id, day, used) VALUES(?, ?, 1)
+                    ON CONFLICT(player_id, day) DO UPDATE SET used = used + 1""")) {
+                statement.setString(1, playerId.toString());
+                statement.setLong(2, day);
+                statement.executeUpdate();
+            }
+            try (var statement = db.prepareStatement("DELETE FROM daily_budget WHERE day < ?")) {
+                statement.setLong(1, day - 7);
+                statement.executeUpdate();
+            }
+            return new Fresh(Kind.GRANT, playerId, null, null, after, Map.copyOf(paid), 0);
         });
     }
 
