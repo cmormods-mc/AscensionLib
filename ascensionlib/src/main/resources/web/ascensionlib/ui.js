@@ -5,6 +5,42 @@
   var A = window.A = {};
   A.g = g;
   A.$ = function (id) { return document.getElementById(id); };
+
+  /**
+   * WebGUI draws a page at the screen's real pixel size, so a fixed 1040 px tablet is small on a large monitor. This scales the tablet (and the
+   * dialogs and overlay that sit beside it) to fill FILL of the window, set as the CSS variable --ui-scale that ascension.css applies. The
+   * text is vector and the icons are pixel art drawn with image-rendering: pixelated, so a bigger scale stays crisp, not blurry.
+   */
+  var FILL = 0.82, MIN_SCALE = 0.5, MAX_SCALE = 3;
+  A.pref = 100;   // the player's own size, percent of the automatic fit (saved on the server, see UiPrefsWeb.java)
+  A.prefRange = [60, 160];
+  A.fit = function () {
+    var frame = document.querySelector('.frame'), w = window.innerWidth || 1920, h = window.innerHeight || 1080, s;
+    if (frame) {
+      s = Math.min(w * FILL / frame.offsetWidth, h * FILL / frame.offsetHeight) * A.pref / 100;
+      // however large the player asks, the tablet never grows past the window
+      s = Math.min(s, w * 0.98 / frame.offsetWidth, h * 0.98 / frame.offsetHeight);
+    } else s = Math.min(w / 1920, h / 1080) * A.pref / 100;   // the overlay: relative to a 1080p screen
+    s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+    document.documentElement.style.setProperty('--ui-scale', s.toFixed(3));
+  };
+  A.fit();
+  window.addEventListener('resize', A.fit);
+  sizeControl();
+  /** A header control to make the page bigger or smaller: the server keeps the choice and answers with the clamped value. */
+  function sizeControl() {
+    var head = document.querySelector('.frame .head');
+    if (!head || head.querySelector('.uisize')) return;
+    var box = document.createElement('span'); box.className = 'uisize'; box.title = 'Page size (also /ascend ui <percent>)';
+    var minus = document.createElement('button'), plus = document.createElement('button'), label = document.createElement('span');
+    minus.className = plus.className = 'x'; minus.textContent = '\u2212'; plus.textContent = '+'; label.className = 'pct'; label.id = 'uipct';
+    minus.title = 'Smaller'; plus.title = 'Larger';
+    var step = function (d) { return function () { A.send('ascension_ui_set', { percent: Math.max(A.prefRange[0], Math.min(A.prefRange[1], A.pref + d)) }); }; };
+    minus.addEventListener('click', step(-10)); plus.addEventListener('click', step(10));
+    box.appendChild(minus); box.appendChild(label); box.appendChild(plus);
+    var close = head.querySelector('.x:last-child'); head.insertBefore(box, close || null);
+    label.textContent = A.pref + '%';
+  }
   A.send = function (channel, body) { if (!g) return; var o = body || {}; o.channel = channel; g.postToGame(o); };
   A.on = function (event, fn) {
     if (!g) return;
@@ -68,4 +104,11 @@
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
   };
   if (g && g.isHud) document.body.classList.add('hud');
+  // The player's saved size: asked for once the page loads and again whenever it changes (the header buttons or /ascend ui).
+  A.on('uiScale', function (s) {
+    A.pref = s.percent; A.prefRange = [s.min, s.max];
+    var label = document.getElementById('uipct'); if (label) label.textContent = s.percent + '%';
+    A.fit();
+  });
+  if (g) A.send('ascension_ui_get');
 })();

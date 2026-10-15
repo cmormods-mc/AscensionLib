@@ -192,6 +192,11 @@ final class AscendWiring {
                                         .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
                                         .executes(ctx -> walletDeposit(ctx.getSource(), StringArgumentType.getString(ctx, "material"))))))
                 // /ascend craft [slot]: open the upgrade / refine / reforge screen for a party Pokemon (slot 1 by default).
+                // /ascend ui [percent]: how big your Ascension pages are, 60 to 160 percent of the automatic fit (100 is the default).
+                .then(Commands.literal("ui")
+                        .executes(ctx -> uiSize(ctx.getSource(), -1))
+                        .then(Commands.argument("percent", IntegerArgumentType.integer(com.ascensionlib.web.UiPrefs.MIN_PERCENT, com.ascensionlib.web.UiPrefs.MAX_PERCENT))
+                                .executes(ctx -> uiSize(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "percent")))))
                 .then(Commands.literal("craft")
                         .executes(ctx -> craft(ctx.getSource(), 1))
                         .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
@@ -515,6 +520,18 @@ final class AscendWiring {
             source.sendFailure(Component.literal("Refused: " + exception.getMessage()));
             return 0;
         }
+    }
+
+    private int uiSize(CommandSourceStack source, int percent) throws CommandSyntaxException {
+        var player = source.getPlayerOrException();
+        if (percent >= 0) {
+            com.ascensionlib.web.UiPrefsWeb.of(player.getServer()).set(player.getUUID(), percent);
+            com.ascensionlib.web.UiPrefsWeb.send(player);
+        }
+        int now = com.ascensionlib.web.UiPrefsWeb.percentOf(player);
+        source.sendSuccess(() -> Component.literal("[Ascend] Your page size is " + now + "% (" + com.ascensionlib.web.UiPrefs.MIN_PERCENT + " to "
+                + com.ascensionlib.web.UiPrefs.MAX_PERCENT + "; /ascend ui <percent> or the - and + in a page header)."), false);
+        return 1;
     }
 
     private int completionDemo(CommandSourceStack source, String tierName, boolean pay) throws CommandSyntaxException {

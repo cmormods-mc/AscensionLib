@@ -89,7 +89,9 @@ async function open(page, file, w = 1100, h = 700) {
   p.errors = errors;
   return p;
 }
-const sent = p => p.evaluate(() => window.__sent);
+// every page also asks for the player's page size on load; the page tests below are about their own messages
+const sent = p => p.evaluate(() => window.__sent.filter(m => m.channel !== 'ascension_ui_get'));
+const sentAll = p => p.evaluate(() => window.__sent);
 const emit = (p, e, d, s) => p.evaluate(([e, d, s]) => window.__emit(e, d, s), [e, d, s]);
 // shots are taken over a game-like green so a transparent page shows what the game would show through it
 const shot = async (p, n) => {
@@ -415,6 +417,49 @@ await check('hud: bleed badges show side, stacks and turns, stay open while anyo
   eq(await p.locator('.bleed').count(), 0, 'cleared');
   await p.waitForTimeout(3200);
   yes((await sent(p)).some(m => m.channel === 'close'), 'then it closes itself');
+  noErrors(p);
+});
+
+await check('every page scales its tablet to fill the window at any resolution, and stays inside it', async () => {
+  for (const [w, h] of [[2560, 1440], [1920, 1080], [1280, 720], [3840, 2160]]) {
+    for (const file of ['craft.html', 'inspect.html', 'wallet.html', 'completion.html']) {
+      const p = await open(null, file, w, h);
+      const r = await p.evaluate(() => { const b = document.querySelector('.frame').getBoundingClientRect(); return { l: b.left, t: b.top, w: b.width, h: b.height, iw: innerWidth, ih: innerHeight }; });
+      yes(r.l >= 0 && r.t >= 0 && r.l + r.w <= r.iw + 1 && r.t + r.h <= r.ih + 1, `${file} at ${w}x${h} stays inside the window (${JSON.stringify(r)})`);
+      yes(r.w >= r.iw * 0.6 || r.h >= r.ih * 0.6, `${file} at ${w}x${h} fills the window (${Math.round(r.w)}x${Math.round(r.h)})`);
+      if (file === 'craft.html' && w === 2560) { await shot(p, 'craft-2560'); }
+    }
+  }
+  const big = await open(null, 'craft.html', 2560, 1440), small = await open(null, 'craft.html', 1280, 720);
+  const wid = pg => pg.evaluate(() => document.querySelector('.frame').getBoundingClientRect().width);
+  yes((await wid(big)) > (await wid(small)) * 1.7, 'a bigger window gets a bigger tablet');
+});
+
+await check('page size: each tablet page asks for the player size, shows - and + in the header, and re-fits when the server answers', async () => {
+  for (const file of ['craft.html', 'inspect.html', 'wallet.html', 'completion.html', 'fusion.html']) {
+    const p = await open(null, file, 1920, 1080);
+    yes((await sentAll(p)).some(m => m.channel === 'ascension_ui_get'), file + ' asks for its size');
+    eq(await p.locator('.head .uisize button').count(), 2, file + ' has the - and + controls');
+    noErrors(p);
+  }
+  const p = await open(null, 'craft.html', 1920, 1080);
+  const width = () => p.evaluate(() => document.querySelector('.frame').getBoundingClientRect().width);
+  const base = await width();
+  await p.click('.uisize button:last-child');
+  const set = (await sentAll(p)).find(m => m.channel === 'ascension_ui_set');
+  eq(set && set.percent, 110, '+ asks for 10 percent more');
+  await emit(p, 'uiScale', { percent: 140, min: 60, max: 160 });
+  yes((await p.textContent('#uipct')) === '140%', 'the readout follows the server');
+  yes((await width()) > base * 1.15, 'a bigger size makes the tablet bigger (' + Math.round(base) + ' to ' + Math.round(await width()) + ')');
+  await emit(p, 'uiScale', { percent: 60, min: 60, max: 160 });
+  yes((await width()) < base * 0.8, 'a smaller size makes it smaller');
+  await emit(p, 'uiScale', { percent: 160, min: 60, max: 160 });
+  const r = await p.evaluate(() => { const b = document.querySelector('.frame').getBoundingClientRect(); return b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight; });
+  yes(r, 'even the largest size stays inside the window');
+  await p.click('.uisize button:first-child');
+  eq((await sentAll(p)).filter(m => m.channel === 'ascension_ui_set').pop().percent, 150, '- steps down from the server value');
+  const hud = await open(null, 'hud.html', 1920, 1080);
+  yes((await sentAll(hud)).some(m => m.channel === 'ascension_ui_get'), 'the overlay asks too');
   noErrors(p);
 });
 

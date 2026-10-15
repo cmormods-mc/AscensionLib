@@ -10,6 +10,7 @@ public final class ScoutNet {
         com.ascensionlib.web.HudWeb.register();
         com.ascensionlib.wallet.WalletWeb.register();
         com.ascensionlib.reward.CompletionReveal.register();
+        com.ascensionlib.web.UiPrefsWeb.register();
         com.ascensionlib.craft.CraftNet.register();
         com.ascensionlib.fusion.FusionNet.register();
     }
