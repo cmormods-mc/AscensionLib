@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 public final class OwnedInspectNet {
     private OwnedInspectNet() {}
@@ -40,36 +38,28 @@ public final class OwnedInspectNet {
         }
         return Optional.empty();
     }
-    public static void register() {
-        PayloadTypeRegistry.playC2S().register(OwnedInspectPayload.Request.TYPE, OwnedInspectPayload.Request.CODEC);
-        PayloadTypeRegistry.playS2C().register(OwnedInspectPayload.Result.TYPE, OwnedInspectPayload.Result.CODEC);
-        ServerPlayNetworking.registerGlobalReceiver(OwnedInspectPayload.Request.TYPE, (request, context) -> context.server().execute(() -> {
-            UUID id;
-            try { id = UUID.fromString(request.pokemonId()); } catch (IllegalArgumentException e) { return; }
-            var player = context.player();
-            // Each request scans the party and PC and reads the store; the client asks on every open, so throttle it.
-            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "inspect.owned", 8, 4)) return;
-            var pokemon = findForInspection(player, id);
-            if (pokemon.isEmpty() || AscensionApi.service().isEmpty()) {
-                ServerPlayNetworking.send(player, new OwnedInspectPayload.Result(request.pokemonId(), "", "", 0, 0, Optional.empty(),
-                        OwnedInspectPayload.Extra.NONE));
-                return;
-            }
-            var p = pokemon.get();
-            var service = AscensionApi.service().orElseThrow();
-            var profile = service.canonical(p);
-            var detail = profile.map(value -> CaptureRevealNet.detailOf(p, service, value));
-            var extra = new OwnedInspectPayload.Extra(p.getSpecies().getResourceIdentifier().toString(), new ArrayList<>(p.getAspects()),
-                    profile.map(v -> v.origin().kind()).orElse(""),
-                    profile.map(v -> v.initialRarity().id()).orElse(""),
-                    profile.map(v -> v.highestLevelObserved()).orElse(0),
-                    profile.map(v -> v.awardedMilestones().size()).orElse(0),
-                    profile.map(v -> service.rules().slotCount(v.rarity(), Category.PREFIX)).orElse(0),
-                    profile.map(v -> service.rules().slotCount(v.rarity(), Category.SUFFIX)).orElse(0),
-                    com.ascensionlib.CraftLocks.locked(p));
-            ServerPlayNetworking.send(player, new OwnedInspectPayload.Result(request.pokemonId(), p.getDisplayName(false).getString(),
-                    p.getSpecies().getName(), profile.map(v -> v.pendingCredits()).orElse(0),
-                    profile.map(v -> v.attunement()).orElse(0), detail, extra));
-        }));
+    /** The owner's view of this Pokemon (empty values when it is not theirs or has no profile). Reads the party, the PC and the store. */
+    public static OwnedInspectPayload.Result resultFor(net.minecraft.server.level.ServerPlayer player, String pokemonId) {
+        UUID id;
+        try { id = UUID.fromString(pokemonId); } catch (IllegalArgumentException e) {
+            return new OwnedInspectPayload.Result(pokemonId, "", "", 0, 0, Optional.empty(), OwnedInspectPayload.Extra.NONE);
+        }
+        var pokemon = findForInspection(player, id);
+        if (pokemon.isEmpty() || AscensionApi.service().isEmpty())
+            return new OwnedInspectPayload.Result(pokemonId, "", "", 0, 0, Optional.empty(), OwnedInspectPayload.Extra.NONE);
+        var p = pokemon.get();
+        var service = AscensionApi.service().orElseThrow();
+        var profile = service.canonical(p);
+        var detail = profile.map(value -> CaptureRevealNet.detailOf(p, service, value));
+        var extra = new OwnedInspectPayload.Extra(p.getSpecies().getResourceIdentifier().toString(), new ArrayList<>(p.getAspects()),
+                profile.map(v -> v.origin().kind()).orElse(""),
+                profile.map(v -> v.initialRarity().id()).orElse(""),
+                profile.map(v -> v.highestLevelObserved()).orElse(0),
+                profile.map(v -> v.awardedMilestones().size()).orElse(0),
+                profile.map(v -> service.rules().slotCount(v.rarity(), Category.PREFIX)).orElse(0),
+                profile.map(v -> service.rules().slotCount(v.rarity(), Category.SUFFIX)).orElse(0),
+                com.ascensionlib.CraftLocks.locked(p));
+        return new OwnedInspectPayload.Result(pokemonId, p.getDisplayName(false).getString(), p.getSpecies().getName(),
+                profile.map(v -> v.pendingCredits()).orElse(0), profile.map(v -> v.attunement()).orElse(0), detail, extra);
     }
 }

@@ -23,7 +23,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -211,7 +210,7 @@ public final class ScoutEncounters {
         var running = server;
         if (running == null) return;
         ServerPlayer online = running.getPlayerList().getPlayer(player);
-        if (online != null) ServerPlayNetworking.send(online, stateFor(player));
+        if (online != null) com.ascensionlib.web.HudWeb.pushScout(online, stateFor(player));
     }
 
     // ---- using a Scouter ---------------------------------------------------------------------------------

@@ -1,9 +1,3 @@
 {
-  "key.ascensionlib.scout": "Open scouting screen",
-  "key.categories.ascensionlib": "AscensionLib",
-  "screen.ascensionlib.scout": "Scout",
-  "screen.ascensionlib.inspect": "Ascension inspection",
-  "screen.ascensionlib.capture": "Capture reveal",
-  "screen.ascensionlib.craft": "Upgrade",
-  "button.ascensionlib.scout": "Use Scouter"
+  "key.categories.ascensionlib": "AscensionLib"
 }

@@ -5,17 +5,11 @@ import com.cobbleascend.domain.v1.ProfileV1;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import java.util.ArrayList;
 import java.util.stream.StreamSupport;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 
-/** The capture-reveal channel: registered on both sides, sent only by the server, only to the owner, only after the save. */
+/** The capture reveal: built only by the server, shown only to the owner, only after the save. */
 public final class CaptureRevealNet {
     private CaptureRevealNet() {}
-
-    public static void register() {
-        PayloadTypeRegistry.playS2C().register(CaptureRevealPayload.TYPE, CaptureRevealPayload.CODEC);
-    }
 
     /** What the owner may see of their own Pokemon: rarity, Unique, rolled modifiers, base stats. Never IVs, EVs or moves. */
     static ScoutPayloads.Detail detailOf(Pokemon p, ProfileService service, ProfileV1 value) {
@@ -36,13 +30,11 @@ public final class CaptureRevealNet {
                 slot.rank(), slot.rolledValue(), band.min(), band.max(), condition);
     }
 
-    /** Sends the reveal for a committed profile. Quietly does nothing for a client without the channel (older client). */
+    /** Shows the reveal for a committed profile as a card on the player's HUD. False when their client cannot show web pages. */
     public static boolean send(ServerPlayer player, Pokemon pokemon, ProfileService service, ProfileV1 profile) {
-        if (!ServerPlayNetworking.canSend(player, CaptureRevealPayload.TYPE)) return false;
         if (!player.getUUID().equals(pokemon.getOwnerUUID())) return false;
-        ServerPlayNetworking.send(player, new CaptureRevealPayload(pokemon.getUuid().toString(),
+        return com.ascensionlib.web.HudWeb.reveal(player, new CaptureRevealPayload(pokemon.getUuid().toString(),
                 pokemon.getDisplayName(false).getString(), pokemon.getSpecies().getResourceIdentifier().toString(),
                 new ArrayList<>(pokemon.getAspects()), detailOf(pokemon, service, profile)));
-        return true;
     }
 }

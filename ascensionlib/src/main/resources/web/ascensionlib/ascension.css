@@ -1,0 +1,39 @@
+/* Shared look for AscensionLib's pages: the white quartz style of the old in-game screens. */
+:root {
+  --panel: #e4e9f0; --head: #cbd3df; --row: #f3f6fa; --edge: #8e99ad; --well: #c5cdd9; --line: #cdd4df;
+  --ink: #2b3345; --muted: #66718a; --crimson: #8e1426; --crimson-hover: #a51a30; --gold: #8a6a12; --good: #2e6b3b; --warn: #8a2e22;
+  --common: #c1c5cf; --uncommon: #1bd7e8; --rare: #38ccef; --epic: #af69ff; --legendary: #ffd437; --mythical: #ff3448;
+  --common-bg: #293547; --uncommon-bg: #073442; --rare-bg: #103e79; --epic-bg: #2a1263; --legendary-bg: #25305b; --mythical-bg: #620512;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font: 14px/1.35 system-ui, "Segoe UI", sans-serif; color: var(--ink); }
+body { display: flex; align-items: center; justify-content: center; background: rgba(10, 14, 22, .55); }
+body.hud { background: transparent; display: block; }
+.frame { width: min(960px, 97vw); height: min(580px, 95vh); display: flex; flex-direction: column; background: var(--panel);
+         border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px #fff, 0 10px 40px rgba(0,0,0,.5); }
+.head { background: var(--head); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.x { background: none; border: 0; box-shadow: none; font-size: 20px; cursor: pointer; color: var(--ink); padding: 0 6px; }
+.box { background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 1px #fff; padding: 10px; min-height: 0; display: flex; flex-direction: column; }
+.label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.muted { color: var(--muted); } .bad { color: var(--warn); } .gold { color: var(--gold); } .ok { color: var(--good); }
+.spacer { flex: 1; }
+button { font: inherit; padding: 6px 12px; border: 2px solid var(--edge); background: var(--row); color: var(--ink); cursor: pointer; box-shadow: inset 0 -2px 0 var(--well); }
+button:hover:not(:disabled) { background: #fff; }
+button:disabled { background: var(--head); color: #9aa4b6; cursor: default; box-shadow: none; border-color: var(--well); }
+button.primary { background: var(--crimson); border-color: #eef2f7; color: #fff; box-shadow: inset 0 -2px 0 #620512; }
+button.primary:hover:not(:disabled) { background: var(--crimson-hover); }
+button.primary:disabled { background: var(--head); color: #9aa4b6; }
+.foot { background: var(--head); padding: 8px 14px; display: flex; gap: 10px; align-items: center; }
+.foot .msg { flex: 1; }
+.rar { font-weight: 700; text-transform: capitalize; }
+.rar-common { color: #6c7280; } .rar-uncommon { color: #0b9aa8; } .rar-rare { color: #1b84a8; } .rar-epic { color: #8a45d8; }
+.rar-legendary { color: #a8830a; } .rar-mythical { color: #c4182b; }
+.spr { image-rendering: pixelated; image-rendering: crisp-edges; }
+.sprfb { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-weight: 700; word-break: break-word; }
+.scrim { position: fixed; inset: 0; background: rgba(10, 14, 22, .6); display: none; align-items: center; justify-content: center; }
+.scrim.on { display: flex; }
+.dialog { width: min(520px, 94vw); background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px #fff; padding: 16px; }
+.dialog h3 { margin: 0 0 8px; } .dialog p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.dialog .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.bar { display: flex; gap: 3px; } .bar i { flex: 1; height: 8px; background: var(--well); border: 1px solid var(--edge); }
+.bar i.on { background: var(--crimson); } .bar i.next { background: #a9b7d4; }

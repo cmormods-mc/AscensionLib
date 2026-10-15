@@ -1,8 +1,0 @@
-{
-  "required": false,
-  "package": "com.ascensionlib.client.mixin",
-  "refmap": "client-AscensionLib-refmap.json",
-  "compatibilityLevel": "JAVA_21",
-  "client": ["SummaryInspectMixin", "BattleOverlayInspectMixin", "BattleGuiInspectMixin"],
-  "injectors": {"defaultRequire": 0}
-}

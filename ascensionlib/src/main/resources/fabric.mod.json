@@ -1,12 +1,27 @@
 {
-  "schemaVersion":1,
-  "id":"ascensionlib",
-  "version":"${version}",
-  "name":"AscensionLib",
-  "description":"Pokemon ascension progression and the shared library for CobbleRaids and CobbleTowers: canonical SQLite store, material wallet, capture rarity, level milestones, enemy generation and scouting. Battle effects act in the simulator when CobbleRaids is installed (it installs the Showdown module). Crafting screens and Trials are not implemented yet.",
-  "environment":"*",
-  "mixins":["ascensionlib.client.mixins.json"],
-  "entrypoints":{"preLaunch":["com.ascensionlib.AscensionPreLaunch"],"main":["com.ascensionlib.AscensionLib"],"client":["com.ascensionlib.client.AscensionLibClient"]},
-  "depends":{"fabricloader":">=0.17.2","minecraft":"1.21.1","java":">=21","fabric-api":"*","cobblemon":"1.8.1"},
-  "suggests":{"cobbleraids":"*","webgui":">=2.0.0"}
+  "schemaVersion": 1,
+  "id": "ascensionlib",
+  "version": "${version}",
+  "name": "AscensionLib",
+  "description": "Pokemon ascension progression and the shared library for CobbleRaids and CobbleTowers: canonical SQLite store, material wallet, capture rarity, level milestones, enemy generation and scouting. Server-side only: every screen is a web page shown by the WebGUI mod. Battle effects act in the simulator when CobbleRaids is installed (it installs the Showdown module).",
+  "environment": "*",
+  "entrypoints": {
+    "preLaunch": [
+      "com.ascensionlib.AscensionPreLaunch"
+    ],
+    "main": [
+      "com.ascensionlib.AscensionLib"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.2",
+    "minecraft": "1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "cobblemon": "1.8.1"
+  },
+  "suggests": {
+    "cobbleraids": "*",
+    "webgui": ">=2.0.0"
+  }
 }

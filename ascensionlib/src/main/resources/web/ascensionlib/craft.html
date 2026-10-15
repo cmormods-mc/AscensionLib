@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modifiers</title>
+<link rel="stylesheet" href="ascension.css">
+<style>
+  .top { display: flex; gap: 12px; align-items: center; padding: 8px 14px; background: var(--panel); border-bottom: 2px solid var(--edge); }
+  .top .nm { font-size: 18px; font-weight: 700; }
+  .grade { display: inline-block; padding: 1px 8px; font-size: 12px; font-weight: 700; color: #fff; background: #293547; }
+  .pend { margin-left: auto; text-align: right; } .pend b { font-size: 28px; line-height: 1; }
+  .sprbox { width: 96px; height: 64px; background: var(--row); border: 2px solid var(--edge); display: flex; align-items: center; justify-content: center; }
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 120px; gap: 10px; padding: 10px 14px; }
+  .work { min-height: 0; display: flex; flex-direction: column; }
+  .tabs { display: flex; gap: 4px; align-items: flex-end; }
+  .tab { padding: 5px 14px; background: var(--head); border: 2px solid var(--edge); border-bottom: 0; cursor: pointer; color: var(--muted); box-shadow: none; }
+  .tab.on { background: var(--row); color: var(--ink); border-top: 4px solid var(--crimson); }
+  .banner { margin-left: 8px; padding: 3px 10px; flex: 1; font-size: 13px; border-left: 4px solid var(--edge); background: var(--row); }
+  .banner.ok { border-color: #6f9a52; background: #ddebd0; color: var(--ink); } .banner.bad { border-color: #b5482e; background: #f2d8d2; color: var(--ink); }
+  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px 1fr; gap: 8px; }
+  .list { overflow-y: auto; min-height: 0; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); cursor: pointer; background: var(--panel); }
+  .row:hover { background: var(--row); } .row.sel { background: #fff; outline: 2px solid var(--crimson); outline-offset: -2px; }
+  .row .ic { width: 20px; height: 20px; flex: none; border: 1px solid #1b120d; }
+  .row .t1 { font-weight: 600; } .row .t2 { font-size: 12px; color: var(--muted); } .row .v { margin-left: auto; font-weight: 700; }
+  .row.off .t1 { color: var(--muted); }
+  .pair { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+  .vbox { flex: 1; padding: 8px; background: var(--panel); border: 2px solid var(--head); text-align: center; }
+  .vbox.next { background: #dce6f4; border-color: #c3d2e8; } .vbox .big { font-size: 24px; font-weight: 700; } .vbox .sm { font-size: 12px; color: var(--muted); }
+  .cost { margin-top: auto; border-top: 1px solid var(--line); padding-top: 8px; display: flex; align-items: center; gap: 10px; }
+  .cost .c { flex: 1; }
+  .wallet .coin { display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+  .wallet .dot { width: 12px; height: 12px; border: 1px solid #1b120d; flex: none; }
+  .meter { height: 10px; background: var(--well); border: 2px solid var(--edge); } .meter i { display: block; height: 100%; background: var(--crimson); }
+  .uopt .t2 { white-space: normal; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="head"><span>Modifiers</span><button class="x" id="close" title="Close">&times;</button></div>
+  <div class="top">
+    <div id="art"></div>
+    <div><div class="nm" id="name"></div><div><span class="muted" id="lvl"></span> <span class="grade" id="grade"></span></div></div>
+    <div class="pend"><b id="pend">0</b><div class="muted" id="pendLabel"></div></div>
+  </div>
+  <div class="body">
+    <div class="work">
+      <div class="tabs" id="tabs"></div>
+      <div class="split">
+        <div class="box list" id="list"></div>
+        <div class="box" id="detail"></div>
+      </div>
+    </div>
+    <div class="box wallet" id="wallet"><div class="label">Wallet</div></div>
+  </div>
+  <div class="foot">
+    <div class="msg muted" id="next"></div>
+    <button id="fuse" style="display:none">Fuse</button>
+    <button id="later">Decide later</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"><div class="dialog">
+  <h3 id="dTitle"></h3><div id="dBody"></div>
+  <div class="row"><button id="dCancel">Cancel</button><button class="primary" id="dOk">Confirm</button></div>
+</div></div>
+
+<script src="ui.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.A, $ = A.$;
+  var MODES = ['upgrade', 'refine', 'reforge', 'promote', 'unique'];
+  var view = null, mode = 'upgrade', slotId = '', uniqueId = '', phase = 'browse', pendingOp = '', banner = '', bannerOk = false, waitTimer = 0, tries = 0;
+
+  function slot() { for (var i = 0; i < view.slots.length; i++) if (view.slots[i].slotId === slotId) return view.slots[i]; return null; }
+  function blockFor(s) {
+    if (mode === 'promote') return view.promotion.block;
+    if (mode === 'unique') return view.unique.block;
+    return !s ? '' : mode === 'upgrade' ? s.upgradeBlock : mode === 'refine' ? s.refineBlock : s.reforgeBlock;
+  }
+  function validUnique(wanted) {
+    var o = view.unique.options;
+    for (var i = 0; i < o.length; i++) if (o[i].id === wanted) return wanted;
+    for (i = 0; i < o.length; i++) if (o[i].current) return o[i].id;
+    return o.length ? o[0].id : '';
+  }
+  function uniqueOpt() { var o = view.unique.options; for (var i = 0; i < o.length; i++) if (o[i].id === uniqueId) return o[i]; return null; }
+  function uniqueReady() { return !!uniqueId && !view.unique.block && uniqueId !== view.unique.currentId; }
+  function shortPrice(p) {
+    var parts = [];
+    if (p.dust > 0) parts.push(p.dust + ' Dust');
+    if (p.facets > 0) parts.push(p.facets + (p.facets === 1 ? ' Facet' : ' Facets'));
+    if (p.cores > 0) parts.push(p.cores + (p.cores === 1 ? ' Core' : ' Cores'));
+    return parts.length ? parts.join(' + ') : 'Free';
+  }
+  function costText() {
+    switch (mode) {
+      case 'upgrade': return '1 pending upgrade (you have ' + view.pending + ')';
+      case 'refine': return shortPrice(view.refine);
+      case 'reforge': return shortPrice(view.reforge);
+      case 'promote': return shortPrice(view.promotion.price);
+      default: return '1 Unique Catalyst (you have ' + view.unique.catalysts + ')';
+    }
+  }
+  function shortCost() { return mode === 'upgrade' ? '1 upgrade' : mode === 'unique' ? '1 Catalyst' : costText(); }
+  function canReview() {
+    var s = slot();
+    if (mode === 'promote') return !view.promotion.block && !!view.promotion.toRarity;
+    if (mode === 'unique') return uniqueReady();
+    return !!s && !blockFor(s);
+  }
+
+  function drawTabs() {
+    var box = $('tabs'); box.innerHTML = '';
+    MODES.forEach(function (m) {
+      var t = A.el('button', 'tab' + (m === mode ? ' on' : ''), A.cap(m));
+      t.addEventListener('click', function () { if (phase !== 'browse') return; mode = m; banner = ''; render(); });
+      box.appendChild(t);
+    });
+    var b = A.el('div', 'banner' + (banner ? (bannerOk ? ' ok' : ' bad') : ''), banner);
+    if (!banner) b.style.visibility = 'hidden';
+    box.appendChild(b);
+  }
+
+  function drawList() {
+    var box = $('list'); box.innerHTML = '';
+    if (mode === 'unique') {
+      view.unique.options.forEach(function (o) {
+        var r = A.el('div', 'row uopt' + (o.id === uniqueId ? ' sel' : ''));
+        var ic = A.el('div', 'ic'); ic.style.background = '#b6a1c5'; r.appendChild(ic);
+        r.appendChild(A.el('div', 't1', o.name));
+        if (o.current) { var h = A.el('div', 'v bad', 'held'); r.appendChild(h); }
+        r.addEventListener('click', function () { uniqueId = o.id; render(); });
+        box.appendChild(r);
+      });
+      return;
+    }
+    if (mode === 'promote') {
+      box.appendChild(A.el('div', 'row', 'Promotion applies to the whole Pokémon.'));
+    }
+    if (!view.slots.length) box.appendChild(A.el('div', 'row muted', 'No affixes to change.'));
+    view.slots.forEach(function (s) {
+      var prefix = s.category === 'prefix';
+      var r = A.el('div', 'row' + (s.slotId === slotId ? ' sel' : '') + (mode !== 'promote' && blockFor(s) ? ' off' : ''));
+      var ic = A.el('div', 'ic'); ic.style.background = prefix ? '#c9694f' : '#6f9a52'; r.appendChild(ic);
+      var col = A.el('div'); col.appendChild(A.el('div', 't1', s.name));
+      col.appendChild(A.el('div', 't2', (prefix ? 'Offense' : 'Defense') + ' · ' + A.roman[Math.max(1, Math.min(5, s.rank))])); r.appendChild(col);
+      r.appendChild(A.el('div', 'v', '+' + s.value + '%'));
+      r.addEventListener('click', function () { slotId = s.slotId; render(); });
+      box.appendChild(r);
+    });
+  }
+
+  function vbox(label, big, small, next) {
+    var b = A.el('div', 'vbox' + (next ? ' next' : ''));
+    b.appendChild(A.el('div', 'muted', label)); b.appendChild(A.el('div', 'big', big)); b.appendChild(A.el('div', 'sm', small));
+    return b;
+  }
+  function pair(box, left, right) {
+    var p = A.el('div', 'pair'); p.appendChild(left); p.appendChild(A.el('div', 'muted', '→')); p.appendChild(right); box.appendChild(p);
+  }
+  function costRow(box, reason, onReview) {
+    var c = A.el('div', 'cost');
+    var col = A.el('div', 'c'); col.appendChild(A.el('div', 'muted', 'Cost'));
+    col.appendChild(A.el('div', reason ? 'bad' : '', reason || shortCost())); c.appendChild(col);
+    var rb = A.el('button', 'primary', 'Review'); rb.disabled = !canReview();
+    rb.addEventListener('click', function () { phase = 'review'; render(); });
+    c.appendChild(rb); box.appendChild(c);
+  }
+
+  function drawDetail() {
+    var box = $('detail'); box.innerHTML = '';
+    if (mode === 'promote') {
+      var p = view.promotion;
+      box.appendChild(A.el('div', 'label', 'Promote'));
+      if (!p.toRarity) { box.appendChild(A.el('div', '', 'Already the highest rarity.')); return; }
+      box.appendChild(A.el('div', '', A.rarityName(view.rarityId) + ' → ' + A.rarityName(p.toRarity)));
+      pair(box, vbox('Now', A.rarityName(view.rarityId), 'keeps all modifiers', false), vbox('Promote to', A.rarityName(p.toRarity), '+1 modifier slot', true));
+      box.appendChild(A.el('div', '', 'Attunement ' + p.attunement + ' / ' + p.attunementNeeded));
+      var m = A.el('div', 'meter'); var f = A.el('i'); f.style.width = (p.attunementNeeded <= 0 ? 100 : Math.min(100, 100 * p.attunement / p.attunementNeeded)) + '%'; m.appendChild(f); box.appendChild(m);
+      box.appendChild(A.el('div', 'muted', 'Attunement grows when this Pokémon is in your party for a Tower boss clear.'));
+      box.appendChild(A.el('div', 'spacer')); costRow(box, p.block); return;
+    }
+    if (mode === 'unique') {
+      var o = uniqueOpt();
+      if (!o) { box.appendChild(A.el('div', 'muted', 'No Unique powers are on offer.')); return; }
+      box.appendChild(A.el('div', 'label', o.current ? o.name + ' (held)' : o.name));
+      box.appendChild(A.el('div', 'muted', 'Benefit')); box.appendChild(A.el('div', '', o.benefit));
+      box.appendChild(A.el('div', 'muted', 'Drawback')); box.appendChild(A.el('div', 'bad', o.drawback));
+      var u = view.unique;
+      var ar = A.el('div', 'cost');
+      ar.appendChild(A.el('div', 'c muted', 'Catalysts: ' + u.catalysts + ' · Fragments: ' + u.fragments));
+      var ab = A.el('button', '', 'Assemble ' + Math.min(u.fragments, u.fragmentsNeeded) + '/' + u.fragmentsNeeded);
+      ab.disabled = u.fragments < u.fragmentsNeeded || phase !== 'browse';
+      ab.addEventListener('click', assemble); ar.appendChild(ab); box.appendChild(ar);
+      box.appendChild(A.el('div', 'spacer'));
+      costRow(box, u.block || (o.current ? 'Already held' : '')); return;
+    }
+    var s = slot();
+    if (!s) { box.appendChild(A.el('div', 'muted', 'Choose an affix on the left.')); return; }
+    var prefix = s.category === 'prefix';
+    box.appendChild(A.el('div', 'label', A.cap(mode) + ' · ' + (prefix ? 'Offense' : 'Defense')));
+    box.appendChild(A.el('div', '', s.name));
+    box.appendChild(A.el('div', 'muted', s.condition || (prefix ? 'Boosts your damage.' : 'Protects or heals you.')));
+    var cur = vbox('Current · ' + A.roman[Math.max(1, Math.min(5, s.rank))], '+' + s.value + '%', 'Range ' + s.bandMin + '–' + s.bandMax + '%', false), nxt;
+    if (mode === 'upgrade') {
+      var top = s.nextMin < 0;
+      nxt = vbox(top ? 'Top rank' : 'Next · ' + A.roman[s.rank + 1], top ? '—' : s.nextMin + '–' + s.nextMax + '%', top ? 'Cannot rise further' : 'New roll range', true);
+    } else if (mode === 'refine') {
+      nxt = vbox('Reroll', s.bandMin + '–' + s.bandMax + '%', 'Same rank, new value', true);
+    } else {
+      cur = vbox('Current · ' + A.roman[Math.max(1, Math.min(5, s.rank))], s.name, '+' + s.value + '% · rank ' + A.roman[Math.max(1, Math.min(5, s.rank))], false);
+      nxt = vbox('New affix', '?', s.reforgePool + ' eligible', true);
+    }
+    pair(box, cur, nxt);
+    var bar = A.el('div', 'bar');
+    for (var i = 0; i < 5; i++) bar.appendChild(A.el('i', i < s.rank ? 'on' : (mode === 'upgrade' && i === s.rank && s.nextMin >= 0 ? 'next' : '')));
+    box.appendChild(bar);
+    box.appendChild(A.el('div', 'muted', mode === 'upgrade' ? 'Raises this affix one rank and rerolls its value. Never fails.'
+      : mode === 'refine' ? "Rerolls the value inside this rank's range. It can go lower." : 'Swaps this affix for a different one. Rank stays, value rerolls.'));
+    box.appendChild(A.el('div', 'spacer'));
+    costRow(box, blockFor(s));
+  }
+
+  function drawWallet() {
+    var box = $('wallet'); box.innerHTML = ''; box.appendChild(A.el('div', 'label', 'Wallet'));
+    var u = view.unique;
+    [['Resonance Dust', '#d9a441', view.dust], ['Facets', '#4f9ad9', view.facets], ['Ascension Cores', '#c9694f', view.cores],
+     ['Scouters', '#6f9a52', view.scouters], ['Unique Fragments', '#8c63c7', u.fragments], ['Unique Catalysts', '#b04fa0', u.catalysts]].forEach(function (c) {
+      var r = A.el('div', 'coin'); r.title = c[0];
+      var d = A.el('div', 'dot'); d.style.background = c[1]; r.appendChild(d);
+      r.appendChild(A.el('div', c[2] > 0 ? '' : 'muted', A.num(c[2])));
+      var n = A.el('div', 'muted', c[0].split(' ').pop()); n.style.fontSize = '11px'; n.style.marginLeft = 'auto'; r.appendChild(n);
+      box.appendChild(r);
+    });
+  }
+
+  function drawDialog() {
+    var scrim = $('scrim');
+    if (phase === 'browse') { scrim.className = 'scrim'; return; }
+    scrim.className = 'scrim on';
+    var s = slot(), body = $('dBody'); body.innerHTML = '';
+    $('dTitle').textContent = phase === 'waiting' ? 'Working…' : 'Confirm ' + mode;
+    var change = '';
+    if (mode === 'upgrade' && s) change = s.name + ' ' + A.roman[s.rank] + ' +' + s.value + '%  →  ' + A.roman[Math.min(5, s.rank + 1)] + ', rolls ' + s.nextMin + '–' + s.nextMax + '%';
+    else if (mode === 'refine' && s) change = s.name + ' +' + s.value + '%  →  a new value in ' + s.bandMin + '–' + s.bandMax + '%';
+    else if (mode === 'promote') change = A.rarityName(view.rarityId) + '  →  ' + A.rarityName(view.promotion.toRarity) + ', and one new rank I modifier';
+    else if (mode === 'unique') { var o = uniqueOpt(); change = o ? (view.unique.currentId ? 'Replace with ' : 'Install ') + o.name + '. Drawback: ' + o.drawback : ''; }
+    else if (s) change = s.name + ' +' + s.value + '%  →  another affix (' + s.reforgePool + ' eligible), rank ' + A.roman[s.rank];
+    body.appendChild(A.el('p', '', change));
+    body.appendChild(A.el('p', 'gold', 'Cost: ' + costText()));
+    body.appendChild(A.el('p', 'muted', mode === 'upgrade' ? 'No failure chance. This spends one pending upgrade.'
+      : mode === 'refine' ? 'The result can be lower than now. It cannot be undone.'
+      : mode === 'promote' ? 'No failure chance. Existing modifiers are kept. It cannot be undone.'
+      : mode === 'unique' ? 'Uses one Catalyst. A Unique already set is lost. It cannot be undone.' : 'The result is random and cannot be undone.'));
+    if (phase === 'waiting') body.appendChild(A.el('p', 'muted', 'Waiting for the server…'));
+    $('dOk').disabled = phase === 'waiting'; $('dCancel').disabled = phase === 'waiting';
+  }
+
+  function render() {
+    if (!view) return;
+    A.text($('name'), view.name); A.text($('lvl'), 'Lv ' + view.level);
+    var gr = $('grade'); A.text(gr, (view.rarityId === 'mythical' ? 'MYTHIC' : view.rarityId.toUpperCase()) + (view.uniqueName ? ' · UNIQUE' : ''));
+    gr.style.background = 'var(--' + (view.rarityId || 'common') + '-bg)'; gr.style.color = 'var(--' + (view.rarityId || 'common') + ')';
+    var art = $('art'); art.innerHTML = ''; art.appendChild(A.sprite(view.speciesId, 2));
+    A.text($('pend'), view.pending); A.text($('pendLabel'), view.pending === 1 ? 'upgrade available' : 'upgrades available');
+    A.text($('next'), view.nextMilestone > 0 ? 'Next upgrade at Lv ' + view.nextMilestone : 'All level milestones reached');
+    $('fuse').style.display = view.rarityId === 'mythical' ? '' : 'none';
+    drawTabs(); drawList(); drawDetail(); drawWallet(); drawDialog();
+  }
+
+  function submit(kind, slot) {
+    pendingOp = A.newId(); phase = 'waiting'; render();
+    A.send('ascension_craft_confirm', { operationId: pendingOp, pokemonId: view.pokemonId, kind: kind, slotId: slot || '',
+      profileRevision: view.profileRevision, walletRevision: view.walletRevision });
+    clearTimeout(waitTimer);
+    waitTimer = setTimeout(function () {
+      if (phase === 'waiting') { phase = 'browse'; pendingOp = ''; banner = 'No answer from the server. Check your materials and try again.'; bannerOk = false; render(); }
+    }, 8000);
+  }
+  function confirm() {
+    if (phase !== 'review' || !canReview()) return;
+    var s = slot();
+    submit(mode, mode === 'promote' ? '' : mode === 'unique' ? uniqueId : s.slotId);
+  }
+  function assemble() {
+    if (phase !== 'browse' || mode !== 'unique' || view.unique.fragments < view.unique.fragmentsNeeded) return;
+    submit('assemble', '');
+  }
+
+  A.on('craftView', function (v) {
+    var first = !view; view = v; tries = 99;
+    if (first) { mode = v.pending > 0 ? 'upgrade' : 'refine'; if (v.slots.length) slotId = v.slots[0].slotId; }
+    uniqueId = validUnique(uniqueId);
+    var found = false; v.slots.forEach(function (s) { if (s.slotId === slotId) found = true; });
+    if (!found) slotId = v.slots.length ? v.slots[0].slotId : '';
+    if (v.message && !banner) { banner = v.message; bannerOk = false; }
+    render();
+  });
+  A.on('craftDone', function (d) {
+    if (d.operationId !== pendingOp) return;
+    clearTimeout(waitTimer); pendingOp = ''; phase = 'browse'; bannerOk = !!d.ok;
+    if (d.ok) {
+      var was = A.roman[Math.max(1, Math.min(5, d.oldRank))], now = A.roman[Math.max(1, Math.min(5, d.newRank))];
+      banner = mode === 'upgrade' ? d.newName + ' → ' + now + ' +' + d.newValue + '%'
+        : mode === 'refine' ? 'Refined: +' + d.oldValue + '% → +' + d.newValue + '%'
+        : mode === 'reforge' ? 'Now ' + d.newName + ' +' + d.newValue + '%'
+        : mode === 'promote' ? 'Promoted to ' + A.rarityName(d.newName) + ': a new modifier slot opened'
+        : (d.newName === 'Unique Catalyst' ? 'Assembled a Unique Catalyst' : 'Unique set: ' + d.newName);
+      if (d.replayed) banner += ' (already done)';
+    } else banner = d.message;
+    render();
+  });
+
+  $('close').addEventListener('click', function () { if (phase !== 'waiting') A.send('close'); });
+  $('later').addEventListener('click', function () { if (phase !== 'waiting') A.send('close'); });
+  $('fuse').addEventListener('click', function () { if (view && phase === 'browse') A.send('ascension_fusion_open', { hostId: view.pokemonId }); });
+  $('dCancel').addEventListener('click', function () { if (phase === 'review') { phase = 'browse'; render(); } });
+  $('dOk').addEventListener('click', confirm);
+
+  function ready() {
+    if (!A.g) { A.text($('next'), 'This page needs the WebGUI mod.'); return; }
+    A.send('ascension_craft_ready');
+    if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
+  }
+  ready();
+})();
+</script>
+</body>
+</html>

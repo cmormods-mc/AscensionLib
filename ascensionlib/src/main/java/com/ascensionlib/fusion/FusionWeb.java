@@ -19,6 +19,9 @@ public final class FusionWeb {
 
     private FusionWeb() {}
 
+    /** Forgets the page state of a player who left. */
+    public static void forget(UUID player) { PENDING.remove(player); }
+
     public static boolean available() { return WebUi.available(); }
 
     static void register() {

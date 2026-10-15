@@ -260,6 +260,11 @@ final class AscendWiring {
                         : "No ascension profile. Pokemon caught in a profile zone get one; an operator can initialize an existing Pokemon as Common."));
                 return 0;
             }
+            // A client with WebGUI gets the inspection page; anyone else keeps the text lines.
+            if (com.ascensionlib.web.WebUi.canShow(player)) {
+                com.ascensionlib.scout.InspectWeb.open(player, com.ascensionlib.scout.InspectWeb.Kind.OWNED, pokemon.getUuid().toString());
+                return 1;
+            }
             describe(source, service.rules(), slot, profile.get());
             return 1;
         } catch (RuntimeException exception) {
@@ -368,16 +373,7 @@ final class AscendWiring {
             source.sendFailure(Component.literal("That party slot is empty."));
             return 0;
         }
-        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
-        if (locked.isPresent()) {
-            source.sendFailure(Component.literal(locked.get()));
-            return 0;
-        }
-        if (!com.ascensionlib.craft.CraftNet.sendView(player, pokemon, true, "")) {
-            source.sendFailure(Component.literal("That Pokemon has no ascension profile, or your client does not have the upgrade screen."));
-            return 0;
-        }
-        return 1;
+        return com.ascensionlib.craft.CraftNet.openFor(player, pokemon) ? 1 : 0;
     }
 
     private int fuse(CommandSourceStack source, int slot) throws CommandSyntaxException {

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspect</title>
+<link rel="stylesheet" href="ascension.css">
+<style>
+  .frame { height: min(520px, 95vh); width: min(820px, 97vw); }
+  .main { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px 1fr; gap: 10px; padding: 10px 14px; }
+  .left { align-items: stretch; }
+  .dexrow { display: flex; justify-content: space-between; align-items: center; background: var(--head); margin: -10px -10px 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+  .chip { color: #fff; font-size: 11px; font-weight: 700; padding: 1px 6px; border: 1px solid #1b120d; }
+  .art { background: var(--row); height: 110px; display: flex; align-items: center; justify-content: center; }
+  .sprbox { display: flex; align-items: center; justify-content: center; }
+  .nm { text-align: center; font-weight: 700; margin-top: 8px; font-size: 16px; overflow-wrap: anywhere; }
+  .sub { text-align: center; color: var(--muted); font-size: 13px; }
+  .stat { display: grid; grid-template-columns: 44px 1fr 30px; gap: 6px; align-items: center; margin-top: 3px; font-size: 12px; }
+  .stat .b { height: 8px; background: var(--well); border: 1px solid var(--edge); } .stat .b i { display: block; height: 100%; background: #2a3550; }
+  .stat .v { text-align: right; font-weight: 600; }
+  .grade { margin-top: auto; text-align: center; font-weight: 700; padding: 6px; color: var(--common); background: var(--common-bg); letter-spacing: .06em; }
+  .right { min-height: 0; }
+  .rhead { display: flex; justify-content: space-between; margin: -10px -10px 6px; padding: 6px 10px; background: var(--head); font-weight: 600; }
+  .rhead .muted { font-weight: 400; font-size: 12px; }
+  .rows { flex: 1; min-height: 0; overflow-y: auto; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--row); cursor: pointer; }
+  .row.uniq { background: #e9e1f4; } .row.sel { outline: 2px solid var(--crimson); outline-offset: -2px; }
+  .ic { width: 20px; height: 20px; flex: none; border: 1px solid #1b120d; }
+  .row .t1 { font-weight: 600; } .row .t2 { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .row .v { margin-left: auto; font-weight: 700; color: #7a2e22; }
+  .pips { display: inline-flex; gap: 2px; } .pips i { width: 8px; height: 8px; background: var(--well); border: 1px solid var(--edge); } .pips i.on { background: var(--crimson); }
+  .strip { margin-top: 6px; padding: 6px 8px; background: var(--head); min-height: 44px; font-size: 13px; }
+  .bottom { padding: 6px 14px; font-size: 13px; }
+  .empty { padding: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="head"><span id="title">Inspect</span><button class="x" id="close" title="Close">&times;</button></div>
+  <div class="main">
+    <div class="box left">
+      <div class="dexrow"><span id="dex"></span><span class="chip" id="type" style="display:none"></span></div>
+      <div class="art" id="art"></div>
+      <div class="nm" id="name"></div>
+      <div class="sub" id="sub"></div>
+      <div id="stats" style="margin-top:8px"></div>
+      <div class="grade" id="grade">RARITY ?</div>
+    </div>
+    <div class="box right">
+      <div class="rhead"><span>Affixes</span><span class="muted" id="count"></span></div>
+      <div class="rows" id="rows"></div>
+      <div class="strip" id="strip">Click a modifier to see what it does.</div>
+    </div>
+  </div>
+  <div class="bottom muted" id="bottom"></div>
+  <div class="foot">
+    <button id="prev" style="display:none">&lt;</button><button id="next" style="display:none">&gt;</button>
+    <div class="msg muted" id="info"></div>
+    <button class="primary" id="scout" style="display:none">Scout</button>
+    <button class="primary" id="upgrade" style="display:none">Upgrade</button>
+    <button id="done">Close</button>
+  </div>
+</div>
+<script src="ui.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.A, $ = A.$;
+  var STATS = ['HP', 'Atk', 'Def', 'SpA', 'SpD', 'Spe'];
+  var TYPES = { normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', electric: '#f7d02c', grass: '#7ac74c', ice: '#96d9d6', fighting: '#c22e28', poison: '#a33ea1',
+    ground: '#e2bf65', flying: '#a98ff3', psychic: '#f95587', bug: '#a6b91a', rock: '#b6a136', ghost: '#735797', dragon: '#6f35fc', dark: '#705746', steel: '#b7b7ce', fairy: '#d685ad' };
+  var mode = '';           // owned | enemy
+  var owned = null, state = null, idx = 0, sel = 0, tries = 0;
+
+  function detail() { return mode === 'owned' ? (owned && owned.detail) : (state && state.entries[idx] ? state.entries[idx].detail : null); }
+  function rowsOf(d) {
+    var rows = [];
+    if (!d) return rows;
+    if (d.uniqueName) rows.push({ unique: true, name: d.uniqueName, value: '', rank: 0, min: -1, max: -1, condition: 'A Unique power: fixed tuning, no ordinary rank.', prefix: false });
+    d.slots.forEach(function (s) { rows.push({ unique: false, name: s.name, value: s.value + '%', rank: s.rank, min: s.min, max: s.max, condition: s.condition, prefix: s.category === 'prefix' }); });
+    return rows;
+  }
+  function origin(k) {
+    if (!k) return 'Origin unknown';
+    return k === 'wild_capture' ? 'Wild capture' : k === 'hatch' ? 'Hatched' : k === 'admin' ? 'Operator-registered' : A.cap(k.replace(/_/g, ' '));
+  }
+
+  function render() {
+    var d = detail();
+    var name = mode === 'owned' ? (owned ? owned.name : '') : (state && state.entries[idx] ? state.entries[idx].name : '');
+    var speciesId = mode === 'owned' && owned && owned.extra ? owned.extra.speciesId : '';
+    A.text($('title'), mode === 'owned' ? 'Inspect' : 'Scouting');
+    A.text($('name'), name);
+    var art = $('art'); art.innerHTML = '';
+    if (speciesId) art.appendChild(A.sprite(speciesId, 2));
+    else { var f = A.el('div', 'sprfb', name); art.appendChild(f); }
+    A.text($('dex'), speciesId ? A.speciesName(speciesId) : '');
+    var ty = $('type');
+    if (d && d.types.length) { ty.style.display = ''; A.text(ty, d.types[0].toUpperCase()); ty.style.background = TYPES[d.types[0]] || '#7f869b'; } else ty.style.display = 'none';
+    A.text($('sub'), d ? 'Lv ' + d.level + ' · ' + d.types.join(' / ')
+      : mode === 'owned' ? (owned ? 'No profile available' : 'Loading server data…') : 'Details not revealed');
+    var st = $('stats'); st.innerHTML = '';
+    for (var i = 0; i < 6; i++) {
+      var row = A.el('div', 'stat'); row.appendChild(A.el('span', 'muted', STATS[i]));
+      var b = A.el('div', 'b'); var bar = A.el('i'); var v = d && i < d.baseStats.length ? d.baseStats[i] : null;
+      bar.style.width = v == null ? '0' : Math.max(1, Math.min(100, v * 100 / 255)) + '%'; b.appendChild(bar); row.appendChild(b);
+      row.appendChild(A.el('span', 'v', v == null ? '?' : v)); st.appendChild(row);
+    }
+    var gr = $('grade');
+    if (d) { A.text(gr, (d.rarityId === 'mythical' ? 'MYTHIC' : d.rarityId.toUpperCase()) + (d.uniqueName ? ' · UNIQUE' : '')); gr.style.background = 'var(--' + d.rarityId + '-bg)'; gr.style.color = 'var(--' + d.rarityId + ')'; }
+    else { A.text(gr, 'RARITY ?'); gr.style.background = '#46526a'; gr.style.color = 'var(--row)'; }
+    drawRows(d);
+    drawBottom(d);
+    buttons();
+  }
+
+  function drawRows(d) {
+    var box = $('rows'); box.innerHTML = '';
+    var rows = rowsOf(d);
+    if (!d) {
+      box.appendChild(A.el('div', 'empty', mode === 'owned' ? (owned ? 'This Pokémon has no ascension profile.' : 'Loading server data…') : 'Scout to reveal rarity and modifiers.'));
+      A.text($('count'), '? / ?'); A.text($('strip'), 'Click a modifier to see what it does.'); return;
+    }
+    if (mode === 'owned' && owned) {
+      var pre = d.slots.filter(function (s) { return s.category === 'prefix'; }).length;
+      A.text($('count'), 'Prefix ' + pre + '/' + owned.extra.prefixCap + ' · Suffix ' + (d.slots.length - pre) + '/' + owned.extra.suffixCap);
+    } else A.text($('count'), rows.length + ' / ' + rows.length);
+    if (!rows.length) box.appendChild(A.el('div', 'empty', 'No modifiers rolled.'));
+    sel = Math.max(0, Math.min(sel, rows.length - 1));
+    rows.forEach(function (r, i) {
+      var el = A.el('div', 'row' + (r.unique ? ' uniq' : '') + (i === sel ? ' sel' : ''));
+      var ic = A.el('div', 'ic'); ic.style.background = r.unique ? '#b6a1c5' : r.prefix ? '#c9694f' : '#6f9a52'; el.appendChild(ic);
+      var col = A.el('div'); col.appendChild(A.el('div', 't1', r.unique ? 'UNIQUE  ' + r.name : r.name));
+      if (!r.unique) {
+        var t2 = A.el('div', 't2'); var pips = A.el('span', 'pips');
+        for (var k = 0; k < 5; k++) pips.appendChild(A.el('i', k < r.rank ? 'on' : ''));
+        t2.appendChild(pips); if (r.min >= 0) t2.appendChild(A.el('span', '', 'rolls ' + r.min + '–' + r.max + '%'));
+        col.appendChild(t2);
+      }
+      el.appendChild(col);
+      if (r.value) el.appendChild(A.el('div', 'v', '+' + r.value));
+      el.addEventListener('click', function () { sel = i; render(); });
+      el.addEventListener('mouseenter', function () { A.text($('strip'), r.condition || (r.prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.')); });
+      box.appendChild(el);
+    });
+    if (rows.length) A.text($('strip'), rows[sel].condition || (rows[sel].prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.'));
+  }
+
+  function drawBottom(d) {
+    var b = $('bottom');
+    if (mode === 'owned' && owned && d) {
+      var e = owned.extra, bits = [];
+      bits.push(owned.pending + ' upgrade' + (owned.pending === 1 ? '' : 's') + ' pending');
+      bits.push('attunement ' + owned.attunement);
+      bits.push(origin(e.origin));
+      if (e.initialRarity && e.initialRarity !== d.rarityId) bits.push('promoted from ' + A.cap(e.initialRarity));
+      bits.push(e.milestones + ' milestone' + (e.milestones === 1 ? '' : 's'));
+      if (e.highestLevel > 0) bits.push('best Lv ' + e.highestLevel);
+      A.text(b, bits.join(' · '));
+    } else if (mode === 'enemy' && state) A.text(b, 'Scouters: ' + state.scouters);
+    else A.text(b, '');
+  }
+
+  function buttons() {
+    var up = $('upgrade'), sc = $('scout'), prev = $('prev'), next = $('next');
+    var can = mode === 'owned' && owned && owned.detail;
+    up.style.display = can ? '' : 'none';
+    if (can) {
+      var locked = owned.extra.craftLocked;
+      A.text(up, locked ? 'Locked' : owned.pending > 0 ? 'Upgrade (' + owned.pending + ')' : 'Upgrade');
+      up.disabled = locked; up.title = locked ? 'This Pokémon is on loan and cannot be upgraded.' : '';
+    }
+    var enemy = mode === 'enemy' && state && state.entries.length;
+    sc.style.display = enemy ? '' : 'none';
+    prev.style.display = next.style.display = enemy && state.entries.length > 1 ? '' : 'none';
+    if (enemy) { var e = state.entries[idx]; sc.disabled = !!e.detail || state.scouters < 1; A.text(sc, e.detail ? 'Scouted' : 'Scout'); }
+    A.text($('info'), mode === 'enemy' && state && !state.entries.length ? 'No encounter to scout.' : '');
+  }
+
+  A.on('inspectOwned', function (o) { mode = 'owned'; owned = o; tries = 99; sel = 0; render(); });
+  A.on('inspectScout', function (s) { if (mode === '') mode = 'enemy'; if (mode !== 'enemy') return; tries = 99; state = s; idx = Math.min(idx, Math.max(0, s.entries.length - 1)); render(); });
+
+  $('close').addEventListener('click', function () { A.send('close'); });
+  $('done').addEventListener('click', function () { A.send('close'); });
+  $('upgrade').addEventListener('click', function () { if (owned && !$('upgrade').disabled) A.send('ascension_craft_open', { pokemonId: owned.pokemonId }); });
+  $('scout').addEventListener('click', function () {
+    if (mode !== 'enemy' || !state || !state.entries[idx] || $('scout').disabled) return;
+    $('scout').disabled = true;
+    A.send('ascension_inspect_use', { encounterId: state.encounterId, subjectId: state.entries[idx].subjectId });
+  });
+  $('prev').addEventListener('click', function () { if (state) { idx = (idx - 1 + state.entries.length) % state.entries.length; sel = 0; render(); } });
+  $('next').addEventListener('click', function () { if (state) { idx = (idx + 1) % state.entries.length; sel = 0; render(); } });
+
+  function ready() {
+    if (!A.g) { A.text($('info'), 'This page needs the WebGUI mod.'); return; }
+    A.send('ascension_inspect_ready');
+    if (++tries < 4) setTimeout(function () { if (!mode) ready(); }, 2000);
+  }
+  render(); ready();
+})();
+</script>
+</body>
+</html>

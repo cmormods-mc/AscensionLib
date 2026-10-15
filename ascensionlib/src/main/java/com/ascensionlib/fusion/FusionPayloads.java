@@ -1,33 +1,16 @@
 package com.ascensionlib.fusion;
 
 import java.util.List;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
 
 /**
- * The fusion messages. The screen is a web page shown by WebGUI, so everything but {@link Open} travels as JSON through {@link FusionWeb}
+ * The fusion messages. The screen is a web page shown by WebGUI, so everything travels as JSON through {@link FusionWeb}
  * (the records below are what the server serializes; the page only displays the text it is sent). The page asks to see one pairing
  * ({@code ascension_fusion_preview}, answered by {@link Detail}) and confirms it ({@code ascension_fusion_confirm}, answered by
  * {@link Result}). Everything is a preview until the server accepts a confirmation: the server resolves the Transcendent, applies the
  * rules and the price.
- *
- * <p>{@link Open} is the one native packet left: the craft screen's Fuse button sends it, and the server answers by opening the web page.
- * It goes away when the craft screen is a page too.
  */
 public final class FusionPayloads {
     private FusionPayloads() {}
-
-    private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath("ascensionlib", path); }
-
-    /** Client to server: open the fusion page with this Pokemon as the host. */
-    public record Open(String hostId) implements CustomPacketPayload {
-        public static final Type<Open> TYPE = new Type<>(id("fusion_open"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, Open> CODEC = StreamCodec.of(
-                (buf, v) -> buf.writeUtf(v.hostId(), 36), buf -> new Open(buf.readUtf(36)));
-        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
-    }
 
     /** One Pokemon the player owns, as the picker and the chambers show it; {@code block} is why it cannot take the asked-for role now (empty when it can). */
     public record Entry(String id, String name, String speciesId, String rarityId, String uniqueName, boolean inParty, boolean canHost, String block) {}

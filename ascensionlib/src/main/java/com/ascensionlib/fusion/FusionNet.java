@@ -16,8 +16,6 @@ import com.cobblemon.mod.common.pokemon.Pokemon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,16 +34,13 @@ public final class FusionNet {
     private FusionNet() {}
 
     public static void register() {
-        PayloadTypeRegistry.playC2S().register(FusionPayloads.Open.TYPE, FusionPayloads.Open.CODEC);
-        ServerPlayNetworking.registerGlobalReceiver(FusionPayloads.Open.TYPE, (payload, context) -> context.server().execute(() -> {
-            var player = context.player();
-            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.open", 4, 2)) return;
-            try {
-                var host = CraftNet.findOwned(player, payload.hostId()).orElse(null);
-                if (host != null) openFor(player, host);
-            } catch (RuntimeException exception) { LOG.error("Fusion open failed for {}", player.getGameProfile().getName(), exception); }
-        }));
         FusionWeb.register();
+        // The craft page's Fuse button names a host; the server opens the fusion page if it is allowed to.
+        com.ascensionlib.web.WebUi.listen("ascension_fusion_open", (player, o) -> {
+            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "fusion.open", 4, 2)) return;
+            var host = CraftNet.findOwned(player, com.ascensionlib.web.WebUi.id(o, "hostId")).orElse(null);
+            if (host != null) openFor(player, host);
+        });
     }
 
     /** Text sent to the client is bounded so an unexpectedly long name can never make a packet fail to encode. */
