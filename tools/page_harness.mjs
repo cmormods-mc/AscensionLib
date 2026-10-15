@@ -229,12 +229,18 @@ await check('wallet: balances with icons, withdraw and deposit requests, result 
 
 await check('wallet: a bound material (Tower Mark) cannot be taken out', async () => {
   const p = await open(null, 'wallet.html');
-  await emit(p, 'walletView', { lines: [{ id: 'facet', name: 'Facet', color: '#4f9ad9', amount: 9, carried: 0, tradable: true },
+  await emit(p, 'walletView', { feePercent: 3, catalystNeeded: 100, lines: [{ id: 'unique_fragment', name: 'Unique Fragment', color: '#8c63c7', amount: 63, carried: 0, tradable: true }, { id: 'facet', name: 'Facet', color: '#4f9ad9', amount: 9, carried: 0, tradable: true },
     { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 4, carried: 0, tradable: false }], freeSlots: 5 });
   const mark = p.locator('.line', { hasText: 'Tower Mark' }).first();
   eq(await mark.locator('button').first().isDisabled(), true, 'the Mark has no Take');
   yes((await mark.textContent()).includes('Bound'), 'it says Bound');
   eq(await p.locator('.line', { hasText: 'Facet' }).first().locator('button').first().isDisabled(), false, 'a tradable material can be taken');
+  yes((await p.textContent('#cat')).includes('63 of 100'), 'the Catalyst progress shows fragments toward the next one');
+  const fr = p.locator('.line', { hasText: 'Facet' }).first();
+  await fr.locator('input').fill('9');
+  yes((await fr.textContent()).includes('fee +1 = 10') && (await fr.textContent()).includes('you have 9'), 'the fee preview shows the total and warns when it is more than you have');
+  await fr.locator('input').fill('5');
+  yes((await fr.textContent()).includes('fee +1 = 6') && !(await fr.textContent()).includes('you have'), 'and no warning when it fits');
   noErrors(p);
 });
 
@@ -242,7 +248,7 @@ await check('wallet: a bound material (Tower Mark) cannot be taken out', async (
 await check('completion: banner, pile counted up, crown rolled one at a time, collect closes', async () => {
   const p = await open(null, 'completion.html', 900, 700);
   eq((await sent(p)).map(m => m.channel), ['ascension_completion_ready'], 'asks for its data');
-  const view = { tier: 'mythic', tierName: 'MYTHIC', score: 9, cycle: 1, cards: 5, flawless: true, attunement: 3, preview: false,
+  const view = { tier: 'mythic', tierName: 'MYTHIC', score: 9, cycle: 1, cards: 5, flawless: true, attunement: 3, preview: false, tiers: [{ id: 'bronze', name: 'BRONZE', from: 0 }, { id: 'silver', name: 'SILVER', from: 2 }, { id: 'gold', name: 'GOLD', from: 5 }, { id: 'mythic', name: 'MYTHIC', from: 8 }],
     pile: [{ id: 'resonance_dust', name: 'Resonance Dust', color: '#d9a441', amount: 1800 }, { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 5 }],
     crowns: [{ kind: 'core', id: 'ascension_core', label: 'Ascension Core', color: '#c9694f', amount: 1, big: true },
       { kind: 'armor', id: '', label: 'Tower armor piece', color: '#c9d4e0', amount: 1, big: false }] };
@@ -256,6 +262,11 @@ await check('completion: banner, pile counted up, crown rolled one at a time, co
   yes((await p.textContent('#crowns')).includes('Ascension Core'), 'the core is revealed');
   eq(await p.locator('.cr.big').count(), 1, 'only the headline item glows');
   yes((await p.textContent('#crowns')).includes('Handed over by the Tower'), 'a Tower-owned item says who hands it over');
+  eq(await p.locator('#meter .seg').count(), 4, 'a meter segment per tier');
+  eq(await p.locator('#meter .seg.on').count(), 4, 'a score of 9 lights them all');
+  await p.click('#share');
+  yes((await sent(p)).some(x => x.channel === 'ascension_completion_share'), 'Share asks the server for the chat line');
+  eq(await p.isDisabled('#share'), true, 'and cannot be pressed twice');
   await p.click('#done');
   yes((await sent(p)).some(x => x.channel === 'close'), 'Collect closes the page');
   noErrors(p);
@@ -321,6 +332,27 @@ await check('inspect: owned view, affixes, upgrade button; enemy view, scout', a
   yes((await p.textContent('#upgrade')).includes('Upgrade (2)'), 'upgrade label');
   await p.click('#upgrade');
   yes((await sent(p)).some(x => x.channel === 'ascension_craft_open' && x.pokemonId === 'a1'), 'upgrade opens craft');
+  noErrors(p);
+});
+
+await check('inspect: a Pokemon with no profile offers an Ascension Sigil, armed by a first click and spent by a second', async () => {
+  const p = await open(null, 'inspect.html');
+  await emit(p, 'sprites', { arcanine: PNG });
+  const extra = { speciesId: 'cobblemon:arcanine', aspects: [], origin: '', initialRarity: '', highestLevel: 0, milestones: 0, prefixCap: 0, suffixCap: 0, craftLocked: false };
+  await emit(p, 'inspectOwned', { pokemonId: 'b2', name: 'Arcanine', species: 'Arcanine', pending: 0, attunement: 0, detail: null, extra, sigils: 0 });
+  eq(await p.isVisible('#sigil'), true, 'the button shows for a bare Pokemon');
+  eq(await p.isDisabled('#sigil'), true, 'and is disabled with no Sigil');
+  eq(await p.isVisible('#upgrade'), false, 'no Upgrade without a profile');
+  await emit(p, 'inspectOwned', { pokemonId: 'b2', name: 'Arcanine', species: 'Arcanine', pending: 0, attunement: 0, detail: null, extra, sigils: 2 });
+  yes((await p.textContent('#sigil')).includes('(2)'), 'it shows how many Sigils you have');
+  await p.click('#sigil');
+  yes((await p.textContent('#sigil')).includes('Click again'), 'the first click only arms it');
+  yes(!(await sent(p)).some(x => x.channel === 'ascension_inspect_sigil'), 'nothing is sent yet');
+  await p.click('#sigil');
+  const m = (await sent(p)).find(x => x.channel === 'ascension_inspect_sigil');
+  eq(m && m.pokemonId, 'b2', 'the second click asks the server, naming the Pokemon');
+  await emit(p, 'inspectOwned', { pokemonId: 'b2', name: 'Arcanine', species: 'Arcanine', pending: 0, attunement: 0, detail: detail(), extra, sigils: 1 });
+  eq(await p.isVisible('#sigil'), false, 'once it has a profile the button is gone');
   noErrors(p);
 });
 

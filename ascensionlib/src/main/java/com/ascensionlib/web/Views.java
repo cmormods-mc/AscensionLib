@@ -13,7 +13,7 @@ public final class Views {
     public record StateView(String encounterId, int scouters, List<EntryView> entries) {}
 
     public record OwnedView(String pokemonId, String name, String species, int pending, int attunement, ScoutPayloads.Detail detail,
-                            OwnedInspectPayload.Extra extra) {}
+                            OwnedInspectPayload.Extra extra, long sigils) {}
 
     /** One party member in the HUD's team list. */
     public record TeamView(String id, String name, String speciesId, String rarityId, int level) {}
@@ -26,8 +26,8 @@ public final class Views {
                 state.entries().stream().map(e -> new EntryView(e.subjectId(), e.name(), e.detail().orElse(null), e.speciesId())).toList());
     }
 
-    public static OwnedView owned(OwnedInspectPayload.Result result) {
+    public static OwnedView owned(OwnedInspectPayload.Result result, long sigils) {
         return new OwnedView(result.pokemonId(), result.name(), result.species(), result.pending(), result.attunement(),
-                result.detail().orElse(null), result.extra());
+                result.detail().orElse(null), result.extra(), sigils);
     }
 }

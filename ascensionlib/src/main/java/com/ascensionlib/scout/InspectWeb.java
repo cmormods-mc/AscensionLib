@@ -32,6 +32,25 @@ public final class InspectWeb {
             if (!RateLimit.allow(player.getUUID(), "inspect.open", 4, 2)) return;
             open(player, WebUi.str(o, "kind", 8).equals("enemy") ? Kind.ENEMY : Kind.OWNED, WebUi.id(o, "id"));
         });
+        // Spend an Ascension Sigil on one of the player's own Pokemon that has no profile. The store decides everything; this only asks.
+        WebUi.listen("ascension_inspect_sigil", (player, o) -> {
+            if (!RateLimit.allow(player.getUUID(), "inspect.sigil", 3, 1)) return;
+            String id = WebUi.id(o, "pokemonId");
+            try {
+                var pokemon = OwnedInspectNet.findForInspection(player, UUID.fromString(id));
+                var service = com.ascensionlib.AscensionApi.service();
+                if (pokemon.isEmpty() || service.isEmpty()) throw new IllegalArgumentException("That Pokemon is not yours");
+                var profile = service.get().useSigil(player, pokemon.get());
+                player.displayClientMessage(Component.literal("[Ascend] " + pokemon.get().getDisplayName(false).getString() + " is now "
+                        + (profile.rarity().id().equals("mythical") ? "Mythic" : profile.rarity().id().substring(0, 1).toUpperCase() + profile.rarity().id().substring(1))
+                        + "."), false);
+            } catch (IllegalArgumentException | IllegalStateException refused) {
+                player.displayClientMessage(Component.literal("[Ascend] " + refused.getMessage()), true);
+            } catch (RuntimeException failed) {
+                player.displayClientMessage(Component.literal("[Ascend] The Sigil could not be used right now. You were not charged."), true);
+            }
+            sendCurrent(player);
+        });
         WebUi.listen("ascension_inspect_use", (player, o) -> {
             if (!RateLimit.allow(player.getUUID(), "scout.use", 4, 2)) return;
             String message = ScoutEncounters.use(player.getUUID(), WebUi.str(o, "encounterId", 100), WebUi.str(o, "subjectId", 100));
@@ -51,7 +70,8 @@ public final class InspectWeb {
         if (target.kind() == Kind.OWNED) {
             var result = OwnedInspectNet.resultFor(player, target.id());
             com.ascensionlib.web.WebSprites.feed(player, java.util.List.of(result.extra().speciesId()));
-            WebUi.emit(player, "inspectOwned", Views.owned(result));
+            WebUi.emit(player, "inspectOwned", Views.owned(result, com.ascensionlib.AscensionApi.store()
+                    .map(store -> store.wallet(player.getUUID()).balance(com.cobbleascend.domain.v1.MaterialId.ASCENSION_SIGIL)).orElse(0L)));
         }
         else if (target.kind() == Kind.WILD) emitWild(player);
         else WebUi.emit(player, "inspectScout", Views.state(ScoutEncounters.stateFor(player.getUUID())));

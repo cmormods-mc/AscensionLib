@@ -274,14 +274,22 @@ public final class ProfileService {
     /**
      * Gives every profiled Pokemon in the player's party {@code points} attunement for one encounter. The operation ID is derived
      * from (encounter, Pokemon), so a repeated call or a post-crash retry changes nothing more. Failures are isolated per Pokemon.
-     * Returns how many Pokemon were credited (including ones an earlier call already credited).
+     * Returns how many Pokemon were credited (including ones an earlier call already credited). Pokemon that fought are the ones credited
+     * ({@link com.ascensionlib.battle.Participation}); one without a profile earns nothing and the player is told why.
      */
     public int awardPartyAttunement(ServerPlayer player, String encounterId, int points) {
         int credited = 0;
+        // Only the Pokemon that fought count. With no battle seen (an award with no fight behind it, or after a restart) the whole party does, as before.
+        var fought = com.ascensionlib.battle.Participation.consume(player.getUUID());
+        var unprofiled = new ArrayList<String>();
         for (var pokemon : Cobblemon.INSTANCE.getStorage().getParty(player)) {
+            if (pokemon.isBattleClone() || (!fought.isEmpty() && !fought.contains(pokemon.getUuid()))) continue;
             try {
                 var profile = canonical(pokemon);
-                if (profile.isEmpty() || pokemon.isBattleClone()) continue;
+                if (profile.isEmpty()) {
+                    if (!CraftLocks.locked(pokemon)) unprofiled.add(pokemon.getDisplayName(false).getString());
+                    continue;
+                }
                 var outcome = store.craft(CraftRequest.awardAttunement(
                         operationId("attune", encounterId + ":" + pokemon.getUuid()), pokemon.getUuid(), points, profile.get().revision()));
                 if (!outcome.replayed()) project(pokemon, outcome.profile());
@@ -295,6 +303,9 @@ public final class ProfileService {
                 LOG.error("Attunement failed for Pokemon {}; nothing changed for it", pokemon.getUuid(), exception);
             }
         }
+        if (!unprofiled.isEmpty())
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[Ascend] " + String.join(", ", unprofiled)
+                    + (unprofiled.size() == 1 ? " has" : " have") + " no ascension profile, so it earned no attunement. An Ascension Sigil gives one: open it in the inspector."));
         return credited;
     }
 

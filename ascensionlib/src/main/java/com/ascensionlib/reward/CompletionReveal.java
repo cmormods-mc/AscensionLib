@@ -28,15 +28,27 @@ public final class CompletionReveal {
     /** One crown roll. {@code id} is the material whose icon to show, or "" for an item CobbleTowers hands over itself. */
     public record CrownView(String kind, String id, String label, String color, long amount, boolean big) {}
 
+    /** Where a tier starts on the score meter. */
+    public record TierMark(String id, String name, int from) {}
+
     public record View(String tier, String tierName, int score, int cycle, int cards, boolean flawless, List<Line> pile, List<CrownView> crowns,
-                       int attunement, boolean preview) {}
+                       int attunement, boolean preview, List<TierMark> tiers) {}
 
     private static final Map<UUID, View> PENDING = new ConcurrentHashMap<>();
+    /** Completions already shared (player and view), so a held button cannot flood the chat. */
+    private static final java.util.Set<String> SHARED = ConcurrentHashMap.newKeySet();
 
     public static void register() {
         WebUi.listen("ascension_completion_ready", (player, o) -> {
             var view = PENDING.get(player.getUUID());
             if (view != null) WebUi.emit(player, "completionView", view);
+        });
+        // Share the report card: one chat line for everyone online, once per completion. A preview is never shared.
+        WebUi.listen("ascension_completion_share", (player, o) -> {
+            var view = PENDING.get(player.getUUID());
+            var server = player.getServer();
+            if (view == null || view.preview() || server == null || !SHARED.add(player.getUUID() + "|" + view.hashCode())) return;
+            server.getPlayerList().broadcastSystemMessage(Component.literal(shareLine(player.getGameProfile().getName(), view)), false);
         });
     }
 
@@ -51,8 +63,11 @@ public final class CompletionReveal {
         }
         var crowns = new ArrayList<CrownView>();
         for (var crown : completion.crowns()) crowns.add(crownView(crown));
+        var marks = new ArrayList<TierMark>();
+        for (var spec : TowerCompletionBands.DEFAULTS.tiers())
+            marks.add(new TierMark(spec.tier().name().toLowerCase(java.util.Locale.ROOT), tierName(spec.tier()), spec.minScore()));
         return new View(completion.tier().name().toLowerCase(java.util.Locale.ROOT), tierName(completion.tier()), completion.score(), cycle, cards, flawless,
-                pile, crowns, attunement, preview);
+                pile, crowns, attunement, preview, marks);
     }
 
     private static Line line(MaterialId material, long amount) {
@@ -87,6 +102,19 @@ public final class CompletionReveal {
             view.crowns().forEach(c -> text.append(" crown: ").append(c.label()).append(c.amount() > 1 ? " x" + c.amount() : "").append(';'));
             player.sendSystemMessage(Component.literal(text.toString()));
         }
+    }
+
+    /** The line a shared report card puts in chat: tier, score, the pile in short and the crown. */
+    public static String shareLine(String name, View view) {
+        var text = new StringBuilder("[Tower] ").append(name).append(": ").append(view.tierName()).append(" completion (score ").append(view.score()).append(")");
+        view.pile().stream().filter(l -> l.id().equals("resonance_dust") || l.id().equals("tower_mark"))
+                .forEach(l -> text.append(", +").append(String.format("%,d", l.amount())).append(' ').append(l.name()));
+        if (!view.crowns().isEmpty()) {
+            var crown = new ArrayList<String>();
+            view.crowns().forEach(c -> crown.add(c.label() + (c.amount() > 1 ? " x" + c.amount() : "")));
+            text.append("; crown: ").append(String.join(", ", crown));
+        }
+        return text.toString();
     }
 
     /** The party line for a completion worth announcing (a Core, a Catalyst or a Mythic tier), or empty. */

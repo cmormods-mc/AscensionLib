@@ -54,7 +54,7 @@ class PageJsonTest {
     @Test void ownedViewAndRevealCarryWhatThePagesRead() {
         var detail = new ScoutPayloads.Detail(30, List.of("fire"), List.of(1, 2, 3, 4, 5, 6), "epic", "777", List.of());
         var extra = new OwnedInspectPayload.Extra("cobblemon:arcanine", List.of(), "wild_capture", "rare", 40, 2, 3, 3, false);
-        var owned = JsonParser.parseString(gson.toJson(Views.owned(new OwnedInspectPayload.Result("id", "Arcanine", "Arcanine", 1, 5, Optional.of(detail), extra)))).getAsJsonObject();
+        var owned = JsonParser.parseString(gson.toJson(Views.owned(new OwnedInspectPayload.Result("id", "Arcanine", "Arcanine", 1, 5, Optional.of(detail), extra), 2))).getAsJsonObject();
         has(owned, "pokemonId", "name", "species", "pending", "attunement", "detail", "extra");
         has(owned.getAsJsonObject("extra"), "speciesId", "origin", "initialRarity", "highestLevel", "milestones", "prefixCap", "suffixCap", "craftLocked");
         var reveal = JsonParser.parseString(gson.toJson(new CaptureRevealPayload("id", "Arcanine", "cobblemon:arcanine", List.of(), detail))).getAsJsonObject();

@@ -19,7 +19,7 @@ public final class WalletWeb {
     /** One row of the wallet page. {@code color} is a CSS colour. */
     public record Line(String id, String name, String color, long amount, long carried, boolean tradable) {}
 
-    public record View(java.util.List<Line> lines, int freeSlots) {}
+    public record View(java.util.List<Line> lines, int freeSlots, int feePercent, int catalystNeeded) {}
 
     public record ResultView(boolean ok, String message) {}
 
@@ -67,6 +67,6 @@ public final class WalletWeb {
         }
         int free = 0;
         for (int slot = 0; slot < 36; slot++) if (player.getInventory().getItem(slot).isEmpty()) free++;
-        WebUi.emit(player, "walletView", new View(lines, free));
+        WebUi.emit(player, "walletView", new View(lines, free, CurrencyItems.WITHDRAWAL_FEE_PERCENT, com.cobbleascend.store.StoreConfig.defaults().catalystFragments()));
     }
 }

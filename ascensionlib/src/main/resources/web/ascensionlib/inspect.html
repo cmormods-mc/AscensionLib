@@ -60,6 +60,7 @@
     <button id="prev" style="display:none">&lt;</button><button id="next" style="display:none">&gt;</button>
     <div class="msg muted" id="info"></div>
     <button class="primary" id="scout" style="display:none">Scout</button>
+    <button class="primary" id="sigil" style="display:none">Use Ascension Sigil</button>
     <button class="primary" id="upgrade" style="display:none">Upgrade</button>
     <button id="done">Close</button>
   </div>
@@ -73,7 +74,7 @@
   var TYPES = { normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', electric: '#f7d02c', grass: '#7ac74c', ice: '#96d9d6', fighting: '#c22e28', poison: '#a33ea1',
     ground: '#e2bf65', flying: '#a98ff3', psychic: '#f95587', bug: '#a6b91a', rock: '#b6a136', ghost: '#735797', dragon: '#6f35fc', dark: '#705746', steel: '#b7b7ce', fairy: '#d685ad' };
   var mode = '';           // owned | enemy
-  var owned = null, state = null, idx = 0, sel = 0, tries = 0;
+  var owned = null, state = null, idx = 0, sel = 0, tries = 0, sigilArmed = false;
 
   function detail() { return mode === 'owned' ? (owned && owned.detail) : (state && state.entries[idx] ? state.entries[idx].detail : null); }
   function rowsOf(d) {
@@ -193,6 +194,14 @@
       A.text(up, locked ? 'Locked' : owned.pending > 0 ? 'Upgrade (' + owned.pending + ')' : 'Upgrade');
       up.disabled = locked; up.title = locked ? 'This Pokémon is on loan and cannot be upgraded.' : '';
     }
+    // A Pokemon of yours with no profile can be given one with a Sigil (a second click confirms: it is spent and the rarity is rolled).
+    var sg = $('sigil'), bare = mode === 'owned' && owned && owned.name && !owned.detail;
+    sg.style.display = bare ? '' : 'none';
+    if (bare) {
+      var have = owned.sigils || 0;
+      A.text(sg, sigilArmed ? 'Click again to spend 1 Sigil' : 'Use Ascension Sigil (' + have + ')');
+      sg.disabled = have < 1; sg.title = have < 1 ? 'You have no Ascension Sigil.' : 'Gives this Pokémon an ascension profile with a rolled rarity.';
+    } else sigilArmed = false;
     var enemy = mode === 'enemy' && state && state.entries.length;
     sc.style.display = enemy ? '' : 'none';
     prev.style.display = next.style.display = enemy && state.entries.length > 1 ? '' : 'none';
@@ -206,6 +215,12 @@
   $('close').addEventListener('click', function () { A.send('close'); });
   $('done').addEventListener('click', function () { A.send('close'); });
   $('upgrade').addEventListener('click', function () { if (owned && !$('upgrade').disabled) A.send('ascension_craft_open', { pokemonId: owned.pokemonId }); });
+  $('sigil').addEventListener('click', function () {
+    if (!owned || $('sigil').disabled) return;
+    if (!sigilArmed) { sigilArmed = true; buttons(); setTimeout(function () { if (sigilArmed) { sigilArmed = false; buttons(); } }, 4000); return; }
+    sigilArmed = false; $('sigil').disabled = true;
+    A.send('ascension_inspect_sigil', { pokemonId: owned.pokemonId });
+  });
   $('scout').addEventListener('click', function () {
     if (mode !== 'enemy' || !state || !state.entries[idx] || $('scout').disabled) return;
     $('scout').disabled = true;

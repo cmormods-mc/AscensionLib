@@ -30,6 +30,10 @@
   .cr .nm { font-size: 15px; text-shadow: var(--glow); } .cr .hint { color: var(--muted); font-size: 10px; }
   .cr.spin .nm { color: var(--muted); }
   @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+  .meter { display: flex; gap: 3px; justify-content: center; align-items: flex-end; margin-top: 2px; }
+  .meter .seg { flex: 1; max-width: 120px; text-align: center; font-size: 10px; color: var(--muted); }
+  .meter .seg .b { height: 8px; background: var(--well); border: 2px solid var(--line); margin-bottom: 3px; } .meter .seg.on .b { background: var(--tier, var(--acc)); }
+  .meter .seg.on { color: var(--ink); }
   .report { color: var(--muted); font-size: 11px; text-align: center; opacity: 0; transition: opacity .5s; }
   .report.on { opacity: 1; }
 </style>
@@ -40,6 +44,7 @@
   <div class="main">
     <div class="banner" id="banner"></div>
     <div class="sub" id="sub"></div>
+    <div class="meter" id="meter"></div>
     <div class="pile" id="pile"></div>
     <div class="crownlabel" id="crownlabel">THE CROWN</div>
     <div class="crowns" id="crowns"></div>
@@ -47,6 +52,7 @@
   </div>
   <div class="foot">
     <div class="msg muted" id="msg"></div>
+    <button id="share">Share</button>
     <button id="skip">Replay</button>
     <button class="primary" id="done">Collect</button>
   </div>
@@ -91,6 +97,14 @@
     var kind = view.flawless ? 'flawless' : 'not flawless';
     A.text($('sub'), 'Score ' + view.score + ' · ' + view.cards + ' challenge card' + (view.cards === 1 ? '' : 's') + ' · cycle ' + view.cycle + ' · ' + kind);
     A.text($('msg'), view.preview ? 'Preview only: nothing was paid.' : '');
+    // The score meter: one segment per tier, lit up to the tier this run reached, so the next one to chase is plain.
+    var meter = $('meter'); meter.innerHTML = '';
+    (view.tiers || []).forEach(function (t) {
+      var seg = A.el('div', 'seg' + (view.score >= t.from ? ' on' : ''));
+      seg.appendChild(A.el('div', 'b')); seg.appendChild(A.el('div', '', t.name + ' ' + t.from + '+'));
+      meter.appendChild(seg);
+    });
+    $('share').disabled = !!view.preview;
     later(150, function () { $('banner').className = 'banner on'; tone(220, 300, 'sawtooth', 0.05); });
     var at = 900;
     view.pile.forEach(function (l, i) {
@@ -139,6 +153,7 @@
   function finish() { timers.forEach(clearTimeout); timers = []; A.send('close'); }
   $('close').addEventListener('click', finish);
   $('done').addEventListener('click', finish);
+  $('share').addEventListener('click', function () { if (view && !view.preview && !$('share').disabled) { $('share').disabled = true; A.send('ascension_completion_share'); A.text($('msg'), 'Shared in chat.'); } });
   $('skip').addEventListener('click', function () { timers.forEach(clearTimeout); timers = []; play(); });
 
   A.on('completionView', function (v) { view = v; tries = 99; play(); });

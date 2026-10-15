@@ -56,6 +56,7 @@ public final class HudWeb {
         QUEUED.remove(player);
         BLEEDS.remove(player);
         com.ascensionlib.battle.BleedWatch.forget(player);
+        com.ascensionlib.battle.Participation.forget(player);
     }
 
     private static void ensureOpen(ServerPlayer player) {
