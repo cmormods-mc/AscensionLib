@@ -206,7 +206,7 @@ await check('wallet: balances with icons, withdraw and deposit requests, result 
   await emit(p, 'walletView', { lines, freeSlots: 12 });
   eq(await p.locator('.line').count(), 7, 'a row per material');
   eq(await p.locator('.line img').count(), 7, 'an icon per material');
-  yes((await p.textContent('#lines')).includes('1,234'), 'balance with separators');
+  yes((await p.textContent('.lines')).includes('1,234'), 'balance with separators');
   yes((await p.textContent('#free')).includes('12 free'), 'free slots shown');
   // the facet row: take 8
   const row = p.locator('.line', { hasText: 'Facet' }).first();
@@ -215,7 +215,7 @@ await check('wallet: balances with icons, withdraw and deposit requests, result 
   const w = (await sent(p)).find(x => x.channel === 'ascension_wallet_withdraw');
   eq([w.material, w.amount], ['facet', 8], 'withdraw request');
   await emit(p, 'walletResult', { ok: true, message: 'Withdrew 8 Facet as voucher items.' });
-  yes((await p.textContent('#banner')).includes('Withdrew 8'), 'result shown');
+  yes((await p.textContent('.banner')).includes('Withdrew 8'), 'result shown');
   // only a row with vouchers offers Deposit; Deposit all is enabled
   eq(await p.locator('.line button', { hasText: 'Deposit' }).count(), 1, 'one deposit button');
   eq(await p.isDisabled('#depositAll'), false, 'deposit all enabled');
@@ -225,7 +225,7 @@ await check('wallet: balances with icons, withdraw and deposit requests, result 
   await p.click('#depositAll');
   yes((await sent(p)).filter(x => x.channel === 'ascension_wallet_deposit').pop().material === undefined, 'deposit all names none');
   await emit(p, 'walletResult', { ok: false, message: 'You need 2 free inventory slots for that.' });
-  yes((await p.textContent('#banner')).includes('free inventory'), 'a refusal is shown');
+  yes((await p.textContent('.banner')).includes('free inventory'), 'a refusal is shown');
   noErrors(p);
 });
 
@@ -237,7 +237,7 @@ await check('wallet: a bound material (Tower Mark) cannot be taken out', async (
   eq(await mark.locator('button').first().isDisabled(), true, 'the Mark has no Take');
   yes((await mark.textContent()).includes('Bound'), 'it says Bound');
   eq(await p.locator('.line', { hasText: 'Facet' }).first().locator('button').first().isDisabled(), false, 'a tradable material can be taken');
-  yes((await p.textContent('#cat')).includes('63 of 100'), 'the Catalyst progress shows fragments toward the next one');
+  yes((await p.textContent('.cat')).includes('63 of 100'), 'the Catalyst progress shows fragments toward the next one');
   const fr = p.locator('.line', { hasText: 'Facet' }).first();
   await fr.locator('input').fill('9');
   yes((await fr.textContent()).includes('fee +1 = 10') && (await fr.textContent()).includes('you have 9'), 'the fee preview shows the total and warns when it is more than you have');
@@ -491,6 +491,44 @@ await check('party: six slots, rarity, health and pending upgrades; pick, inspec
   await p.locator('.card').nth(2).dblclick();
   eq((await sent(p)).filter(x => x.channel === 'ascension_inspect_open').pop().id, 'c3', 'double-click inspects');
   await shot(p, 'party');
+  noErrors(p);
+});
+
+await check('party: a Wallet tab at the bottom shows the wallet (fee preview, Take, Deposit) and switches back to the party', async () => {
+  const p = await open(null, 'party.html', 1920, 1080);
+  eq(await p.locator('#tabbar button').count(), 2, 'two tabs');
+  eq(await p.isVisible('#paneWallet'), false, 'the wallet is hidden at first');
+  eq(await p.isVisible('#footParty'), true, 'the party buttons show');
+  const box = async sel => p.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return { t: b.top, b: b.bottom }; }, sel);
+  yes((await box('#tabbar')).t > (await box('.main')).t, 'the tab bar is below the content');
+  await p.click('#tabWallet');
+  eq(await p.isVisible('#paneWallet'), true, 'the wallet pane shows');
+  eq(await p.isVisible('#paneParty'), false, 'and the party pane hides');
+  eq(await p.isVisible('#footWallet'), true, 'with the wallet buttons');
+  yes((await sent(p)).some(m => m.channel === 'ascension_wallet_ready'), 'opening it asks the server for the wallet');
+  await emit(p, 'walletView', { feePercent: 3, catalystNeeded: 100, freeSlots: 7, lines: [
+    { id: 'unique_fragment', name: 'Unique Fragment', color: '#8c63c7', amount: 40, carried: 0, tradable: true },
+    { id: 'facet', name: 'Facet', color: '#4f9ad9', amount: 9, carried: 64, tradable: true },
+    { id: 'tower_mark', name: 'Tower Mark', color: '#e8e1c9', amount: 4, carried: 0, tradable: false }] });
+  eq(await p.locator('#paneWallet .line').count(), 3, 'a row per material');
+  yes((await p.textContent('#info')).includes('7 free inventory slots'), 'free slots in the footer');
+  yes((await p.textContent('#paneWallet .cat')).includes('40 of 100'), 'the Catalyst bar');
+  eq(await p.isDisabled('#depositAll'), false, 'Deposit all is on when vouchers are carried');
+  const row = p.locator('#paneWallet .line', { hasText: 'Facet' }).first();
+  await row.locator('input').fill('9');
+  yes((await row.textContent()).includes('fee +1 = 10'), 'the fee preview works in the tab too');
+  await row.locator('input').fill('5');
+  await row.locator('button', { hasText: 'Take' }).click();
+  const w = (await sent(p)).find(x => x.channel === 'ascension_wallet_withdraw');
+  eq([w.material, w.amount], ['facet', 5], 'Take sends the same withdraw message');
+  await p.click('#depositAll');
+  yes((await sent(p)).some(x => x.channel === 'ascension_wallet_deposit'), 'Deposit all sends the deposit message');
+  await emit(p, 'walletResult', { ok: true, message: 'Withdrew 5 Facet as voucher items (fee 1).' });
+  yes((await p.textContent('#paneWallet .banner')).includes('Withdrew 5'), 'the result line shows');
+  await shot(p, 'party-wallet');
+  await p.click('#tabParty');
+  eq(await p.isVisible('#paneParty'), true, 'back to the party');
+  eq(await p.isVisible('#footParty'), true, 'with the party buttons');
   noErrors(p);
 });
 

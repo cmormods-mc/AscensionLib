@@ -6,7 +6,7 @@
 <title>AscensionDex</title>
 <link rel="stylesheet" href="ascension.css">
 <style>
-  .frame { width: 860px; height: 560px; }
+  .frame { width: 860px; height: 600px; }
   .main { flex: 1; min-height: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
   .hint { color: var(--muted); font-size: 11px; }
   .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 10px; }
@@ -24,28 +24,48 @@
   .hp { width: 80%; height: 6px; background: var(--well); border: 1px solid var(--line); } .hp i { display: block; height: 100%; background: var(--good); }
   .hp.low i { background: var(--gold); } .hp.crit i { background: var(--warn); }
   .card.faint .nm { color: var(--warn); }
+  .pane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .pane[hidden] { display: none; }
+  /* the tab bar sits at the bottom of the Dex, above the footer */
+  .tabbar { display: flex; gap: 0; padding: 0 14px; background: var(--head); border-top: 2px solid var(--line); }
+  .tabbar button { border-top: 0; border-radius: 0; padding: 8px 22px; margin-right: 4px; box-shadow: none; background: transparent; color: var(--muted); border-color: transparent; letter-spacing: .08em; }
+  .tabbar button.on { color: var(--acc); background: var(--panel); border: 2px solid var(--line); border-top: 3px solid var(--acc); border-bottom: 0; }
+  .foot .group[hidden] { display: none; } .foot .group { display: flex; gap: 10px; align-items: center; }
 </style>
 </head>
 <body>
 <div class="frame">
   <div class="head"><span>ASCENSIONDEX</span><button class="x" id="close" title="Close">&times;</button></div>
   <div class="main">
-    <div class="hint">Your party. Pick a Pokemon (double-click inspects it).</div>
-    <div class="grid" id="grid"></div>
+    <div class="pane" id="paneParty">
+      <div class="hint">Your party. Pick a Pokemon (double-click inspects it).</div>
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="pane" id="paneWallet" hidden></div>
+  </div>
+  <div class="tabbar" id="tabbar">
+    <button class="on" id="tabParty">Party</button>
+    <button id="tabWallet">Wallet</button>
   </div>
   <div class="foot">
     <div class="msg muted" id="info"></div>
-    <button id="upgrade" disabled>Upgrade</button>
-    <button class="primary" id="inspect" disabled>Inspect</button>
+    <div class="group" id="footParty">
+      <button id="upgrade" disabled>Upgrade</button>
+      <button class="primary" id="inspect" disabled>Inspect</button>
+    </div>
+    <div class="group" id="footWallet" hidden>
+      <button class="primary" id="depositAll" disabled>Deposit all vouchers</button>
+    </div>
     <button id="done">Close</button>
   </div>
 </div>
 <script src="ui.js"></script>
+<script src="wallet-panel.js"></script>
 <script>
 (function () {
   'use strict';
   var A = window.A, $ = A.$;
-  var view = null, sel = -1, tries = 0;
+  var view = null, sel = -1, tries = 0, tab = 'party', wallet = null, partyInfo = '';
 
   function pick(i) { sel = i; draw(); }
   function inspect() { var s = view && view.slots[sel]; if (s && s.id) A.send('ascension_inspect_open', { kind: 'owned', id: s.id }); }
@@ -73,10 +93,32 @@
     $('inspect').disabled = !(s && s.id);
     $('upgrade').disabled = !(s && s.id && s.rarityId && !s.locked);
     $('upgrade').title = s && s.locked ? 'This Pokemon is on loan and cannot be upgraded.' : s && s.id && !s.rarityId ? 'It has no ascension profile yet: inspect it to use an Ascension Sigil.' : '';
-    A.text($('info'), s && s.id ? s.name + (s.rarityId ? '' : ' has no ascension profile') : 'Pick a Pokemon');
+    partyInfo = s && s.id ? s.name + (s.rarityId ? '' : ' has no ascension profile') : 'Pick a Pokemon';
+    if (tab === 'party') A.text($('info'), partyInfo);
   }
 
   A.on('partyView', function (v) { view = v; tries = 99; if (sel < 0 || !v.slots[sel] || !v.slots[sel].id) { sel = -1; for (var i = 0; i < v.slots.length; i++) if (v.slots[i].id) { sel = i; break; } } draw(); });
+  // The two tabs: the party, and the wallet (the same panel as the Wallet page, mounted the first time it is opened).
+  function showTab(name) {
+    tab = name;
+    $('paneParty').hidden = name !== 'party'; $('paneWallet').hidden = name !== 'wallet';
+    $('footParty').hidden = name !== 'party'; $('footWallet').hidden = name !== 'wallet';
+    $('tabParty').className = name === 'party' ? 'on' : ''; $('tabWallet').className = name === 'wallet' ? 'on' : '';
+    if (name === 'wallet') {
+      if (!wallet) wallet = A.wallet.mount($('paneWallet'), {
+        onView: function (v) {
+          if (tab === 'wallet') A.text($('info'), v.freeSlots + ' free inventory slot' + (v.freeSlots === 1 ? '' : 's') + ' (64 units per slot)');
+          $('depositAll').disabled = !v.lines.some(function (l) { return l.carried > 0; });
+        }
+      });
+      wallet.refresh();
+      var v = wallet.view();
+      if (v) A.text($('info'), v.freeSlots + ' free inventory slot' + (v.freeSlots === 1 ? '' : 's') + ' (64 units per slot)'); else A.text($('info'), 'Loading wallet…');
+    } else A.text($('info'), partyInfo);
+  }
+  $('tabParty').addEventListener('click', function () { showTab('party'); });
+  $('tabWallet').addEventListener('click', function () { showTab('wallet'); });
+  $('depositAll').addEventListener('click', function () { if (wallet) wallet.depositAll(); });
   $('inspect').addEventListener('click', inspect);
   $('upgrade').addEventListener('click', function () { var s = view && view.slots[sel]; if (s && s.id && !$('upgrade').disabled) A.send('ascension_craft_open', { pokemonId: s.id }); });
   $('close').addEventListener('click', function () { A.send('close'); });
