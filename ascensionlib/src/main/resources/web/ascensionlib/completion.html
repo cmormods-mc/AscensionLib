@@ -150,7 +150,7 @@
     });
   }
 
-  function finish() { timers.forEach(clearTimeout); timers = []; A.send('close'); }
+  function finish() { timers.forEach(clearTimeout); timers = []; A.send('ascension_screen_release'); A.send('close'); }
   $('close').addEventListener('click', finish);
   $('done').addEventListener('click', finish);
   $('share').addEventListener('click', function () { if (view && !view.preview && !$('share').disabled) { $('share').disabled = true; A.send('ascension_completion_share'); A.text($('msg'), 'Shared in chat.'); } });
@@ -164,6 +164,8 @@
     if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
   }
   A.setBezel(''); ready();
+  // Tell the server this page is still up (Esc sends nothing), so another mod does not open its own screen over the reveal.
+  if (A.g) setInterval(function () { A.send('ascension_screen_ping'); }, 1500);
 })();
 </script>
 </body>

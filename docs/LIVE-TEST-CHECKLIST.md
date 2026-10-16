@@ -10,6 +10,7 @@ With CobbleTowers installed, run a tower to its floor-10 champion with one accou
 
 - [ ] Floor 5: the mini chest pays (200 dust, 1 facet, 1 fragment, 1 scouter, 1 Mark, 5% Core) and your party's **fighting** Pokémon gain 3 attunement (a benched one does not).
 - [ ] Floor 10: the **completion reveal page** opens: tier banner, the pile counting up, the crown rolling one at a time, the tier meter, Share; the wallet then holds the pile and any crown materials.
+- [ ] The reveal **stays up** until you press Done or Esc: the Tower's own intermission screen does not replace it, and appears after you close it.
 - [ ] A crown **armor piece** and/or **CobbleCards pack** (when rolled) arrive in the inventory once, from the tower's own table (check the player's tower set).
 - [ ] A Core, Catalyst, Prism or Mythic tier is announced to the party in chat; a plain Bronze is not.
 - [ ] Both players are paid; each sees their own chest.

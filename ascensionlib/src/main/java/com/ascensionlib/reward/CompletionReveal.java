@@ -39,6 +39,9 @@ public final class CompletionReveal {
     private static final java.util.Set<String> SHARED = ConcurrentHashMap.newKeySet();
 
     public static void register() {
+        // The page keeps telling us it is on screen, so CobbleTowers does not open its own page over it (AscensionScreens).
+        WebUi.listen("ascension_screen_ping", (player, o) -> com.ascensionlib.AscensionScreens.revealBeat(player.getUUID(), System.currentTimeMillis()));
+        WebUi.listen("ascension_screen_release", (player, o) -> com.ascensionlib.AscensionScreens.revealClosed(player.getUUID()));
         WebUi.listen("ascension_completion_ready", (player, o) -> {
             var view = PENDING.get(player.getUUID());
             if (view != null) WebUi.emit(player, "completionView", view);
@@ -97,7 +100,9 @@ public final class CompletionReveal {
     /** Shows the reveal to a player (or, for a client without WebGUI, a chat summary). Server thread. */
     public static void show(ServerPlayer player, View view) {
         PENDING.put(player.getUUID(), view);
+        com.ascensionlib.AscensionScreens.revealOpened(player.getUUID(), System.currentTimeMillis());
         if (!WebUi.open(player, "completion.html")) {
+            com.ascensionlib.AscensionScreens.revealClosed(player.getUUID());
             // WebUi.open already told the player why; give the facts anyway.
             var text = new StringBuilder("[Tower] " + view.tierName() + " completion:");
             view.pile().forEach(l -> text.append(' ').append('+').append(l.amount()).append(' ').append(l.name()).append(';'));

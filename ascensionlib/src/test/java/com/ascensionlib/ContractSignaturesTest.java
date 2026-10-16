@@ -28,6 +28,11 @@ class ContractSignaturesTest {
         assertContract(AscensionGrants.class, "grantWithRarity", AscensionGrants.Result.class, com.cobblemon.mod.common.pokemon.Pokemon.class, String.class);
     }
 
+    /** CobbleTowers asks this before opening a page of its own, so it never covers the completion reveal. */
+    @Test void screenContractMatchesWhatTowersLooksUp() throws Exception {
+        assertContract(AscensionScreens.class, "revealShowing", boolean.class, UUID.class);
+    }
+
     @Test void rewardContractsMatchWhatTowersLooksUp() throws Exception {
         assertContract(AscensionRewards.class, "settleTowerBoss", Map.class,
                 UUID.class, String.class, int.class, int.class, Collection.class);
