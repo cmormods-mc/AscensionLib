@@ -209,6 +209,24 @@ await check('craft respec: the Hourglass tab previews the reset, confirms it, sh
   noErrors(p);
 });
 
+await check('modifier crests: a type-bound row ("Type Focus (fire)") gets its own type crest, an unknown type falls back to the plain one, a Unique has its own', async () => {
+  const p = await open(null, 'craft.html', 1920, 1080);
+  const sizes = await p.evaluate(async () => {
+    const load = img => new Promise(r => { if (img.complete && img.naturalWidth) r(img.naturalWidth); else { img.addEventListener('load', () => r(img.naturalWidth)); img.addEventListener('error', () => setTimeout(() => r(img.complete && img.naturalWidth ? img.naturalWidth : 0), 300)); } });
+    const out = {};
+    for (const [key, name, unique] of [['plain', 'Smoldering', false], ['typed', 'Type Focus (fire)', false], ['unknown', 'Type Ward (zzz)', false], ['unique', 'Anything', true]]) {
+      const img = A.affixIcon(name, unique); document.body.appendChild(img);
+      out[key] = [await load(img), img.src.split('/').pop()];
+    }
+    return out;
+  });
+  yes(sizes.plain[0] === 32 && sizes.plain[1] === 'smoldering.png', 'a plain modifier uses its own crest: ' + JSON.stringify(sizes.plain));
+  yes(sizes.typed[0] === 32 && sizes.typed[1] === 'type_focus_fire.png', 'a typed one uses its type crest: ' + JSON.stringify(sizes.typed));
+  yes(sizes.unknown[0] === 32 && sizes.unknown[1] === 'type_ward.png', 'an unknown type falls back to the plain crest: ' + JSON.stringify(sizes.unknown));
+  yes(sizes.unique[0] === 32 && sizes.unique[1] === 'unique.png', 'a Unique power has its own crest');
+  await p.close();
+});
+
 await check('craft respec: the Unique tab offers the Unbinding Prism as a free swap, blocked with a reason when it cannot be used', async () => {
   const p = await open(null, 'craft.html', 1920, 1080);
   await emit(p, 'sprites', { mewtwo: PNG });

@@ -2,7 +2,8 @@
 
 A crest is a plate filled with the modifier's theme colour with a pale glyph on it. The plate's SHAPE says the slot: a hexagon is a prefix (offense), a
 shield is a suffix (defense and recovery). The theme colour says what it is about (type violet, power red, guard blue, recovery green, fire orange, venom
-purple, bleed crimson, tempo yellow, tactic teal). A Unique power gets an eight-sided purple plate.
+purple, bleed crimson, tempo yellow, tactic teal). A Unique power gets an eight-sided purple plate. The four type-bound modifiers (Type Focus, Mastery, Ward, Bulwark) also have one crest per Pokemon type, in that
+type's colour, named <id>_<type>; the plain violet one is the fallback.
 
 Used by tools/build_resourcepack.py, which writes icons/affix/<id>.png for the web pages. usage (preview): python -I tools/affix_art.py out.png
 """
@@ -355,6 +356,13 @@ THEME = {   # main, accent
     'fire': ('f08a24', 'ffd36b'), 'venom': ('a45fd8', 'e0b8ff'), 'blood': ('c8283f', 'ff8e9b'), 'tempo': ('f0cc3a', 'fff3a8'),
     'tactic': ('3fbfb0', 'b4f2ea'), 'edge': ('e8e6f0', 'ffffff'), 'unique': ('9a62d9', 'e6d0ff'),
 }
+# The 18 Pokemon types in the order of domain Rules.TYPES, with the colour each one's modifier crests take.
+TYPES = ['normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon',
+         'dark', 'steel', 'fairy']
+TYPE_COLOR = {'normal': 'a8a77a', 'fire': 'f08030', 'water': '4f86ee', 'electric': 'f8d030', 'grass': '78c850', 'ice': '8fd6d6', 'fighting': 'c03028',
+              'poison': 'a040a0', 'ground': 'd8b45c', 'flying': 'a890f0', 'psychic': 'f85888', 'bug': 'a8b820', 'rock': 'b8a038', 'ghost': '705898',
+              'dragon': '7038f8', 'dark': '705848', 'steel': 'b8b8d0', 'fairy': 'ee99ac'}
+
 SLOT = {'prefix': ('e8892b', 'ffc77a'), 'suffix': ('49b85a', 'a8ecb3')}
 
 SIZE = pa.SIZE
@@ -427,10 +435,13 @@ def fill_shape(canvas, inside, color):
                 canvas.px[y][x] = color
 
 
-def crest(affix_id, slot):
+def crest(affix_id, slot, type_name=None):
     glyph, theme = UNIQUE if affix_id == 'unique' else PLAN[affix_id]
     glyph = MARK_ONLY.get(glyph, glyph)
     main, accent = hexc(THEME[theme][0]), hexc(THEME[theme][1])
+    if type_name:   # a type-bound modifier takes its chosen type's colour
+        main = hexc(TYPE_COLOR[type_name])
+        accent = mix(main, 1.5)
     c = pa.Canvas()
     shape = 'octagon' if affix_id == 'unique' else 'hexagon' if slot == 'prefix' else 'shield'
     inside = plate_shape(shape)
@@ -473,12 +484,18 @@ def render_all():
     check()
     icons = {a['id']: crest(a['id'], a['slot']).rows() for a in load_affixes()}
     icons['unique'] = crest('unique', 'prefix').rows()
+    for a in load_affixes():
+        if a.get('parameter'):   # type_focus, type_mastery, type_ward, type_bulwark: one crest per type, <id>_<type>
+            for type_name in TYPES:
+                icons[a['id'] + '_' + type_name] = crest(a['id'], a['slot'], type_name).rows()
     return icons
 
 
 if __name__ == '__main__':
     icons = render_all()
     scale, cols = 5, 7
+    if '--types' not in sys.argv:
+        icons = {k: v for k, v in icons.items() if k == 'unique' or not any(k.endswith('_' + t) for t in TYPES)}
     cell = pa.SIZE * scale + 8
     names = list(icons)
     rows = -(-len(names) // cols)
@@ -491,4 +508,4 @@ if __name__ == '__main__':
                 p = icons[name][y // scale][x // scale]
                 if p[3]:
                     px[y0 + y][x0 + x] = p
-    open(sys.argv[1] if len(sys.argv) > 1 else 'affix-icons-preview.png', 'wb').write(pa.png_bytes(px))
+    open(next((x for x in sys.argv[1:] if not x.startswith('--')), 'affix-icons-preview.png'), 'wb').write(pa.png_bytes(px))

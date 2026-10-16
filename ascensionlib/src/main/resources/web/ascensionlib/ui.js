@@ -51,10 +51,14 @@
   A.rarityName = function (id) { return id ? (id === 'mythical' ? 'Mythic' : A.cap(id)) : ''; };
   A.roman = ['', 'I', 'II', 'III', 'IV', 'V'];
   // A modifier's crest (icons/affix/<id>.png, drawn by tools/affix_art.py). The id is the display name lower-cased with every non-alphanumeric as _; `unique` is a Unique power.
+  // A type-bound modifier is named "Type Focus (fire)": it has a crest in its type's colour (type_focus_fire.png), falling back to the plain one.
   A.affixIcon = function (name, unique, cls) {
     var img = new Image(); img.alt = ''; img.className = 'afx' + (cls ? ' ' + cls : '');
-    img.src = 'icons/affix/' + (unique ? 'unique' : String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '_')) + '.png';
-    img.onerror = function () { img.style.visibility = 'hidden'; };
+    var m = unique ? null : /^(.*?)\s*\(([a-z]+)\)\s*$/.exec(String(name || ''));
+    var base = unique ? 'unique' : (m ? m[1] : String(name || '')).toLowerCase().replace(/[^a-z0-9]/g, '_');
+    var tried = false;
+    img.onerror = function () { if (m && !tried) { tried = true; img.src = 'icons/affix/' + base + '.png'; } else img.style.visibility = 'hidden'; };
+    img.src = 'icons/affix/' + base + (m ? '_' + m[2] : '') + '.png';
     return img;
   };
   A.num = function (n) { n = Number(n) || 0; return n >= 10000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-US'); };

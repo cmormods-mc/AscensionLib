@@ -26,4 +26,20 @@ class AffixIconsTest {
         }
         assertNotNull(getClass().getResource("/web/ascensionlib/icons/affix/unique.png"));
     }
+
+    @Test
+    @DisplayName("a type-bound modifier is shown as \"Name (type)\", and has a crest in each of the 18 types' colours")
+    void typeBoundModifiersHaveACrestPerType() {
+        var rules = Rules.defaults();
+        assertEquals(18, Rules.TYPES.size());
+        int typed = 0;
+        for (var affix : rules.affixes()) {
+            if (affix.parameter() == null) continue;
+            typed++;
+            for (String type : Rules.TYPES) {
+                assertNotNull(getClass().getResource("/web/ascensionlib/icons/affix/" + affix.id() + "_" + type + ".png"), "no crest for " + affix.id() + " " + type);
+            }
+        }
+        assertEquals(4, typed, "Type Focus, Type Mastery, Type Ward and Type Bulwark");
+    }
 }
