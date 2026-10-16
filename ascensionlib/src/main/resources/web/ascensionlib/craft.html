@@ -136,7 +136,7 @@
       box.appendChild(A.el('div', 'row muted', 'A Rank Respec resets all of these.'));
       view.respec.resets.forEach(function (r) {
         var row = A.el('div', 'row');
-        var ic = A.el('div', 'ic'); ic.style.background = '#9b6bd9'; row.appendChild(ic);
+        row.appendChild(A.affixIcon(r.name, false));
         var col = A.el('div'); col.appendChild(A.el('div', 't1', r.name));
         col.appendChild(A.el('div', 't2', 'rank ' + A.roman[Math.max(1, Math.min(5, r.rank))] + ' → I' + (r.floor > 0 ? ' · floor +' + r.floor + '% cleared' : ''))); row.appendChild(col);
         box.appendChild(row);
@@ -146,7 +146,7 @@
     if (mode === 'unique') {
       view.unique.options.forEach(function (o) {
         var r = A.el('div', 'row uopt' + (o.id === uniqueId ? ' sel' : ''));
-        var ic = A.el('div', 'ic'); ic.style.background = '#8c63c7'; r.appendChild(ic);
+        r.appendChild(A.affixIcon(o.name, true));
         r.appendChild(A.el('div', 't1', o.name));
         if (o.current) { var h = A.el('div', 'v bad', 'held'); r.appendChild(h); }
         r.addEventListener('click', function () { uniqueId = o.id; render(); });
@@ -161,7 +161,7 @@
     view.slots.forEach(function (s) {
       var prefix = s.category === 'prefix';
       var r = A.el('div', 'row' + (s.slotId === slotId ? ' sel' : '') + (mode !== 'promote' && blockFor(s) ? ' off' : ''));
-      var ic = A.el('div', 'ic'); ic.style.background = prefix ? '#c9694f' : '#6f9a52'; r.appendChild(ic);
+      r.appendChild(A.affixIcon(s.name, false));
       var col = A.el('div'); col.appendChild(A.el('div', 't1', s.name));
       col.appendChild(A.el('div', 't2', (prefix ? 'Offense' : 'Defense') + ' · ' + A.roman[Math.max(1, Math.min(5, s.rank))] + (s.sealed ? ' · sealed' : ''))); r.appendChild(col);
       r.appendChild(A.el('div', 'v', '+' + s.value + '%'));

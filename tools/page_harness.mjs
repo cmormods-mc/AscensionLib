@@ -50,8 +50,8 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+A
 
 const price = { dust: 20, facets: 2, cores: 0 };
 const slots = [
-  { slotId: 'p1', category: 'prefix', name: 'Burn Boost', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 10, overreachBlock: 'Needs rank V', sealed: false, overreachDust: 60, overreachFacets: 2, overreachChance: 45, overreachMin: 35, overreachMax: 40 },
-  { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 32, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: 'Needs 20 Dust', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40, floor: 29, overreachBlock: '', sealed: false, overreachDust: 60, overreachFacets: 2, overreachChance: 45, overreachMin: 35, overreachMax: 40 },
+  { slotId: 'p1', category: 'prefix', name: 'Smoldering', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 10, overreachBlock: 'Needs rank V', sealed: false, overreachDust: 60, overreachFacets: 2, overreachChance: 45, overreachMin: 35, overreachMax: 40 },
+  { slotId: 's1', category: 'suffix', name: 'Stubborn', condition: '', rank: 5, value: 32, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: 'Needs 20 Dust', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40, floor: 29, overreachBlock: '', sealed: false, overreachDust: 60, overreachFacets: 2, overreachChance: 45, overreachMin: 35, overreachMax: 40 },
 ];
 const craftView = {
   pokemonId: '00000000-0000-0000-0000-000000000001', name: 'Mewtwo', speciesId: 'cobblemon:mewtwo', aspects: [], level: 52, rarityId: 'mythical', uniqueName: '777',
@@ -60,7 +60,7 @@ const craftView = {
   unique: { currentId: '777', catalysts: 1, fragments: 3, fragmentsNeeded: 5, block: '', options: [
     { id: '777', name: '777', benefit: 'More item rewards.', drawback: 'Lower defence.', current: true },
     { id: 'fury', name: 'Fury', benefit: 'Hits harder.', drawback: 'Takes more damage.', current: false } ] },
-  respec: { hourglasses: 1, prisms: 1, marks: 6, price: 90, spent: 9, hourglassBlock: '', prismBlock: '', resets: [{ name: 'Burn Boost', rank: 3, floor: 0 }, { name: 'Sturdy', rank: 5, floor: 29 }] },
+  respec: { hourglasses: 1, prisms: 1, marks: 6, price: 90, spent: 9, hourglassBlock: '', prismBlock: '', resets: [{ name: 'Smoldering', rank: 3, floor: 0 }, { name: 'Stubborn', rank: 5, floor: 29 }] },
   slots, message: '', open: false,
 };
 const entry = (n, id, rarity = 'mythical', party = true, canHost = true, block = '') =>
@@ -118,7 +118,7 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   eq(await p.locator('#wallet img.dot').count(), 9, 'the craft wallet column shows the item icons');
   yes(await p.locator('#art img').count() === 1, 'sprite image appears from the data URL');
   await shot(p, 'craft-upgrade');
-  // Upgrade tab is selected (pending > 0): Review is enabled for Burn Boost, then confirm sends one request
+  // Upgrade tab is selected (pending > 0): Review is enabled for Smoldering, then confirm sends one request
   await p.locator('#detail button.primary').click();
   yes(await p.locator('#scrim.on').count() === 1, 'review dialog opens');
   await p.click('#dOk');
@@ -126,26 +126,26 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   yes(m, 'confirm was sent');
   eq([m.kind, m.slotId, m.profileRevision, m.walletRevision, m.pokemonId], ['upgrade', 'p1', 7, 8, craftView.pokemonId], 'confirm body');
   yes(/^[0-9a-f-]{36}$/.test(m.operationId), 'operation id is a uuid');
-  await emit(p, 'craftDone', { operationId: m.operationId, ok: true, message: '', slotId: 'p1', oldName: 'Burn Boost', oldRank: 2, oldValue: 12, newName: 'Burn Boost', newRank: 3, newValue: 16, replayed: false }, true);
-  yes((await p.textContent('.banner')).includes('Burn Boost'), 'banner shows the result');
+  await emit(p, 'craftDone', { operationId: m.operationId, ok: true, message: '', slotId: 'p1', oldName: 'Smoldering', oldRank: 2, oldValue: 12, newName: 'Smoldering', newRank: 3, newValue: 16, replayed: false }, true);
+  yes((await p.textContent('.banner')).includes('Smoldering'), 'banner shows the result');
   yes(await p.locator('#scrim.on').count() === 0, 'dialog closed');
   // other tabs render without errors
-  // Perfecting: only the rank V slot (Sturdy) can be polished; its price and the confirm request come from the server's numbers
+  // Perfecting: only the rank V slot (Stubborn) can be polished; its price and the confirm request come from the server's numbers
   await p.locator('.tab', { hasText: 'Perfect' }).click();
   eq(await p.locator('#list .row.off').count(), 1, 'the rank II slot is dimmed for perfecting');
-  await p.locator('#list .row', { hasText: 'Sturdy' }).click();
+  await p.locator('#list .row', { hasText: 'Stubborn' }).click();
   yes((await p.textContent('#detail')).includes('+30%'), 'shows the new floor (29 -> 30)');
   yes((await p.textContent('#detail')).includes('40 Dust'), 'shows the server price');
   await p.locator('#detail button.primary').click();
   await p.click('#dOk');
   const pm = (await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop();
   eq([pm.kind, pm.slotId], ['perfect', 's1'], 'perfect confirm');
-  await emit(p, 'craftDone', { operationId: pm.operationId, ok: true, message: '', slotId: 's1', oldName: 'Sturdy', oldRank: 5, oldValue: 29, newName: 'Sturdy', newRank: 5, newValue: 30, replayed: false });
+  await emit(p, 'craftDone', { operationId: pm.operationId, ok: true, message: '', slotId: 's1', oldName: 'Stubborn', oldRank: 5, oldValue: 29, newName: 'Stubborn', newRank: 5, newValue: 30, replayed: false });
   yes((await p.textContent('.banner')).includes('Floor raised'), 'banner after perfecting');
   // Overreach: the gamble, offered only on a rank V slot at its band top; the risk is spelled out before the confirm
   await p.locator('.tab', { hasText: 'Overreach' }).click();
   eq(await p.locator('#list .row.off').count(), 1, 'the rank II slot is dimmed for overreach');
-  await p.locator('#list .row', { hasText: 'Sturdy' }).click();
+  await p.locator('#list .row', { hasText: 'Stubborn' }).click();
   yes((await p.textContent('#detail')).includes('45% to win'), 'shows the odds');
   yes((await p.textContent('#detail')).includes('+35–40%'), 'shows the range a win would give');
   await p.locator('#detail button.primary').click();
@@ -153,14 +153,14 @@ await check('craft: asks for its data, renders, upgrade flow, wallet, tabs', asy
   await p.click('#dOk');
   const om = (await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop();
   eq([om.kind, om.slotId], ['overreach', 's1'], 'overreach confirm');
-  await emit(p, 'craftDone', { operationId: om.operationId, ok: true, message: '', slotId: 's1', oldName: 'Sturdy', oldRank: 5, oldValue: 32, newName: 'Sturdy', newRank: 5, newValue: 37, replayed: false });
+  await emit(p, 'craftDone', { operationId: om.operationId, ok: true, message: '', slotId: 's1', oldName: 'Stubborn', oldRank: 5, oldValue: 32, newName: 'Stubborn', newRank: 5, newValue: 37, replayed: false });
   yes((await p.textContent('.banner')).includes('Overreached'), 'a win is announced');
   await p.locator('.tab', { hasText: 'Overreach' }).click();
-  await p.locator('#list .row', { hasText: 'Sturdy' }).click();
+  await p.locator('#list .row', { hasText: 'Stubborn' }).click();
   await p.locator('#detail button.primary').click();
   await p.click('#dOk');
   const om2 = (await sent(p)).filter(x => x.channel === 'ascension_craft_confirm').pop();
-  await emit(p, 'craftDone', { operationId: om2.operationId, ok: true, message: '', slotId: 's1', oldName: 'Sturdy', oldRank: 5, oldValue: 32, newName: 'Sturdy', newRank: 5, newValue: 20, replayed: false });
+  await emit(p, 'craftDone', { operationId: om2.operationId, ok: true, message: '', slotId: 's1', oldName: 'Stubborn', oldRank: 5, oldValue: 32, newName: 'Stubborn', newRank: 5, newValue: 20, replayed: false });
   yes((await p.textContent('.banner')).includes('failed'), 'a loss is announced');
   for (const t of ['Refine', 'Reforge', 'Promote', 'Unique']) { await p.locator('.tab', { hasText: t }).click(); }
   await shot(p, 'craft-unique');
@@ -182,7 +182,7 @@ await check('craft respec: the Hourglass tab previews the reset, confirms it, sh
   yes((await p.textContent('#detail')).includes('Hourglass of Undoing'), 'the Hourglass card');
   yes((await p.textContent('#detail')).includes('9 upgrade credits come back'), 'what comes back');
   yes((await p.textContent('#detail')).includes('Overreached') && (await p.textContent('#detail')).includes('never be respecced'), 'the Overreach warning is on the card');
-  yes((await p.textContent('#list')).includes('Sturdy') && (await p.textContent('#list')).includes('floor +29% cleared'), 'the left list shows what resets, floors included');
+  yes((await p.textContent('#list')).includes('Stubborn') && (await p.textContent('#list')).includes('floor +29% cleared'), 'the left list shows what resets, floors included');
   yes((await p.textContent('#detail')).includes('You hold 1 Hourglass'), 'holdings');
   eq(await p.locator('#detail button', { hasText: 'Buy for 90 Marks' }).isDisabled(), true, 'six Marks cannot buy one');
   await shot(p, 'craft-respec');

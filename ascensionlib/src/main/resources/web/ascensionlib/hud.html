@@ -13,7 +13,7 @@
   @keyframes in { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
   .card .sprbox { width: 96px; height: 64px; background: var(--row); border: 2px solid var(--edge); display: flex; align-items: center; justify-content: center; flex: none; }
   .card .nm { font-weight: 700; } .card .g { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; color: #fff; }
-  .card ul { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; } .card li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card ul { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; } .card li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .afx-s { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
   #panel { transform: scale(var(--ui-scale, 1)); transform-origin: top right; position: fixed; right: 12px; top: 90px; width: 270px; background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 1px #fff, 0 0 0 3px #1b120d; display: none; font-size: 13px; }
   #panel.on { display: block; }
   #panel .h { display: flex; justify-content: space-between; align-items: center; background: var(--head); padding: 5px 10px; font-weight: 600; cursor: pointer; }
@@ -72,7 +72,7 @@
     g.style.background = 'var(--' + d.rarityId + '-bg)'; g.style.color = 'var(--' + d.rarityId + ')'; col.appendChild(g);
     var ul = A.el('ul');
     if (d.uniqueName) ul.appendChild(A.el('li', '', '★ ' + d.uniqueName));
-    d.slots.slice(0, 4).forEach(function (s) { ul.appendChild(A.el('li', '', s.name + ' +' + s.value + '%')); });
+    d.slots.slice(0, 4).forEach(function (s) { var li = A.el('li', '', s.name + ' +' + s.value + '%'); li.insertBefore(A.affixIcon(s.name, false, 'afx-s'), li.firstChild); ul.appendChild(li); });
     col.appendChild(ul); card.appendChild(col);
     $('toasts').appendChild(card);
     setTimeout(function () { card.remove(); shownToasts--; maybeIdle(); }, SHOW_MS);

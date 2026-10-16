@@ -133,7 +133,7 @@
     sel = Math.max(0, Math.min(sel, rows.length - 1));
     rows.forEach(function (r, i) {
       var el = A.el('div', 'row' + (r.unique ? ' uniq' : '') + (i === sel ? ' sel' : ''));
-      var ic = A.el('div', 'ic'); ic.style.background = r.unique ? '#8c63c7' : r.prefix ? '#c9694f' : '#6f9a52'; el.appendChild(ic);
+      el.appendChild(A.affixIcon(r.name, r.unique));
       var col = A.el('div'); var t1 = A.el('div', 't1', r.unique ? 'UNIQUE  ' + r.name : r.name);
       if (r.theme) t1.appendChild(A.el('span', 'theme', r.theme));
       if (r.perfected) t1.appendChild(A.el('span', 'maxed', 'MAX'));

@@ -53,6 +53,7 @@ button.primary:disabled { background: #2a1a22; color: #7c5560; border-color: #3a
 .rar-common { color: #aeb6c4; } .rar-uncommon { color: #3fe0ee; } .rar-rare { color: #5bc6ee; } .rar-epic { color: #af69ff; }
 .rar-legendary { color: #ffd437; } .rar-mythical { color: #ff5a6c; }
 .spr { image-rendering: pixelated; image-rendering: crisp-edges; }
+.afx { width: 26px; height: 26px; flex: none; image-rendering: pixelated; image-rendering: crisp-edges; }
 .sprfb { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); word-break: break-word; }
 
 .scrim { position: fixed; inset: 0; background: rgba(2, 8, 12, .62); display: none; align-items: center; justify-content: center; z-index: 30; }

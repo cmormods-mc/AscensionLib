@@ -17,20 +17,20 @@ const MOCK = `<script>
   var PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFUlEQVR42mP8z8Dwn4EIwDiqkL4KAfE8Bv9hHFSfAAAAAElFTkSuQmCC';
   var price = { dust: 20, facets: 2, cores: 0 };
   var slots = [
-    { slotId: 'p1', category: 'prefix', name: 'Burn Boost', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
-    { slotId: 'p2', category: 'prefix', name: 'Fury', condition: '', rank: 1, value: 8, bandMin: 6, bandMax: 9, nextMin: 10, nextMax: 13, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
-    { slotId: 's1', category: 'suffix', name: 'Sturdy', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: '', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40, floor: 29 } ];
+    { slotId: 'p1', category: 'prefix', name: 'Smoldering', condition: 'Burns you inflict deal 50% more damage.', rank: 2, value: 12, bandMin: 10, bandMax: 14, nextMin: 15, nextMax: 19, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
+    { slotId: 'p2', category: 'prefix', name: 'Physical Force', condition: '', rank: 1, value: 8, bandMin: 6, bandMax: 9, nextMin: 10, nextMax: 13, upgradeBlock: '', refineBlock: '', reforgeBlock: '', reforgePool: 4, perfectBlock: 'Needs rank V', perfectCost: 0, floor: 6 },
+    { slotId: 's1', category: 'suffix', name: 'Stubborn', condition: '', rank: 5, value: 30, bandMin: 28, bandMax: 32, nextMin: -1, nextMax: -1, upgradeBlock: 'Already at the top rank', refineBlock: '', reforgeBlock: '', reforgePool: 3, perfectBlock: '', perfectCost: 40, floor: 29 } ];
   var view = { pokemonId: 'mew2', name: 'Mewtwo', speciesId: 'cobblemon:mewtwo', aspects: [], level: 52, rarityId: 'mythical', uniqueName: '777', pending: 2, nextMilestone: 60,
     profileRevision: 7, walletRevision: 8, dust: 1234, facets: 40, cores: 3, scouters: 5, marks: 6, refine: price, reforge: price,
     promotion: { toRarity: '', price: price, attunement: 90, attunementNeeded: 0, block: 'Already Mythical' },
     unique: { currentId: '777', catalysts: 1, fragments: 3, fragmentsNeeded: 5, block: '', options: [
       { id: '777', name: '777', benefit: 'More item rewards.', drawback: 'Lower defence.', current: true },
       { id: 'fury', name: 'Fury', benefit: 'Hits harder.', drawback: 'Takes more damage.', current: false } ] },
-    respec: { hourglasses: 1, prisms: 1, marks: 6, price: 90, spent: 9, hourglassBlock: '', prismBlock: '', resets: [{ name: 'Burn Boost', rank: 3, floor: 0 }, { name: 'Sturdy', rank: 5, floor: 29 }] },
+    respec: { hourglasses: 1, prisms: 1, marks: 6, price: 90, spent: 9, hourglassBlock: '', prismBlock: '', resets: [{ name: 'Smoldering', rank: 3, floor: 0 }, { name: 'Stubborn', rank: 5, floor: 29 }] },
     slots: slots, message: '', open: false };
   var E = function (n, id, rar, party, canHost, block) { return { id: id, name: n, speciesId: 'cobblemon:' + n.toLowerCase(), rarityId: rar, uniqueName: 'Overmind', inParty: party, canHost: canHost, block: block }; };
   var detail = function (rar) { return { level: 40, types: ['fire', 'flying'], baseStats: [90, 100, 80, 110, 80, 95], rarityId: rar, uniqueName: '777',
-    slots: [{ category: 'prefix', name: 'Burn Boost', rank: 3, value: 14, min: 12, max: 16, condition: 'Burns you inflict deal 50% more damage.' }, { category: 'suffix', name: 'Sturdy', rank: 1, value: 6, min: 5, max: 8, condition: '' }] }; };
+    slots: [{ category: 'prefix', name: 'Smoldering', rank: 3, value: 14, min: 12, max: 16, condition: 'Burns you inflict deal 50% more damage.' }, { category: 'suffix', name: 'Stubborn', rank: 1, value: 6, min: 5, max: 8, condition: '' }] }; };
   var scouted = {};
   function scoutState() { return { encounterId: 'enc-1', scouters: 3, entries: [{ subjectId: 's1', name: 'Growlithe', detail: scouted.s1 ? detail('rare') : undefined }, { subjectId: 's2', name: 'Houndoom', detail: detail('epic') }] }; }
   function emit(e, d) { setTimeout(function () { (handlers[e] || []).forEach(function (fn) { fn(Math.random() < .5 ? d : JSON.stringify(d)); }); }, 60); }
@@ -43,7 +43,7 @@ const MOCK = `<script>
       switch (m.channel) {
         case 'ascension_craft_ready': emit('sprites', { mewtwo: PNG }); emit('craftView', view); break;
         case 'ascension_craft_confirm':
-          emit('craftDone', { operationId: m.operationId, ok: true, message: '', slotId: m.slotId, oldName: 'Burn Boost', oldRank: 2, oldValue: 12, newName: 'Burn Boost', newRank: 3, newValue: 16, replayed: false });
+          emit('craftDone', { operationId: m.operationId, ok: true, message: '', slotId: m.slotId, oldName: 'Smoldering', oldRank: 2, oldValue: 12, newName: 'Smoldering', newRank: 3, newValue: 16, replayed: false });
           view.pending = Math.max(0, view.pending - 1); emit('craftView', view); break;
         case 'ascension_fusion_open': location.href = 'fusion.html'; break;
         case 'ascension_craft_open': location.href = 'craft.html'; break;
@@ -53,7 +53,7 @@ const MOCK = `<script>
             : [E('Mew', 'd1', 'epic', true, true, ''), E('Ditto', 'd2', 'common', true, false, 'Needs Epic rarity or better.'), E('Arcanine', 'd3', 'legendary', false, false, '')] }); break;
         case 'ascension_fusion_preview':
           emit('fusionDetail', { hostId: m.hostId, donorId: m.donorId, block: '', name: 'Mewmew', fromUniques: 'Overmind + Overmind', harmony: 'mild', benefit: 70, drawback: 30, blurb: 'Two minds, one.',
-            core: 'Psychic pulses hit twice.', clutch: 'Heals when low.', drawbackText: 'Slower.', twistName: 'Echo', twistText: 'Repeats the first move.', riderText: 'Burn Boost +12%', hostType: 'psychic', donorType: 'psychic',
+            core: 'Psychic pulses hit twice.', clutch: 'Heals when low.', drawbackText: 'Slower.', twistName: 'Echo', twistText: 'Repeats the first move.', riderText: 'Smoldering +12%', hostType: 'psychic', donorType: 'psychic',
             price: [600, 30, 10, 1, 5], balances: [1200, 40, 12, 2, 6], hostRevision: 3, donorRevision: 4, walletRevision: 5 }); break;
         case 'ascension_fusion_confirm': emit('fusionResult', { operationId: m.operationId, ok: true, message: '', name: 'Mewmew' }); break;
         case 'ascension_inspect_ready':

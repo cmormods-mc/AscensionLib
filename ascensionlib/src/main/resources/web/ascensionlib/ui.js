@@ -50,6 +50,13 @@
   A.cap = function (s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; };
   A.rarityName = function (id) { return id ? (id === 'mythical' ? 'Mythic' : A.cap(id)) : ''; };
   A.roman = ['', 'I', 'II', 'III', 'IV', 'V'];
+  // A modifier's crest (icons/affix/<id>.png, drawn by tools/affix_art.py). The id is the display name lower-cased with every non-alphanumeric as _; `unique` is a Unique power.
+  A.affixIcon = function (name, unique, cls) {
+    var img = new Image(); img.alt = ''; img.className = 'afx' + (cls ? ' ' + cls : '');
+    img.src = 'icons/affix/' + (unique ? 'unique' : String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '_')) + '.png';
+    img.onerror = function () { img.style.visibility = 'hidden'; };
+    return img;
+  };
   A.num = function (n) { n = Number(n) || 0; return n >= 10000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-US'); };
   A.speciesPath = function (speciesId) { var i = (speciesId || '').indexOf(':'); return i >= 0 ? speciesId.slice(i + 1) : (speciesId || ''); };
   A.speciesName = function (speciesId) { return A.speciesPath(speciesId).replace(/_/g, ' '); };

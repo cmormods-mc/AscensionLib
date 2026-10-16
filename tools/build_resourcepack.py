@@ -22,6 +22,7 @@ PACK = ROOT / 'resourcepack'
 ICONS = ROOT / 'ascensionlib/src/main/resources/web/ascensionlib/icons'
 LOOT = ROOT / 'ascensionlib/src/main/resources/data' / NS / 'loot_table/currency'
 ICON = ROOT / 'ascensionlib/src/main/resources/assets/ascensionlib/icon.png'
+AFFIX_ICONS = ICONS / 'affix'   # one crest per modifier (tools/affix_art.py), shown on the craft, inspect and overlay pages
 PACK_FORMAT = 34  # Minecraft 1.21.1
 
 # The pictures are drawn in code (tools/pixel_art.py, 32x32, no libraries) so a clean checkout reproduces the same pixels. Loaded by path because
@@ -30,6 +31,9 @@ import importlib.util
 _spec = importlib.util.spec_from_file_location('pixel_art', pathlib.Path(__file__).resolve().parent / 'pixel_art.py')
 pixel_art = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pixel_art)
+_spec_affix = importlib.util.spec_from_file_location('affix_art', pathlib.Path(__file__).resolve().parent / 'affix_art.py')
+affix_art = importlib.util.module_from_spec(_spec_affix)
+_spec_affix.loader.exec_module(affix_art)
 
 
 def icon_png(name):
@@ -59,6 +63,8 @@ def main():
     # pack metadata
     write(PACK / 'pack.mcmeta', json.dumps({'pack': {'pack_format': PACK_FORMAT, 'description': 'AscensionLib wallet currency items'}}, indent=2) + '\n')
     overrides = {}
+    for icon_id, grid in affix_art.render_all().items():
+        write(AFFIX_ICONS / f'{icon_id}.png', pixel_art.png_bytes(grid))
     for material, spec in items.items():
         image = icon_png(material)
         write(PACK / f'assets/{NS}/textures/item/{material}.png', image)

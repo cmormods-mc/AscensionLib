@@ -23,6 +23,7 @@ The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemo
 
 ### Items and tooltips
 - Hand-drawn 32x32 art for all nine items (drawn in code, reproducible), rarity-coloured tooltips, the AscensionDex reskin.
+- A crest for every modifier on the craft, inspect and overlay pages: the plate's shape shows the slot (hexagon prefix, shield suffix) and its colour the theme; Unique powers have their own.
 
 ### Safety and operations
 - The progression store is backed up before any schema upgrade (and the upgrade is refused if the copy fails), at server start and daily (the newest 14 kept), and on demand with `/ascend admin backup`.
