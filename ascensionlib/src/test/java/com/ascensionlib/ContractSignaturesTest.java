@@ -22,6 +22,12 @@ class ContractSignaturesTest {
         assertEquals(returns, method.getReturnType(), name + " return type");
     }
 
+    /** What CobbleTowers and CobbleRaids call to give a Pokemon a profile or spend its credits (Raids' rental drafts and Towers' rentals). */
+    @Test void grantContractsMatchWhatRaidsAndTowersLookUp() throws Exception {
+        assertContract(AscensionGrants.class, "upgradeRandomly", AscensionGrants.Result.class, com.cobblemon.mod.common.pokemon.Pokemon.class);
+        assertContract(AscensionGrants.class, "grantWithRarity", AscensionGrants.Result.class, com.cobblemon.mod.common.pokemon.Pokemon.class, String.class);
+    }
+
     @Test void rewardContractsMatchWhatTowersLooksUp() throws Exception {
         assertContract(AscensionRewards.class, "settleTowerBoss", Map.class,
                 UUID.class, String.class, int.class, int.class, Collection.class);

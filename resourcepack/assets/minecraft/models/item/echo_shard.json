@@ -9,6 +9,12 @@
         "custom_model_data": 8104
       },
       "model": "ascensionlib:item/unique_fragment"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9104
+      },
+      "model": "ascensionlib:item/unique_fragment_voucher"
     }
   ]
 }

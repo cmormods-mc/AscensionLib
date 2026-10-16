@@ -47,7 +47,8 @@ class WalletItemsTest {
             var parsed = WalletItems.parse(voucher).orElseThrow();
             assertEquals(material, parsed.material());
             assertEquals(batch, parsed.batch());
-            assertEquals(CurrencyItems.spec(material).model(), voucher.get(DataComponents.CUSTOM_MODEL_DATA).value());
+            assertEquals(CurrencyItems.spec(material).model() + CurrencyItems.VOUCHER_MODEL_OFFSET, voucher.get(DataComponents.CUSTOM_MODEL_DATA).value(), "a voucher has its own picture");
+            assertEquals(CurrencyItems.spec(material).model(), loot.get(DataComponents.CUSTOM_MODEL_DATA).value(), "loot form keeps the plain one");
             assertEquals(CurrencyItems.spec(material).name(), voucher.get(DataComponents.CUSTOM_NAME).getString());
         }
     }

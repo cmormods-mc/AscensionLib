@@ -45,6 +45,7 @@ class CurrencyItemsTest {
             assertTrue(INERT_STACKABLE.contains(spec.baseItem()), spec.baseItem() + " is not on the inert, stackable list");
             assertTrue(bases.add(spec.baseItem()), "Two currencies share " + spec.baseItem() + ": a pack override would need two models for one item");
             assertTrue(models.add(spec.model()), "Duplicate model number " + spec.model());
+            assertTrue(models.add(spec.model() + CurrencyItems.VOUCHER_MODEL_OFFSET), "A voucher number collides: " + (spec.model() + CurrencyItems.VOUCHER_MODEL_OFFSET));
         }
     }
 

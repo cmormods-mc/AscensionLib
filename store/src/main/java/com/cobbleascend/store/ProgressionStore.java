@@ -101,6 +101,8 @@ public final class ProgressionStore implements AutoCloseable {
                 statement.execute("PRAGMA journal_mode=WAL");
                 statement.execute("PRAGMA synchronous=FULL");
             }
+            // An existing store about to be upgraded is copied first: a newer store cannot be opened by an older mod, so this copy is the way back.
+            if (existed) backupBeforeUpgrade(connection, file, options);
             var store = new ProgressionStore(file, rules, authorityId, options, connection);
             store.initialize();
             return store;
@@ -110,6 +112,59 @@ public final class ProgressionStore implements AutoCloseable {
         } catch (SQLException | java.io.IOException exception) {
             closeQuietly(connection);
             throw new StoreException(Code.STORE_UNAVAILABLE, "Cannot open progression store", exception);
+        }
+    }
+
+    /**
+     * If this store's schema is older than {@link #SCHEMA_VERSION}, writes a consistent copy beside it before anything changes:
+     * {@code progression.db.before-schema4-from3-20261015-120000.bak}. Fails closed: if the copy cannot be made the store is not upgraded.
+     */
+    private static void backupBeforeUpgrade(Connection connection, Path file, Options options) throws SQLException {
+        String version = null;
+        try (var statement = connection.createStatement(); var rows = statement.executeQuery("SELECT value FROM meta WHERE key = 'schema_version'")) {
+            if (rows.next()) version = rows.getString(1);
+        } catch (SQLException noMetaTable) {
+            return;   // a file with no meta table is not one of ours yet; initialize() deals with it
+        }
+        if (version == null || version.equals(Integer.toString(SCHEMA_VERSION))) return;
+        int old;
+        try { old = Integer.parseInt(version); } catch (NumberFormatException unknown) { return; }   // an unknown format is refused by initialize()
+        if (old > SCHEMA_VERSION) return;                                                              // a newer store is refused by initialize()
+        String stamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(java.time.ZoneOffset.UTC).format(options.clock().instant());
+        Path backup = file.resolveSibling(file.getFileName() + ".before-schema" + SCHEMA_VERSION + "-from" + old + "-" + stamp + ".bak");
+        try {
+            snapshot(connection, backup);
+        } catch (SQLException exception) {
+            throw new StoreException(Code.STORE_UNAVAILABLE, "Could not back up the store before upgrading it (" + exception.getMessage() + "); it was left as it was", exception);
+        }
+    }
+
+    /** SQLite writes a consistent copy of the whole database into a new file; the target must not exist. */
+    private static void snapshot(Connection connection, Path target) throws SQLException {
+        if (Files.exists(target)) throw new SQLException("Backup target already exists: " + target);
+        try (var statement = connection.prepareStatement("VACUUM INTO ?")) {
+            statement.setString(1, target.toAbsolutePath().toString());
+            statement.execute();
+        }
+    }
+
+    /**
+     * Writes a consistent copy of the live store to {@code target} (a new file), safe while the server runs: SQLite makes the copy itself, so it holds every
+     * committed operation and none of an unfinished one. See {@link StoreBackups} for the dated snapshots the mod keeps.
+     */
+    public synchronized void backupTo(Path target) {
+        try {
+            if (target.getParent() != null) Files.createDirectories(target.getParent());
+            db.commit();
+            boolean was = db.getAutoCommit();
+            db.setAutoCommit(true);   // VACUUM cannot run inside a transaction
+            try {
+                snapshot(db, target);
+            } finally {
+                db.setAutoCommit(was);
+            }
+        } catch (SQLException | java.io.IOException exception) {
+            throw new StoreException(Code.STORE_UNAVAILABLE, "Could not back up the progression store", exception);
         }
     }
 

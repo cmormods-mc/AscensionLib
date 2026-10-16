@@ -9,6 +9,12 @@
         "custom_model_data": 8102
       },
       "model": "ascensionlib:item/facet"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9102
+      },
+      "model": "ascensionlib:item/facet_voucher"
     }
   ]
 }

@@ -42,10 +42,12 @@
       <div class="grid" id="grid"></div>
     </div>
     <div class="pane" id="paneWallet" hidden></div>
+    <div class="pane" id="paneGuide" hidden></div>
   </div>
   <div class="tabbar" id="tabbar">
     <button class="on" id="tabParty">Party</button>
     <button id="tabWallet">Wallet</button>
+    <button id="tabGuide">Guide</button>
   </div>
   <div class="foot">
     <div class="msg muted" id="info"></div>
@@ -61,11 +63,13 @@
 </div>
 <script src="ui.js"></script>
 <script src="wallet-panel.js"></script>
+<script src="guide-data.js"></script>
+<script src="guide-panel.js"></script>
 <script>
 (function () {
   'use strict';
   var A = window.A, $ = A.$;
-  var view = null, sel = -1, tries = 0, tab = 'party', wallet = null, partyInfo = '';
+  var view = null, sel = -1, tries = 0, tab = 'party', wallet = null, guide = null, partyInfo = '';
 
   function pick(i) { sel = i; draw(); }
   function inspect() { var s = view && view.slots[sel]; if (s && s.id) A.send('ascension_inspect_open', { kind: 'owned', id: s.id }); }
@@ -101,9 +105,9 @@
   // The two tabs: the party, and the wallet (the same panel as the Wallet page, mounted the first time it is opened).
   function showTab(name) {
     tab = name;
-    $('paneParty').hidden = name !== 'party'; $('paneWallet').hidden = name !== 'wallet';
+    $('paneParty').hidden = name !== 'party'; $('paneWallet').hidden = name !== 'wallet'; $('paneGuide').hidden = name !== 'guide';
     $('footParty').hidden = name !== 'party'; $('footWallet').hidden = name !== 'wallet';
-    $('tabParty').className = name === 'party' ? 'on' : ''; $('tabWallet').className = name === 'wallet' ? 'on' : '';
+    $('tabParty').className = name === 'party' ? 'on' : ''; $('tabWallet').className = name === 'wallet' ? 'on' : ''; $('tabGuide').className = name === 'guide' ? 'on' : '';
     if (name === 'wallet') {
       if (!wallet) wallet = A.wallet.mount($('paneWallet'), {
         onView: function (v) {
@@ -114,10 +118,14 @@
       wallet.refresh();
       var v = wallet.view();
       if (v) A.text($('info'), v.freeSlots + ' free inventory slot' + (v.freeSlots === 1 ? '' : 's') + ' (64 units per slot)'); else A.text($('info'), 'Loading wallet…');
+    } else if (name === 'guide') {
+      if (!guide) guide = A.guide.mount($('paneGuide'));
+      A.text($('info'), 'How AscensionLib works. The same text is on the wiki.');
     } else A.text($('info'), partyInfo);
   }
   $('tabParty').addEventListener('click', function () { showTab('party'); });
   $('tabWallet').addEventListener('click', function () { showTab('wallet'); });
+  $('tabGuide').addEventListener('click', function () { showTab('guide'); });
   $('depositAll').addEventListener('click', function () { if (wallet) wallet.depositAll(); });
   $('inspect').addEventListener('click', inspect);
   $('upgrade').addEventListener('click', function () { var s = view && view.slots[sel]; if (s && s.id && !$('upgrade').disabled) A.send('ascension_craft_open', { pokemonId: s.id }); });

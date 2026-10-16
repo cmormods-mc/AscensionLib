@@ -15,3 +15,13 @@ The removed browser prototype loaded Pixelify Sans through Google Fonts; no font
 ## Fusion lore research
 
 The species lore under `design/lore/` was designed after reading Pokemon data from Cobblemon's own species files, PokeAPI (Pokedex entries, genus, habitat) and Bulbapedia (Origin and Biology sections, which are available under CC BY-NC-SA 2.5). The text of those sources is not redistributed: the repository contains only short notes written in our own words about what each species is based on, and our own motif assignments. Pokemon is third-party franchise content.
+
+## Runtime and shipped material
+
+- **WebGUI** (MIT, github.com/mc-webgui/webgui): the client mod that shows our pages. The build compiles against it; it is not redistributed in our jar.
+- **Polymer** (LGPL-3.0, github.com/Patbox/polymer): optionally hosts our resource pack on a server that already runs it. Not bundled.
+- **Cobblemon**, **Fabric** and **Fabric API**: pinned dependencies, each under its own licence. Cobblemon's artifact is pinned by Modrinth version id and SHA-512 in `tools/verify_artifact.py`.
+- **Monocraft** (SIL OFL 1.1, github.com/IdreesInc/Monocraft): the pixel font our pages use, bundled as `web/ascensionlib/fonts/Monocraft-latin.woff` with its licence text beside it.
+- **Item art, mod icon and page graphics**: drawn in code by `tools/pixel_art.py`; original to this project.
+- **Rarity Tooltips** (MIT, github.com/SnuzzleWump/rarity-tooltips) by Snuzzle: no code or art is used. We borrowed the idea of rarity-coloured tooltips; its frames need Minecraft 1.21.2 or later (`tooltip_style`), so on 1.21.1 we colour a rarity line instead.
+- Pokémon, Cobblemon species names and the Pokédex concept are third-party franchise content.

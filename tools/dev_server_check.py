@@ -7,7 +7,11 @@ usage:
 """
 import re, secrets, socket, struct, subprocess, sys, time, pathlib, os
 
-ROOT = pathlib.Path('L:/Codex/CobbleAscend')
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+# Ports for this throwaway server. They are deliberately not the defaults (25565 game, 25575 RCON) or the usual test-server ports, so a check never
+# talks to, or fails to start beside, a real server on the same machine. Override with ASCEND_DEV_PORT and ASCEND_DEV_RCON.
+GAME_PORT = int(os.environ.get('ASCEND_DEV_PORT', '25598'))
+RCON_PORT = int(os.environ.get('ASCEND_DEV_RCON', '25574'))
 PROPS = ROOT / 'ascensionlib/run/server.properties'
 PWFILE = pathlib.Path(os.environ.get('TEMP', '.')) / 'ascend-rcon.pw'
 JAVA_HOME = r'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.1+1'
@@ -60,8 +64,8 @@ def main():
     if mode == 'setup':
         password = secrets.token_hex(12)
         PWFILE.write_text(password)
-        set_props({'enable-rcon': 'true', 'rcon.password': password, 'rcon.port': '25575', 'server-ip': '127.0.0.1'})
-        print('RCON enabled on 127.0.0.1:25575')
+        set_props({'enable-rcon': 'true', 'rcon.password': password, 'rcon.port': str(RCON_PORT), 'server-port': str(GAME_PORT), 'server-ip': '127.0.0.1'})
+        print(f'RCON enabled on 127.0.0.1:{RCON_PORT}, game port {GAME_PORT}')
     elif mode == 'teardown':
         set_props({'enable-rcon': 'false', 'rcon.password': '', 'server-ip': ''})
         PWFILE.unlink(missing_ok=True)
@@ -84,7 +88,7 @@ def main():
             if done:
                 time.sleep(3)
                 try:
-                    results = rcon(25575, password, commands + ['stop'])
+                    results = rcon(RCON_PORT, password, commands + ['stop'])
                 except Exception as exc:  # noqa: BLE001
                     results = [('<rcon>', f'FAILED: {exc!r}')]
             try:

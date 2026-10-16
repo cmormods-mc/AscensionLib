@@ -1,0 +1,180 @@
+{
+  "title": "AscensionLib guide",
+  "note": "The one source for the in-game guide (the Guide tab of the AscensionDex and /ascend guide) and for docs/WIKI-HANDOFF.md. Numbers are written as {placeholders} that tools/build_guide.py fills from the code and the design data, so the text cannot drift from the rules; a missing placeholder fails the build. Block types: p, ul, steps, tip, warn, table {head, rows}, gen {name} (a table built from the data). A topic with wikiOnly is left out of the in-game guide.",
+  "topics": [
+    {
+      "id": "quickstart",
+      "title": "Quick start",
+      "blocks": [
+        {"type": "p", "text": "Every Pokémon you catch or hatch gets an ascension profile: a rarity and a few modifiers that change how it fights. You grow them instead of replacing them. Here is the short version."},
+        {"type": "steps", "items": [
+          "Catch or hatch a Pokémon. Right-click your AscensionDex (get one with /ascend dex), pick it and press Inspect to see its rarity and modifiers.",
+          "Level it up. Every {milestone.step} levels earns one upgrade credit (up to {milestone.credits}). Spend it in Craft, on the Upgrade tab: one modifier goes up a rank and rerolls its value. It never fails.",
+          "Earn materials. Tower runs, trials, dungeons and raids pay Resonance Dust, Facets, Cores and more into your wallet (the Wallet tab of the Dex).",
+          "Win battles with it. A Pokémon that fights in a victory earns {attunement.perVictory} attunement. Attunement plus dust, facets and cores promotes it to the next rarity, all the way to Mythic.",
+          "Scout enemies. A Scouter reveals an enemy's rarity and modifiers before you commit: use the opponent panel on the overlay (press WebGUI's interact key to click it) or /ascend scout.",
+          "Go deep. At rank V you can Perfect and Overreach a modifier; a Catalyst installs a Unique power; two Mythics can be fused into a Transcendent."
+        ]},
+        {"type": "tip", "text": "Every page has a − and + in its header to make it bigger or smaller. It is remembered for you (/ascend ui <percent> does the same)."}
+      ]
+    },
+    {
+      "id": "rarity",
+      "title": "Rarity and modifiers",
+      "blocks": [
+        {"type": "p", "text": "Rarity decides how many modifier slots a Pokémon has. Prefixes boost offense; suffixes add defense and recovery. Every Pokémon can eventually reach Mythic."},
+        {"type": "gen", "name": "rarity_table"},
+        {"type": "p", "text": "Each modifier has a rank from I to V. Rank I is its base range; every later rank starts one above the last and is about half as wide as rank I, so rank V tops out near three times rank I. A value is always a whole percent."},
+        {"type": "p", "text": "Bonuses stack inside five channels, each with a cap so no team becomes unbeatable: outgoing damage {caps.outgoingDamage}%, damage reduction {caps.incomingReduction}%, healing {caps.healing}%, damage over time {caps.residual}% and mechanics {caps.mechanic}%."},
+        {"type": "p", "text": "Two modifiers of the same family never share a Pokémon. Themes (Tempo, Toxin, Predator, Bulwark, Vitality) strengthen each other: two modifiers of one theme give x1.15, three or more x1.30. The inspector shows the theme strip."}
+      ]
+    },
+    {
+      "id": "growing",
+      "title": "Growing a Pokémon",
+      "blocks": [
+        {"type": "p", "text": "Open Craft from the inspector (Upgrade button) or with /ascend craft. Nothing is spent until you press Review and then Confirm."},
+        {"type": "table", "head": ["Action", "What it does", "Cost"], "rows": [
+          ["Upgrade", "Raise one modifier one rank and reroll its value in the new, higher range. Never fails.", "1 upgrade credit (free)"],
+          ["Refine", "Reroll one modifier's value inside its current rank. It can come out lower.", "{refine.dust} dust"],
+          ["Reforge", "Swap one modifier for a different one. The rank stays and the value rerolls.", "{reforge.dust} dust + {reforge.facets} facet"],
+          ["Perfect", "Rank V only. Raise the lowest value the modifier can roll by one point, up to its range top. A Refine can never roll below the floor.", "{perfect.base} dust, +{perfect.step} for each step already bought on that slot"],
+          ["Overreach", "Rank V at its range top only. One gamble per modifier: {overreach.chance}% for a permanent value {overreach.min} to {overreach.max}% above the range top; otherwise the value drops into the lower half. Either way the slot is sealed (only a Reforge changes it).", "{overreach.dust} dust + {overreach.facets} facets + {overreach.marks} Tower Mark"],
+          ["Promote", "Move the whole Pokémon up one rarity and open one new modifier slot. All modifiers are kept.", "see the promotion table, plus attunement"]
+        ]},
+        {"type": "gen", "name": "promotion_table"},
+        {"type": "p", "text": "Attunement is earned only by Pokémon that fought: {attunement.perVictory} for each victory in a Tower boss, a trial, a dungeon or a raid. A Pokémon with no profile earns nothing and you are told so; an Ascension Sigil gives it one."},
+        {"type": "warn", "text": "Overreach is a point of no return. A Pokémon with an Overreached slot can never use an Hourglass of Undoing."}
+      ]
+    },
+    {
+      "id": "uniques",
+      "title": "Uniques and Transcendents",
+      "blocks": [
+        {"type": "p", "text": "A Unique is one powerful ability with a real drawback. It needs a Unique Catalyst, which you assemble from {catalyst.fragments} Unique Fragments, and {install.marks} Tower Mark. A Pokémon holds one Unique; installing a different one replaces it."},
+        {"type": "gen", "name": "unique_table"},
+        {"type": "p", "text": "Fusion makes a Transcendent: a Mythic host that holds a Unique and an Epic-or-better donor holding a different one become one Pokémon with a completely new power. The host is kept; the donor is consumed. It is permanent."},
+        {"type": "ul", "items": [
+          "Host: Mythic, every upgrade credit spent, at least {fusion.hostAttunement} attunement, holding a Unique.",
+          "Donor: Epic or better, holding a different Unique, and not already a Transcendent.",
+          "Price: {fusion.dust} dust, {fusion.facets} facets, {fusion.cores} cores, {fusion.catalysts} Catalyst and {fusion.marks} Tower Marks.",
+          "The Fuse button is on the Craft page and /ascend fuse opens it. A Transcendent's power cannot be replaced."
+        ]}
+      ]
+    },
+    {
+      "id": "wallet",
+      "title": "Materials and your wallet",
+      "blocks": [
+        {"type": "p", "text": "Materials live in your wallet, which is saved with the world. Loot that drops as an item joins the wallet by itself when you carry it. Open it from the Wallet tab of the AscensionDex, the Wallet button in Craft, or /ascend wallet gui."},
+        {"type": "gen", "name": "material_table"},
+        {"type": "p", "text": "Take currency out as items to trade it, then redeem the items with Deposit. A {fee.percent}% fee, rounded up, is paid on top of a withdrawal. Tower Marks are bound to you and can never be taken out."},
+        {"type": "tip", "text": "A voucher is a bearer item: whoever holds it can deposit it, and each batch can only ever be redeemed for what it still holds, so a copied stack is worth nothing."}
+      ]
+    },
+    {
+      "id": "towers",
+      "title": "Towers and completion chests",
+      "blocks": [
+        {"type": "p", "text": "A Tower is where Cores come from, and nowhere else pays them. Clearing the first boss (floor 5) opens a mini chest; clearing a cycle's champion (floor 10, and every Ascension cycle after) opens a completion chest."},
+        {"type": "p", "text": "The completion chest has three parts: a guaranteed pile of dust, facets, fragments, scouters and Tower Marks; a quality tier that multiplies it; and a crown of one to three rolls of something notable. The tier is earned by difficulty and a clean run, never by speed."},
+        {"type": "p", "text": "Score = challenge cards taken + 2 per Ascension cycle + 2 if no Pokémon fainted in the cycle."},
+        {"type": "gen", "name": "tower_tier_table"},
+        {"type": "p", "text": "The crown can hold an Ascension Core, a bundle of {tower.bundle} Unique Fragments, an Ascension Sigil, a Unique Catalyst, a Tower armor piece, a CobbleCards pack, an Hourglass of Undoing or an Unbinding Prism. A completion never ends without one."},
+        {"type": "p", "text": "The mini chest at floor 5 pays {mini.dust} dust, {mini.facets} facet, {mini.fragments} fragment, {mini.scouters} scouter, {mini.marks} Tower Mark and a {mini.corePercent}% chance of a Core."},
+        {"type": "warn", "text": "Daily limit: your first {budget.full} chests of a day (UTC) pay in full, then each chest pays {budget.percent}% of its dust. Everything else is always paid in full. It resets at midnight UTC."},
+        {"type": "p", "text": "Dungeons and trials pay smaller amounts of dust and facets, never Cores. Raids keep their own rewards but still give attunement."}
+      ]
+    },
+    {
+      "id": "battle",
+      "title": "In battle",
+      "blocks": [
+        {"type": "p", "text": "Modifiers act inside the battle simulator, so they follow the normal rules: immunities, abilities and caps all still apply. They take effect in Tower and raid fights, and in wild battles inside an ascension zone; an ordinary wild battle elsewhere is native for both sides. Battle effects need CobbleRaids installed."},
+        {"type": "ul", "items": [
+          "Scouter: reveals one enemy's rarity and modifiers, once per enemy per encounter. Use the opponent panel on the overlay (press WebGUI's interact key to click it) or run /ascend scout. Look at a wild Pokémon inside a zone and run /ascend scout look.",
+          "Bleed: some modifiers and Uniques cause bleeding, about {bleed.percent}% of max HP per stack each turn, up to {bleed.stacks} stacks for {bleed.turns} turns. A red badge on the overlay shows who is bleeding, how many stacks and how many turns are left.",
+          "Cobblemon's own statuses (burn, poison and the rest) work as normal; Smoldering and Venomous strengthen your own burns and poison."
+        ]}
+      ]
+    },
+    {
+      "id": "respec",
+      "title": "Respec items",
+      "blocks": [
+        {"type": "p", "text": "Two rare items undo an investment. They drop from Tower completion chests, and the Hourglass can also be bought with Tower Marks. Both are tradable. Use them in the Respec tab (Hourglass) or the Unique tab (Prism) of Craft."},
+        {"type": "table", "head": ["Item", "Effect", "How to get it"], "rows": [
+          ["Hourglass of Undoing", "Every modifier goes back to rank I with a fresh value and its perfected floor cleared, and every upgrade credit comes back to spend again. Affixes, Unique, rarity and attunement stay. No materials are refunded.", "About 1 in {respec.rankOneIn} completions, or {respec.price} Tower Marks"],
+          ["Unbinding Prism", "Swap a Pokémon's Unique for a different one with no Catalyst and no Tower Mark.", "About 1 in {respec.uniqueOneIn} completions"]
+        ]},
+        {"type": "warn", "text": "A Pokémon that has Overreached can never be respecced: the Hourglass is refused and not used up. A Transcendent's power cannot be swapped."}
+      ]
+    },
+    {
+      "id": "commands",
+      "title": "Commands",
+      "blocks": [
+        {"type": "table", "head": ["Command", "What it does"], "rows": [
+          ["/ascend dex", "Gives you an AscensionDex (right-click it for your party and wallet)."],
+          ["/ascend party", "Opens the party page without the item."],
+          ["/ascend inspect [slot]", "Shows a party Pokémon's rarity and modifiers."],
+          ["/ascend craft [slot]", "Opens the craft page for a party Pokémon."],
+          ["/ascend fuse [slot]", "Opens the fusion page with a party Pokémon as the host."],
+          ["/ascend wallet [gui|withdraw <material> <amount>|deposit [material]]", "Shows or opens your wallet; takes currency out as items or puts it back."],
+          ["/ascend scout [look|use <enemy>]", "Lists or uses Scouters on the enemies you face."],
+          ["/ascend sigil <slot>", "Spends an Ascension Sigil to give a Pokémon with no profile one."],
+          ["/ascend ui [percent]", "Shows or sets your page size, {ui.min} to {ui.max} percent."],
+          ["/ascend guide", "Opens this guide."]
+        ]}
+      ]
+    },
+    {
+      "id": "faq",
+      "title": "Help and troubleshooting",
+      "blocks": [
+        {"type": "ul", "items": [
+          "A page will not open: every screen is a web page shown by the WebGUI mod, so your client needs WebGUI and Rinku installed. The server tells you when yours is missing.",
+          "Items look like plain vanilla items: the server's resource pack gives them their art. Accept it when you join; without it they still work.",
+          "A Pokémon says \"No profile\": it was caught before the mod, or on a world without it. An Ascension Sigil gives it a profile with a rolled rarity (Inspect, then Use Ascension Sigil).",
+          "A Pokémon is locked: Tower rental Pokémon are on loan and cannot be changed.",
+          "A craft button is greyed out: hover it, or read the red line beside it, for the exact reason (a missing material, a rank, a seal).",
+          "Nothing happened after I confirmed: every action is checked and committed once by the server. If you see \"already used\" it had already gone through; reopen the page to see the result."
+        ]}
+      ]
+    },
+    {
+      "id": "admin",
+      "title": "Server administration",
+      "wikiOnly": true,
+      "blocks": [
+        {"type": "p", "text": "AscensionLib is a server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2. Clients need only the WebGUI mod and Rinku (no client mod of ours). CobbleRaids makes battle effects act in fights; CobbleTowers and ascensionDungeons pay rewards through the library's contract."},
+        {"type": "ul", "items": [
+          "Data: each world keeps its progression in <world>/cobbleascend/progression.db (SQLite) with an authority.id marker; the world and the database belong together.",
+          "Backups: a snapshot is taken at server start, then daily, into <world>/cobbleascend/backups/ (the newest {backup.keep} are kept), and /ascend admin backup takes one now. Before a schema upgrade the mod copies the store beside itself as progression.db.before-schemaN-fromM-<time>.bak and refuses to upgrade if it cannot.",
+          "Resource pack: the pack in build/AscensionLib-resourcepack.zip gives the items their art. Host it and set resource-pack and resource-pack-sha1 in server.properties, or, with Polymer, add it to config/polymer/resource-pack.json under include_zips and enable auto-host.",
+          "Page sizes are saved per player in <world>/ascensionlib-ui.json.",
+          "Tuning: config/ascensionlib.json (written with every default on the first start) holds the economy's dials: the daily budget, the withdrawal fee, the Hourglass price, attunement per victory, the mini chest and the whole completion chest. Edit it and run /ascend admin reload, which reports what changed. The in-game guide shows the server's own numbers.",
+          "Admin commands (permission level 2): /ascend admin grant <player> <material> <amount>, backup, reload, attunement <slot> <points>, initialize <slot>, completion <tier> [pay], reveal, acquire, rate-target."
+        ]}
+      ]
+    },
+    {
+      "id": "catalog",
+      "title": "Modifier catalog",
+      "wikiOnly": true,
+      "blocks": [
+        {"type": "p", "text": "Every modifier, its slot, its channel and its value range at each rank."},
+        {"type": "gen", "name": "affix_table"}
+      ]
+    },
+    {
+      "id": "transcendents",
+      "title": "Transcendent recipes",
+      "wikiOnly": true,
+      "blocks": [
+        {"type": "p", "text": "Each pair of Uniques fuses into one of {transcendent.count} base Transcendents. A few dozen pairs and groups of species have their own curated recipes with extra twists and riders; every other fusion is derived from the same rules."},
+        {"type": "gen", "name": "transcendent_table"}
+      ]
+    }
+  ]
+}

@@ -48,6 +48,10 @@ public final class AscensionLib implements ModInitializer {
     }
 
     private void start(MinecraftServer server) {
+        CompatReport.log(LOG);
+        var config = TunablesConfig.loadAndUse(TunablesConfig.file());
+        var changed = TunablesConfig.differences(com.cobbleascend.domain.v1.Tunables.defaults(), config.tunables());
+        if (!changed.isEmpty()) LOG.info("Configuration differs from the defaults: {}", changed);
         runtime = AscensionRuntime.open(server, rules);
         AscensionApi.attach(runtime, runtime.enabled() ? new ProfileService(runtime, rules) : null, server);
         com.ascensionlib.scout.ScoutEncounters.attach(server);

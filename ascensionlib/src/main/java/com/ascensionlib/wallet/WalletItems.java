@@ -68,7 +68,7 @@ public final class WalletItems {
         var tag = new CompoundTag();
         tag.put(CurrencyItems.TAG, inner);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        stack.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(spec.model()));
+        stack.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(batch == null ? spec.model() : spec.model() + CurrencyItems.VOUCHER_MODEL_OFFSET));
         var plain = Style.EMPTY.withItalic(false);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(spec.name()).withStyle(plain.withColor(TextColor.fromRgb(spec.color()))));
         var lore = new ArrayList<Component>();
@@ -180,7 +180,7 @@ public final class WalletItems {
         } catch (CraftException exception) {
             return new Result(false, exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS
                     ? "You need " + (amount + CurrencyItems.withdrawalFee(amount)) + " " + CurrencyItems.spec(material).name() + " (" + amount + " plus a "
-                    + CurrencyItems.WITHDRAWAL_FEE_PERCENT + "% fee of " + CurrencyItems.withdrawalFee(amount) + ")." : "That withdrawal is not allowed: " + exception.getMessage());
+                    + com.cobbleascend.domain.v1.Tunables.current().withdrawalFeePercent() + "% fee of " + CurrencyItems.withdrawalFee(amount) + ")." : "That withdrawal is not allowed: " + exception.getMessage());
         } catch (StoreException exception) {
             LOG.warn("Withdrawal failed for {}: {}", player.getGameProfile().getName(), exception.getMessage());
             return new Result(false, "The wallet could not be changed right now. Nothing was taken.");

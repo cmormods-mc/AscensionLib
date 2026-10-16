@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const pagesDir = path.join(root, 'ascensionlib/src/main/resources/web/ascensionlib');
-const require = createRequire(path.resolve(root, '../../CobbleTowers/web/') + path.sep);
+// playwright-core is found in PLAYWRIGHT_DIR (a folder that has node_modules/playwright-core) when set, else in the sibling CobbleTowers checkout.
+const require = createRequire(path.resolve(process.env.PLAYWRIGHT_DIR || path.join(root, '../../CobbleTowers/web/')) + path.sep);
 const { chromium } = require('playwright-core');
 const shotsDir = process.argv.includes('--shots') ? process.argv[process.argv.indexOf('--shots') + 1] : null;
 if (shotsDir) fs.mkdirSync(shotsDir, { recursive: true });
@@ -561,7 +562,7 @@ await check('party: six slots, rarity, health and pending upgrades; pick, inspec
 
 await check('party: a Wallet tab at the bottom shows the wallet (fee preview, Take, Deposit) and switches back to the party', async () => {
   const p = await open(null, 'party.html', 1920, 1080);
-  eq(await p.locator('#tabbar button').count(), 2, 'two tabs');
+  eq(await p.locator('#tabbar button').count(), 3, 'three tabs');
   eq(await p.isVisible('#paneWallet'), false, 'the wallet is hidden at first');
   eq(await p.isVisible('#footParty'), true, 'the party buttons show');
   const box = async sel => p.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return { t: b.top, b: b.bottom }; }, sel);
@@ -597,10 +598,71 @@ await check('party: a Wallet tab at the bottom shows the wallet (fee preview, Ta
   noErrors(p);
 });
 
+await check('guide: topics on the left, the quick-start steps first, tables and tips drawn, next and previous move through, nothing unresolved', async () => {
+  const p = await open(null, 'guide.html', 1920, 1080);
+  const topics = await p.locator('.gp .topics button').count();
+  yes(topics >= 9, 'a topic per button (' + topics + ')');
+  yes((await p.textContent('.gp h2')).toLowerCase().includes('quick start'), 'Quick start is open first');
+  eq(await p.locator('.gp ol li').count(), 6, 'six quick-start steps');
+  yes((await p.textContent('.gp ol')).includes('Every 10 levels earns one upgrade credit (up to 10)'), 'numbers come from the rules');
+  await p.locator('.gp .topics button', { hasText: 'Growing a Pokémon' }).click();
+  yes((await p.locator('.gp table').count()) >= 2, 'the actions table and the promotion table');
+  yes((await p.textContent('.gp')).includes('Overreach') && (await p.textContent('.gp')).includes('45%'), 'Overreach and its chance');
+  await p.locator('.gp .nav button', { hasText: 'Uniques and Transcendents' }).click();
+  yes((await p.textContent('.gp h2')).includes('Uniques'), 'Next moves on');
+  yes((await p.textContent('.gp table')).includes('Ashen Heart') && (await p.textContent('.gp table')).includes('Titan'), 'the Unique table lists the Uniques');
+  await p.locator('.gp .nav button', { hasText: 'Growing a Pokémon' }).click();
+  yes((await p.textContent('.gp h2')).includes('Growing'), 'Previous moves back');
+  await p.locator('.gp .topics button', { hasText: 'Towers' }).click();
+  yes((await p.textContent('.gp')).includes('Mythic') && (await p.textContent('.gp')).includes('1800 dust'), 'the completion tiers table');
+  yes((await p.textContent('.gp .warn')).includes('first 20 chests'), 'the daily limit warning');
+  await shot(p, 'guide');
+  // the whole guide: no placeholder or empty number is left anywhere
+  const all = await p.evaluate(() => JSON.stringify(window.GUIDE));
+  // a placeholder may remain only for a number a server can tune, and then it has a shipped default to show until the server answers
+  const leftover = await p.evaluate(() => { const text = JSON.stringify(window.GUIDE.topics); const keys = (text.match(/\{[a-zA-Z]+\.[a-zA-Z]+\}/g) || []).map(k => k.slice(1, -1)); return keys.filter(k => !(k in window.GUIDE.facts)); });
+  eq(leftover, [], 'every remaining placeholder has a shipped default');
+  yes(!all.includes('undefined') && !all.includes('NaN'), 'no undefined or NaN');
+  yes(!all.includes('"J key') && !all.includes('Press J'), 'no mention of the old client J key');
+  await p.click('#close');
+  yes((await sent(p)).some(m => m.channel === 'close'), 'Close closes');
+  noErrors(p);
+});
+
+await check('guide: the numbers a server owner can tune come live from the server, so a tuned server shows its own', async () => {
+  const p = await open(null, 'guide.html', 1920, 1080);
+  yes((await sent(p)).some(m => m.channel === 'ascension_guide_facts'), 'the guide asks the server for its live numbers');
+  await p.locator('.gp .topics button', { hasText: 'Towers' }).click();
+  yes((await p.textContent('.gp .warn')).includes('first 20 chests'), 'the shipped default shows until the server answers');
+  await emit(p, 'guideFacts', { facts: { 'budget.full': '8', 'budget.percent': '10', 'mini.dust': '300' }, tables: { tower_tier_table: { head: ['Tier', 'Reached at', 'Pile', 'Guaranteed pile', 'Crown'], rows: [['Bronze', 'score 0+', 'x1', '999 dust, 1 facets, 1 fragments, 1 scouters, 1 Marks', '1 crown roll (50% Core each)']] } } });
+  yes((await p.textContent('.gp .warn')).includes('first 8 chests') && (await p.textContent('.gp .warn')).includes('10% of its dust'), 'the daily limit shows the live numbers');
+  yes((await p.textContent('.gp')).includes('300 dust'), 'the mini chest shows its live dust');
+  yes((await p.textContent('.gp table')).includes('999 dust'), 'the completion table is the one the server built');
+  const all = await p.textContent('.gp');
+  yes(!/\{[a-z]+\.[a-zA-Z]+\}/.test(all), 'no placeholder is left on screen');
+  await p.locator('.gp .topics button', { hasText: 'Respec' }).click();
+  yes((await p.textContent('.gp')).includes('90 Tower Marks'), 'a number the server did not send keeps its shipped default');
+  noErrors(p);
+});
+
+await check('party: the Guide tab shows the same guide inside the AscensionDex', async () => {
+  const p = await open(null, 'party.html', 1920, 1080);
+  eq(await p.locator('#tabbar button').count(), 3, 'three tabs now');
+  await p.click('#tabGuide');
+  eq(await p.isVisible('#paneGuide'), true, 'the guide pane shows');
+  eq(await p.isVisible('#paneParty'), false, 'and the party hides');
+  yes((await p.textContent('#paneGuide h2')).toLowerCase().includes('quick start'), 'it opens at Quick start');
+  await p.locator('#paneGuide .topics button', { hasText: 'Respec' }).click();
+  yes((await p.textContent('#paneGuide')).includes('Hourglass of Undoing') && (await p.textContent('#paneGuide')).includes('90 Tower Marks'), 'the respec topic');
+  await p.click('#tabParty');
+  eq(await p.isVisible('#paneParty'), true, 'back to the party');
+  noErrors(p);
+});
+
 await check('pages degrade without WebGUI (no window.webgui): no crash', async () => {
   const ctx = await browser.newContext(); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', e => errors.push(e.message));
-  for (const f of ['craft.html', 'fusion.html', 'inspect.html', 'hud.html', 'wallet.html', 'party.html', 'completion.html']) await p.goto(base + f);
+  for (const f of ['craft.html', 'fusion.html', 'inspect.html', 'hud.html', 'wallet.html', 'party.html', 'completion.html', 'guide.html']) await p.goto(base + f);
   eq(errors, [], 'errors');
 });
 

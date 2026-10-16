@@ -21,11 +21,11 @@ public final class CurrencyItems {
     public static final String TAG = "ascensionlib";
     public static final String MATERIAL_KEY = "material";
     public static final String BATCH_KEY = "batch";
+    /** A voucher's custom model number is its loot-form number plus this, so the pack can draw the two differently (a paper tag and a seal on a voucher). */
+    public static final int VOUCHER_MODEL_OFFSET = 1000;
     /** Every item stacks to this many. */
     public static final int STACK = 64;
 
-    /** Percent of a withdrawal taken as a fee in the same material, rounded up: a soft sink that scales with the economy. */
-    public static final int WITHDRAWAL_FEE_PERCENT = 3;
 
     /** @param tradable false keeps the material out of vouchers (Tower Marks) */
     public record Spec(MaterialId material, String baseItem, int model, String name, int color, List<String> lore, boolean tradable, String rarity, String kind) {}
@@ -46,9 +46,9 @@ public final class CurrencyItems {
         return SPECS.get(material);
     }
 
-    /** The fee for withdrawing {@code amount} units, rounded up, so any withdrawal of one or more units costs at least one. */
+    /** The fee for withdrawing {@code amount} units: a percent ({@link Tunables#withdrawalFeePercent}, 3 by default) taken in the same material, rounded up, so any withdrawal of one or more units costs at least one when the fee is above zero. */
     public static long withdrawalFee(long amount) {
-        return amount < 1 ? 0 : (amount * WITHDRAWAL_FEE_PERCENT + 99) / 100;
+        return amount < 1 ? 0 : (amount * Tunables.current().withdrawalFeePercent() + 99) / 100;
     }
 
     /** The rarity tier with this id (every item names one that exists; an unknown id falls back to common). */

@@ -64,7 +64,7 @@ public final class CompletionReveal {
         var crowns = new ArrayList<CrownView>();
         for (var crown : completion.crowns()) crowns.add(crownView(crown));
         var marks = new ArrayList<TierMark>();
-        for (var spec : TowerCompletionBands.DEFAULTS.tiers())
+        for (var spec : com.cobbleascend.domain.v1.Tunables.current().towerCompletion().tiers())
             marks.add(new TierMark(spec.tier().name().toLowerCase(java.util.Locale.ROOT), tierName(spec.tier()), spec.minScore()));
         return new View(completion.tier().name().toLowerCase(java.util.Locale.ROOT), tierName(completion.tier()), completion.score(), cycle, cards, flawless,
                 pile, crowns, attunement, preview, marks);
@@ -83,7 +83,7 @@ public final class CompletionReveal {
             case RESPEC_RANK -> crownOf(crown, MaterialId.RANK_RESPEC, 1, true);
             case RESPEC_UNIQUE -> crownOf(crown, MaterialId.UNIQUE_RESPEC, 1, true);
             case FRAGMENT_BUNDLE -> new CrownView("fragments", MaterialId.UNIQUE_FRAGMENT.id(), "Unique Fragment bundle",
-                    String.format("#%06x", CurrencyItems.spec(MaterialId.UNIQUE_FRAGMENT).color()), com.cobbleascend.domain.v1.TowerCompletionBands.DEFAULTS.fragmentBundle(), false);
+                    String.format("#%06x", CurrencyItems.spec(MaterialId.UNIQUE_FRAGMENT).color()), com.cobbleascend.domain.v1.Tunables.current().towerCompletion().fragmentBundle(), false);
             case ARMOR -> new CrownView("armor", "", "Tower armor piece", "#c9d4e0", 1, false);
             case TICKET -> new CrownView("ticket", "", "CobbleCards ticket", "#e8c46a", 1, false);
         };

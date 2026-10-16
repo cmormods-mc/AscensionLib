@@ -21,6 +21,7 @@ NS = DESIGN['namespace']
 PACK = ROOT / 'resourcepack'
 ICONS = ROOT / 'ascensionlib/src/main/resources/web/ascensionlib/icons'
 LOOT = ROOT / 'ascensionlib/src/main/resources/data' / NS / 'loot_table/currency'
+ICON = ROOT / 'ascensionlib/src/main/resources/assets/ascensionlib/icon.png'
 PACK_FORMAT = 34  # Minecraft 1.21.1
 
 # The pictures are drawn in code (tools/pixel_art.py, 32x32, no libraries) so a clean checkout reproduces the same pixels. Loaded by path because
@@ -66,6 +67,12 @@ def main():
               json.dumps({'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{material}'}}, indent=2) + '\n')
         base = spec['base'].split(':', 1)[1]
         overrides.setdefault(base, []).append({'predicate': {'custom_model_data': spec['model']}, 'model': f'{NS}:item/{material}'})
+        # the voucher form: the same picture with a paper tag and a seal, under model number + VOUCHER_OFFSET (never made for a bound material)
+        if spec.get('tradable', True):
+            write(PACK / f'assets/{NS}/textures/item/{material}_voucher.png', pixel_art.png_bytes(pixel_art.render_voucher(material)))
+            write(PACK / f'assets/{NS}/models/item/{material}_voucher.json',
+                  json.dumps({'parent': 'minecraft:item/generated', 'textures': {'layer0': f'{NS}:item/{material}_voucher'}}, indent=2) + '\n')
+            overrides[base].append({'predicate': {'custom_model_data': spec['model'] + pixel_art.VOUCHER_OFFSET}, 'model': f'{NS}:item/{material}_voucher'})
         # the one-item loot table
         components = {
             'minecraft:custom_data': {NS: {'material': material}},
@@ -92,6 +99,8 @@ def main():
     }
     write(LOOT.parent / 'ascension_dex.json', json.dumps({'type': 'minecraft:generic', 'pools': [{'rolls': 1, 'entries': [
         {'type': 'minecraft:item', 'name': dex['base'], 'functions': [{'function': 'minecraft:set_components', 'components': dex_components}]}]}]}, indent=2) + '\n')
+    # the mod's own icon (shown by mod menus and launchers): the Ascension Sigil at 128x128 on the dark tablet colour
+    write(ICON, pixel_art.png_bytes(pixel_art.mod_icon()))
     # each base item's model gains the overrides; the base items are all plain generated items, so the override file is the whole model
     for base, entries in overrides.items():
         model = {'parent': 'minecraft:item/generated', 'textures': {'layer0': f'minecraft:item/{base}'}, 'overrides': entries}

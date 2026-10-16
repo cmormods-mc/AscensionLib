@@ -9,6 +9,12 @@
         "custom_model_data": 8105
       },
       "model": "ascensionlib:item/unique_catalyst"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9105
+      },
+      "model": "ascensionlib:item/unique_catalyst_voucher"
     }
   ]
 }

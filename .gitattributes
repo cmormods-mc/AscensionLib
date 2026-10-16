@@ -1,0 +1,11 @@
+# Text files are normalised so a Windows checkout and CI agree; binary art and fonts are never touched.
+* text=auto
+*.png binary
+*.jpg binary
+*.ogg binary
+*.woff binary
+*.zip binary
+*.jar binary
+*.bat text eol=crlf
+*.sh text eol=lf
+gradlew text eol=lf

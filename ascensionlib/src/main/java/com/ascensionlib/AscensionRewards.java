@@ -72,7 +72,7 @@ public final class AscensionRewards {
     public static Map<UUID, String> settleTowerCompletion(UUID encounterId, String outcome, int bossFloor, int cycle, int challengeCards,
                                                           boolean flawless, java.util.Collection<UUID> players) {
         if (bossFloor < 1) throw new IllegalArgumentException("Boss floor must be at least 1");
-        var bands = TowerCompletionBands.DEFAULTS;
+        var bands = com.cobbleascend.domain.v1.Tunables.current().towerCompletion();
         var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
         var completions = new LinkedHashMap<UUID, TowerCompletionBands.Completion>();
         for (var player : players) {
@@ -98,7 +98,7 @@ public final class AscensionRewards {
      * nothing, so call it only for a player whose settlement came back {@code GRANTED} (or {@code ALREADY_GRANTED} when recovering) and hand the items over once.
      */
     public static Map<String, Integer> towerCompletionExtras(UUID encounterId, UUID player, int cycle, int challengeCards, boolean flawless) {
-        var completion = TowerCompletionBands.DEFAULTS.payout(encounterId.toString(), player, challengeCards, cycle, flawless);
+        var completion = com.cobbleascend.domain.v1.Tunables.current().towerCompletion().payout(encounterId.toString(), player, challengeCards, cycle, flawless);
         var extras = new LinkedHashMap<String, Integer>();
         extras.put("armor", completion.armorPieces());
         extras.put("tickets", completion.tickets());
@@ -114,7 +114,7 @@ public final class AscensionRewards {
             for (var player : fresh) {
                 var online = server.getPlayerList().getPlayer(player);
                 if (online == null) continue;
-                var view = com.ascensionlib.reward.CompletionReveal.view(completions.get(player), cycle, cards, flawless, VICTORY_ATTUNEMENT, false);
+                var view = com.ascensionlib.reward.CompletionReveal.view(completions.get(player), cycle, cards, flawless, com.cobbleascend.domain.v1.Tunables.current().attunementPerVictory(), false);
                 com.ascensionlib.reward.CompletionReveal.show(online, view);
                 String line = com.ascensionlib.reward.CompletionReveal.announcement(online.getGameProfile().getName(), view);
                 if (line.isEmpty()) continue;
@@ -244,8 +244,6 @@ public final class AscensionRewards {
         return percent <= 0 ? count : com.cobbleascend.domain.v1.ItemQuantityBonus.scale(count, player + "|" + key, percent);
     }
 
-    /** Attunement a Pokemon earns per qualifying victory (ECONOMY.md: 3). */
-    static final int VICTORY_ATTUNEMENT = 3;
 
     /** Credits each player's party, once per key; players who are offline miss it. Returns the players handled. */
     private static int awardAttunement(String key, java.util.Collection<UUID> players) {
@@ -256,7 +254,7 @@ public final class AscensionRewards {
         for (var player : players) {
             var online = server.getPlayerList().getPlayer(player);
             if (online == null) continue;
-            service.awardPartyAttunement(online, key, VICTORY_ATTUNEMENT);
+            service.awardPartyAttunement(online, key, com.cobbleascend.domain.v1.Tunables.current().attunementPerVictory());
             handled++;
         }
         return handled;
@@ -301,7 +299,7 @@ public final class AscensionRewards {
             parsed.forEach(payout -> result.put(payout.playerId(), "DISABLED"));
             return result;
         }
-        var budget = com.cobbleascend.domain.v1.DailyRewardBudget.DEFAULTS;
+        var budget = com.cobbleascend.domain.v1.Tunables.current().budget();
         rewards.get().settleBudgeted(settlement, budget).forEach((player, answer) -> {
             result.put(player, answer.status().name());
             if (answer.reduced() && answer.status() == EncounterRewards.Status.GRANTED) tellReduced(player, budget);

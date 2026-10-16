@@ -9,6 +9,12 @@
         "custom_model_data": 8111
       },
       "model": "ascensionlib:item/rank_respec"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9111
+      },
+      "model": "ascensionlib:item/rank_respec_voucher"
     }
   ]
 }

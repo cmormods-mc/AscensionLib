@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "ascensionlib:item/resonance_dust_voucher"
+  }
+}

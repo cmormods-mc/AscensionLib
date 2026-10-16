@@ -454,6 +454,36 @@ def unique_respec():
     return c
 
 
+PAPER = ramp('8f8668', 'c4bb9b', 'e8e1c9', 'f6f1df', 'ffffff')
+WAX = ramp('5e1018', '8a1f2b', 'b72e3d', 'd23a46', 'ff9aa0')
+
+
+def voucher(name):
+    """A tradable item's voucher: its icon with a folded paper tag and a red seal, so a voucher is never mistaken for loot that joins the wallet."""
+    c = ICONS[name]()
+    # clear a little room so the tag sits in front of the icon with its own dark edge
+    c.poly([(16, 20), (31, 20), (31, 31), (16, 31)], PAPER[2])
+    for x in range(16, 31): c.set(x, 20, PAPER[4]); c.set(x, 30, PAPER[0])
+    for y in range(20, 31): c.set(16, y, PAPER[3]); c.set(30, y, PAPER[0])
+    c.poly([(26, 20), (31, 20), (31, 25)], PAPER[1])              # a folded corner
+    for x in (18, 19, 20, 21, 22, 23): c.set(x, 23, PAPER[0])      # ruled lines
+    for x in (18, 19, 20, 21): c.set(x, 26, PAPER[0])
+    c.sphere(25, 26, 3.6, WAX, light=(-0.5, -0.6))                   # the wax seal
+    c.set(24, 25, WAX[4])
+    # a dark edge round the tag
+    for x in range(15, 32):
+        c.set(x, 19, OUTLINE); c.set(x, 31, OUTLINE)
+    for y in range(19, 32):
+        c.set(15, y, OUTLINE); c.set(31, y, OUTLINE) if y > 25 else None
+    c.set(31, 25, OUTLINE)
+    c.outline()
+    return c
+
+
+def render_voucher(name):
+    return voucher(name).rows()
+
+
 ICONS = {
     'resonance_dust': resonance_dust,
     'facet': facet,
@@ -469,8 +499,28 @@ ICONS = {
 }
 
 
+VOUCHER_OFFSET = 1000   # a voucher's custom model number is its loot-form number plus this (CurrencyItems.VOUCHER_MODEL_OFFSET)
+
+
 def render(name):
     return ICONS[name]().rows()
+
+
+def mod_icon(scale=4):
+    """128x128: the Ascension Sigil enlarged on the dark tablet colour with a one-pixel bezel, for fabric.mod.json."""
+    sigil = render('ascension_sigil')
+    size = SIZE * scale
+    back = (0x07, 0x13, 0x1c, 255)
+    bezel = (0x1f, 0x6b, 0x86, 255)
+    out = []
+    for y in range(size):
+        row = []
+        for x in range(size):
+            edge = x < 4 or y < 4 or x >= size - 4 or y >= size - 4
+            pixel = sigil[y // scale][x // scale]
+            row.append(bezel if edge else (pixel if pixel[3] else back))
+        out.append(row)
+    return out
 
 
 def png_bytes(pixels):

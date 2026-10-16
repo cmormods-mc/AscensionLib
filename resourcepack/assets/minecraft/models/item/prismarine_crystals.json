@@ -9,6 +9,12 @@
         "custom_model_data": 8106
       },
       "model": "ascensionlib:item/scouter"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9106
+      },
+      "model": "ascensionlib:item/scouter_voucher"
     }
   ]
 }

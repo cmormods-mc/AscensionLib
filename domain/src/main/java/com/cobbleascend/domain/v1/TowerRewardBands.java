@@ -31,10 +31,9 @@ public record TowerRewardBands(double floorDust, double floorGrowth, int firstBo
     }
 
     /**
-     * The F5 boss is a mini chest (docs/TOWER-COMPLETION-REWARDS.md): a flat pile with a small core chance. It applies to every boss before the milestone
+     * The F5 boss is a mini chest (docs/TOWER-COMPLETION-REWARDS.md; the numbers are {@link Tunables#miniChest()}): a flat pile with a small core chance. It applies to every boss before the milestone
      * floor; the milestone (F10) champion pays through {@link TowerCompletionBands} when the caller supports it, and through the legacy formula below otherwise.
      */
-    public static final int MINI_CHEST_DUST = 200, MINI_CHEST_FACETS = 1, MINI_CHEST_FRAGMENTS = 1, MINI_CHEST_SCOUTERS = 1, MINI_CHEST_MARKS = 1, MINI_CHEST_CORE_PERMILLE = 50;
 
     private static boolean percent(int value) { return value >= 0 && value <= 100; }
 
@@ -66,12 +65,13 @@ public record TowerRewardBands(double floorDust, double floorGrowth, int firstBo
     private static Map<MaterialId, Long> miniChest(String encounterId, UUID player, int bossFloor) {
         var random = new Random(RewardSeed.of("tower-reward", encounterId, player, bossFloor));
         var result = new EnumMap<MaterialId, Long>(MaterialId.class);
-        result.put(MaterialId.RESONANCE_DUST, (long) MINI_CHEST_DUST);
-        result.put(MaterialId.FACET, (long) MINI_CHEST_FACETS);
-        result.put(MaterialId.UNIQUE_FRAGMENT, (long) MINI_CHEST_FRAGMENTS);
-        result.put(MaterialId.SCOUTER, (long) MINI_CHEST_SCOUTERS);
-        result.put(MaterialId.TOWER_MARK, (long) MINI_CHEST_MARKS);
-        if (random.nextInt(1000) < MINI_CHEST_CORE_PERMILLE) result.put(MaterialId.ASCENSION_CORE, 1L);
+        var chest = Tunables.current().miniChest();
+        if (chest.dust() > 0) result.put(MaterialId.RESONANCE_DUST, (long) chest.dust());
+        if (chest.facets() > 0) result.put(MaterialId.FACET, (long) chest.facets());
+        if (chest.fragments() > 0) result.put(MaterialId.UNIQUE_FRAGMENT, (long) chest.fragments());
+        if (chest.scouters() > 0) result.put(MaterialId.SCOUTER, (long) chest.scouters());
+        if (chest.marks() > 0) result.put(MaterialId.TOWER_MARK, (long) chest.marks());
+        if (random.nextInt(1000) < chest.corePermille()) result.put(MaterialId.ASCENSION_CORE, 1L);
         return java.util.Collections.unmodifiableMap(result);
     }
 

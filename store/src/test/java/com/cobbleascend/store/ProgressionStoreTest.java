@@ -933,7 +933,7 @@ class ProgressionStoreTest {
         var store = open();
         store.grant(UUID.randomUUID(), player, Map.of(MaterialId.TOWER_MARK, 100L), "test");
         var op = UUID.randomUUID();
-        var price = (long) com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE;
+        var price = (long) com.cobbleascend.domain.v1.Tunables.defaults().respecMarksPrice();
         var done = store.exchange(op, player, Map.of(MaterialId.TOWER_MARK, price), Map.of(MaterialId.RANK_RESPEC, 1L), "test", CraftRequest.ANY_REVISION);
         assertEquals(10, done.wallet().balance(MaterialId.TOWER_MARK));
         assertEquals(1, done.wallet().balance(MaterialId.RANK_RESPEC));

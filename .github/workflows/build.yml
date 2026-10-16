@@ -35,6 +35,14 @@ jobs:
       - name: Make the wrapper executable
         run: chmod +x gradlew
 
+      # The mod compiles against WebGUI (MIT, github.com/mc-webgui/webgui), which is not committed: fetch the release and make the local dev copy.
+      - name: Fetch WebGUI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v2.0.0 -R mc-webgui/webgui -p 'webgui-fabric-2.0.0+mc1.21.1.jar' -D ascensionlib/libs
+          python3 tools/prepare_webgui_dev_jar.py
+
       # domain and store are plain Java; ascensionlib is the Fabric mod, built against Cobblemon from the Modrinth Maven.
       - name: Compile and test
         run: ./gradlew --no-daemon :domain:test :store:test :ascensionlib:build --stacktrace --warning-mode all
@@ -42,6 +50,16 @@ jobs:
       # Fails on an invalid catalog: affix bands, weights, promotion chain, channel caps, example profile.
       - name: Validate the design catalog
         run: python3 tools/analyze_balance.py
+
+      # The guide and the wiki handoff are generated from design/guide.json and the code: a rule changed without rebuilding them fails here.
+      - name: Check the generated guide
+        run: python3 tools/build_guide.py --check
+
+      # The pack textures, models and icons are generated from tools/pixel_art.py and design/currency-items.json: they must be committed in step.
+      - name: Check the resource pack is up to date
+        run: |
+          python3 tools/build_resourcepack.py
+          git diff --exit-code -- resourcepack ascensionlib/src/main/resources/web/ascensionlib/icons ascensionlib/src/main/resources/data
 
       # The jar must nest domain, store and the SQLite driver, with the bundled catalog equal to design/.
       - name: Verify the built jar

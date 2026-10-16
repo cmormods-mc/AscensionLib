@@ -305,9 +305,6 @@ public final class RankedProgression {
 
     // ---- Respec items (docs/RESPEC-DESIGN.md) ------------------------------------------------------------------
 
-    /** Tower Marks one Hourglass of Undoing costs at the Marks route: about 20 hours of Tower play, twice the average wait for a drop. */
-    public static final int RESPEC_MARKS_PRICE = 90;
-
     /** Whether a Rank Respec would be refused or pointless, as a reason (empty when it can be done). Never throws. */
     public String respecRanksBlock(ProfileV1 profile) {
         if (profile.ordinarySlots().isEmpty()) return "This Pokemon has no modifiers to reset";

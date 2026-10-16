@@ -67,6 +67,6 @@ public final class WalletWeb {
         }
         int free = 0;
         for (int slot = 0; slot < 36; slot++) if (player.getInventory().getItem(slot).isEmpty()) free++;
-        WebUi.emit(player, "walletView", new View(lines, free, CurrencyItems.WITHDRAWAL_FEE_PERCENT, com.cobbleascend.store.StoreConfig.defaults().catalystFragments()));
+        WebUi.emit(player, "walletView", new View(lines, free, com.cobbleascend.domain.v1.Tunables.current().withdrawalFeePercent(), com.cobbleascend.store.StoreConfig.defaults().catalystFragments()));
     }
 }

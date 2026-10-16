@@ -47,6 +47,66 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
             new TierSpec(Tier.GOLD, 5, 150, 2, new int[] {360, 220, 140, 40, 160, 80, 80, 30}),
             new TierSpec(Tier.MYTHIC, 8, 225, 3, new int[] {360, 140, 140, 80, 180, 100, 100, 50})));
 
+    /** The expected number of a crown entry per completion for a given mix of tiers (probabilities by tier ordinal): slots times the entry's share of the tier's weight. */
+    public double expectedPerCompletion(Crown crown, double[] tierMix) {
+        double expected = 0;
+        for (var spec : tiers) {
+            int total = 0;
+            for (int w : spec.weights()) total += w;
+            expected += tierMix[spec.tier().ordinal()] * spec.crownSlots() * spec.weights()[crown.ordinal()] / (double) total;
+        }
+        return expected;
+    }
+
+    /** The mix of tiers the economy was sized for (docs/TOWER-COMPLETION-REWARDS.md): 15 percent Bronze, 45 Silver, 30 Gold, 10 Mythic. */
+    public static final double[] APPROVED_MIX = {0.15, 0.45, 0.30, 0.10};
+
+    /** The configuration form: the pile and, per tier, its first score, pile percent, crown slots and crown weights by name. */
+    public com.google.gson.JsonObject toJson() {
+        var root = new com.google.gson.JsonObject();
+        var pile = new com.google.gson.JsonObject();
+        pile.addProperty("dust", dust); pile.addProperty("facets", facets); pile.addProperty("fragments", fragments); pile.addProperty("scouters", scouters);
+        pile.addProperty("marks", marks); pile.addProperty("goldMarkBonus", goldMarkBonus); pile.addProperty("mythicMarkBonus", mythicMarkBonus);
+        pile.addProperty("fragmentBundle", fragmentBundle);
+        root.add("pile", pile);
+        var tierJson = new com.google.gson.JsonObject();
+        for (var spec : tiers) {
+            var t = new com.google.gson.JsonObject();
+            t.addProperty("minScore", spec.minScore());
+            t.addProperty("pilePercent", spec.multiplierPercent());
+            t.addProperty("crownSlots", spec.crownSlots());
+            var weights = new com.google.gson.JsonObject();
+            for (var crown : Crown.values()) weights.addProperty(crown.name().toLowerCase(java.util.Locale.ROOT), spec.weights()[crown.ordinal()]);
+            t.add("crownWeights", weights);
+            tierJson.add(spec.tier().name().toLowerCase(java.util.Locale.ROOT), t);
+        }
+        root.add("tiers", tierJson);
+        return root;
+    }
+
+    /** Reads the configuration form over {@code base}: anything absent keeps the base value. Throws IllegalArgumentException for numbers that do not make a valid table. */
+    public static TowerCompletionBands fromJson(com.google.gson.JsonObject root, TowerCompletionBands base) {
+        var pile = Tunables.obj(root, "pile");
+        int d = base.dust, f = base.facets, fr = base.fragments, sc = base.scouters, m = base.marks, gb = base.goldMarkBonus, mb = base.mythicMarkBonus, bundle = base.fragmentBundle;
+        if (pile != null) {
+            d = Tunables.intOf(pile, "dust", d); f = Tunables.intOf(pile, "facets", f); fr = Tunables.intOf(pile, "fragments", fr); sc = Tunables.intOf(pile, "scouters", sc);
+            m = Tunables.intOf(pile, "marks", m); gb = Tunables.intOf(pile, "goldMarkBonus", gb); mb = Tunables.intOf(pile, "mythicMarkBonus", mb);
+            bundle = Tunables.intOf(pile, "fragmentBundle", bundle);
+        }
+        var tierJson = Tunables.obj(root, "tiers");
+        var specs = new java.util.ArrayList<TierSpec>();
+        for (var old : base.tiers) {
+            var t = tierJson == null ? null : Tunables.obj(tierJson, old.tier().name().toLowerCase(java.util.Locale.ROOT));
+            if (t == null) { specs.add(old); continue; }
+            int[] weights = old.weights().clone();
+            var w = Tunables.obj(t, "crownWeights");
+            if (w != null) for (var crown : Crown.values()) weights[crown.ordinal()] = Tunables.intOf(w, crown.name().toLowerCase(java.util.Locale.ROOT), weights[crown.ordinal()]);
+            specs.add(new TierSpec(old.tier(), Tunables.intOf(t, "minScore", old.minScore()), Tunables.intOf(t, "pilePercent", old.multiplierPercent()),
+                    Tunables.intOf(t, "crownSlots", old.crownSlots()), weights));
+        }
+        return new TowerCompletionBands(d, f, fr, sc, m, gb, mb, bundle, specs);
+    }
+
     public TowerCompletionBands {
         if (dust < 0 || facets < 0 || fragments < 0 || scouters < 0 || marks < 0 || goldMarkBonus < 0 || mythicMarkBonus < 0 || fragmentBundle < 1)
             throw new IllegalArgumentException("Amounts must be nonnegative and a bundle at least 1");

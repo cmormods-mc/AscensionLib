@@ -9,6 +9,12 @@
         "custom_model_data": 8101
       },
       "model": "ascensionlib:item/resonance_dust"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 9101
+      },
+      "model": "ascensionlib:item/resonance_dust_voucher"
     }
   ]
 }

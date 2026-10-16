@@ -3,7 +3,16 @@
   "id": "ascensionlib",
   "version": "${version}",
   "name": "AscensionLib",
-  "description": "Pokemon ascension progression and the shared library for CobbleRaids and CobbleTowers: canonical SQLite store, material wallet, capture rarity, level milestones, enemy generation and scouting. Server-side only: every screen is a web page shown by the WebGUI mod. Battle effects act in the simulator when CobbleRaids is installed (it installs the Showdown module).",
+  "description": "Pokemon progression for Cobblemon: every Pokemon gets a rarity and modifiers that change how it fights, grown with upgrades, a materials wallet, Uniques, Fusion and rare respec items. The shared library for CobbleRaids, CobbleTowers and ascensionDungeons. Server-side only: every screen is a web page shown by the WebGUI mod on the client. Battle effects act in the simulator when CobbleRaids is installed.",
+  "authors": [
+    "cmormods"
+  ],
+  "contact": {
+    "homepage": "https://github.com/cmormods-mc/AscensionLib",
+    "sources": "https://github.com/cmormods-mc/AscensionLib",
+    "issues": "https://github.com/cmormods-mc/AscensionLib/issues"
+  },
+  "icon": "assets/ascensionlib/icon.png",
   "environment": "*",
   "entrypoints": {
     "preLaunch": [

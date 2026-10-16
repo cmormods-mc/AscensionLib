@@ -200,7 +200,7 @@ public final class CraftNet {
                 : profile.unique() == null ? "Install a Unique with a Catalyst first" : prisms < 1 ? "You have no Unbinding Prism" : "";
         var resets = new ArrayList<CraftPayloads.ResetLine>();
         for (var slot : profile.ordinarySlots()) resets.add(new CraftPayloads.ResetLine(slotName(service, slot), slot.rank(), slot.floor()));
-        var respec = new CraftPayloads.Respec(hourglasses, prisms, wallet.balance(MaterialId.TOWER_MARK), com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE,
+        var respec = new CraftPayloads.Respec(hourglasses, prisms, wallet.balance(MaterialId.TOWER_MARK), com.cobbleascend.domain.v1.Tunables.current().respecMarksPrice(),
                 profile.spentUpgradeCredits(), hourglassBlock, prismBlock, resets);
         int nextMilestone = 0;
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
@@ -343,7 +343,7 @@ public final class CraftNet {
     /** The Marks route: {@code RESPEC_MARKS_PRICE} Tower Marks for one Hourglass of Undoing, in one transaction. */
     private static void buyHourglass(ServerPlayer player, ProfileService service, Pokemon pokemon, CraftPayloads.Confirm request, UUID operation) {
         try {
-            var price = (long) com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE;
+            var price = (long) com.cobbleascend.domain.v1.Tunables.current().respecMarksPrice();
             var outcome = service.store().exchange(operation, player.getUUID(), java.util.Map.of(MaterialId.TOWER_MARK, price), java.util.Map.of(MaterialId.RANK_RESPEC, 1L),
                     "hourglass of undoing", request.walletRevision());
             LOG.info("hourglass bought for {} Marks by {} (operation {}{})", price, player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
@@ -354,7 +354,7 @@ public final class CraftNet {
                     ? "Your materials changed. Review it again." : "The Hourglass could not be bought: " + exception.getMessage());
         } catch (CraftException exception) {
             fail(player, request, exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS
-                    ? "You need " + com.cobbleascend.domain.v1.RankedProgression.RESPEC_MARKS_PRICE + " Tower Marks." : "The Hourglass could not be bought: " + exception.getMessage());
+                    ? "You need " + com.cobbleascend.domain.v1.Tunables.current().respecMarksPrice() + " Tower Marks." : "The Hourglass could not be bought: " + exception.getMessage());
         } catch (RuntimeException exception) {
             LOG.error("Hourglass purchase failed for {}", player.getGameProfile().getName(), exception);
             fail(player, request, "Something went wrong; nothing was spent.");

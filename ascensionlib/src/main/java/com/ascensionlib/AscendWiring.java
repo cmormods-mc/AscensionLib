@@ -53,6 +53,8 @@ final class AscendWiring {
 
     void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(started -> server = started);
+        ServerLifecycleEvents.SERVER_STARTED.register(com.ascensionlib.BackupJob::started);
+        ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.BackupJob::tick);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> {
             enqueueSweep(handler.getPlayer());
@@ -195,6 +197,9 @@ final class AscendWiring {
                 // /ascend craft [slot]: open the upgrade / refine / reforge screen for a party Pokemon (slot 1 by default).
                 // /ascend ui [percent]: how big your Ascension pages are, 60 to 160 percent of the automatic fit (100 is the default).
                 // /ascend dex: get an AscensionDex (right-click it to review your party); /ascend party opens the same page directly.
+                // /ascend guide (or help): the in-game guide, the same text as the wiki.
+                .then(Commands.literal("guide").executes(ctx -> openGuide(ctx.getSource())))
+                .then(Commands.literal("help").executes(ctx -> openGuide(ctx.getSource())))
                 .then(Commands.literal("dex").executes(ctx -> dex(ctx.getSource())))
                 .then(Commands.literal("party").executes(ctx -> {
                     var player = ctx.getSource().getPlayerOrException();
@@ -227,6 +232,10 @@ final class AscendWiring {
                         .then(Commands.literal("initialize")
                                 .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
                                         .executes(ctx -> initialize(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
+                        // /ascend admin backup: write a dated snapshot of the progression store now (the mod also takes one at start and daily).
+                        .then(Commands.literal("backup").executes(ctx -> backupNow(ctx.getSource())))
+                        // /ascend admin reload: re-read config/ascensionlib.json (the economy's dials) without a restart, and say what changed.
+                        .then(Commands.literal("reload").executes(ctx -> reloadConfig(ctx.getSource())))
                         .then(Commands.literal("rate-target").executes(ctx -> rateTarget(ctx.getSource())))
                         // Test seams for the capture reveal: re-send a real profile, or register a profile-less party Pokemon at a fixed rarity.
                         .then(Commands.literal("reveal")
@@ -529,6 +538,10 @@ final class AscendWiring {
         }
     }
 
+    private int openGuide(CommandSourceStack source) throws CommandSyntaxException {
+        return com.ascensionlib.web.WebUi.open(source.getPlayerOrException(), "guide.html") ? 1 : 0;
+    }
+
     private int dex(CommandSourceStack source) throws CommandSyntaxException {
         var player = source.getPlayerOrException();
         if (com.ascensionlib.dex.DexItem.carries(player)) {
@@ -537,6 +550,27 @@ final class AscendWiring {
         }
         com.ascensionlib.dex.DexItem.give(player);
         source.sendSuccess(() -> Component.literal("[Ascend] Here is your AscensionDex. Right-click it to review your party."), false);
+        return 1;
+    }
+
+    private int reloadConfig(CommandSourceStack source) {
+        var before = com.cobbleascend.domain.v1.Tunables.current();
+        var result = TunablesConfig.loadAndUse(TunablesConfig.file());
+        var changed = TunablesConfig.differences(before, result.tunables());
+        source.sendSuccess(() -> Component.literal("[Ascend] Reloaded config/ascensionlib.json: " + (changed.isEmpty() ? "nothing changed." : changed.size() + " setting(s) changed.")), true);
+        changed.forEach(line -> source.sendSuccess(() -> Component.literal("  " + line), false));
+        result.problems().forEach(problem -> source.sendFailure(Component.literal("  problem: " + problem)));
+        return result.problems().isEmpty() ? 1 : 0;
+    }
+
+    private int backupNow(CommandSourceStack source) {
+        var path = com.ascensionlib.BackupJob.now(source.getServer());
+        if (path.isEmpty()) {
+            source.sendFailure(Component.literal("[Ascend] The backup could not be made (see the server log), or progression is disabled."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("[Ascend] Backed up the progression store to " + path.get() + " (the newest "
+                + com.cobbleascend.store.StoreBackups.KEEP + " are kept)."), true);
         return 1;
     }
 
@@ -565,7 +599,7 @@ final class AscendWiring {
             source.sendSuccess(() -> Component.literal("[Ascend] Settled a " + tierName + " completion: " + status.get(player.getUUID())), false);
             return 1;
         }
-        var completion = com.cobbleascend.domain.v1.TowerCompletionBands.DEFAULTS.payout(encounter.toString(), player.getUUID(), cards, 0, false);
+        var completion = com.cobbleascend.domain.v1.Tunables.current().towerCompletion().payout(encounter.toString(), player.getUUID(), cards, 0, false);
         com.ascensionlib.reward.CompletionReveal.show(player, com.ascensionlib.reward.CompletionReveal.view(completion, 0, cards, false, 3, true));
         return 1;
     }
