@@ -6,14 +6,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * The dimensions where Ascension profiles act on wild Pokemon, each with a tier (1 or more). Anywhere else an ordinary wild fight is
- * native for both sides; raids and armed tower encounters are unaffected by this list because they are recognised by the battle itself.
- * The tier is how deep or dangerous the zone is: a wild Pokemon there is rated at that tier (see {@code RankedProgression.rateWild}),
- * and the Pokemon a player captures there is rated at the same tier, so a Scouter preview equals the capture.
+ * The tier of every dimension: how deep or dangerous it is (docs/ALL-WILD-PROFILES-DESIGN.md). A wild or trainer Pokemon there is rated at that tier
+ * (see {@code RankedProgression.rateWild}), and the Pokemon a player captures there is rated at the same tier, so a Scouter preview equals the capture.
+ * Tier 1 is the ordinary rarity table; higher tiers shift toward rarer. Tier 0 means profiles do not act there: wild and trainer fights are native and
+ * captures get no profile. Raids and armed tower encounters are recognised by the battle itself and are unaffected by this list.
  *
- * <p>A mod adds a fixed dimension with {@link #allow} (tier 1) or {@link #open}, and a dimension that exists only for a while (a dungeon run's
- * level) with {@link #open} when it is created and {@link #close} when it is deleted. The list is kept in memory and rebuilt at each start,
- * so a mod must register again after every restart. Other mods reach this through {@code AscensionZones}.
+ * <p>The tier comes from, in order: the owner's per-dimension setting in {@code config/ascensionlib.json} ({@code zones.dimensions}); a zone a mod
+ * registered; the configuration's {@code zones.defaultTier} (1 unless changed). A mod adds a fixed dimension with {@link #allow} (tier 1) or
+ * {@link #open}, and a dimension that exists only for a while (a dungeon run's level) with {@link #open} when it is created and {@link #close} when it
+ * is deleted. The registered list is kept in memory and rebuilt at each start, so a mod must register again after every restart. Other mods reach this
+ * through {@code AscensionZones}.
  */
 public final class ProfileZones {
     /** The deepest tier a zone can have. */
@@ -40,13 +42,23 @@ public final class ProfileZones {
         ZONES.put(dimension, tier);
     }
 
-    /** Removes a zone; safe when it is not one. The tower dimension cannot be closed. */
+    /** Removes a registered zone; safe when it is not one. The tower dimension cannot be closed. */
     public static void close(ResourceLocation dimension) {
         if (dimension != null && !dimension.equals(TOWER)) ZONES.remove(dimension);
     }
 
-    /** The zone's tier, or 0 when the dimension is not a zone. */
+    /** The dimension's tier: 0 when profiles do not act there (or there is no dimension), otherwise 1 to {@link #MAX_TIER}. */
     public static int tierOf(ResourceLocation dimension) {
+        if (dimension == null) return 0;
+        var zones = com.cobbleascend.domain.v1.Tunables.current().zones();
+        Integer configured = zones.dimensions().get(dimension.toString());
+        if (configured != null) return configured;
+        Integer registered = ZONES.get(dimension);
+        return registered != null ? registered : zones.defaultTier();
+    }
+
+    /** The tier a mod registered for the dimension, ignoring the configuration, or 0 when none did. */
+    public static int registeredTierOf(ResourceLocation dimension) {
         return dimension == null ? 0 : ZONES.getOrDefault(dimension, 0);
     }
 

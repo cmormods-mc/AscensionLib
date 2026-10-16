@@ -443,7 +443,7 @@ window.GUIDE = {
    "blocks": [
     {
      "type": "p",
-     "text": "Modifiers act inside the battle simulator, so they follow the normal rules: immunities, abilities and caps all still apply. They take effect in Tower and raid fights, and in wild battles inside an ascension zone; an ordinary wild battle elsewhere is native for both sides. Battle effects need CobbleRaids installed."
+     "text": "Modifiers act inside the battle simulator, so they follow the normal rules: immunities, abilities and caps all still apply. They take effect in Tower and raid fights and in every fight against a wild Pokémon or a trainer's Pokémon, which have modifiers of their own: the deeper the place (a dungeon, say), the rarer they tend to be. Fights between players are native for both sides. A Scouter reveals the wild Pokémon you are looking at. Battle effects need CobbleRaids installed."
     },
     {
      "type": "ul",
@@ -553,7 +553,7 @@ window.GUIDE = {
      "items": [
       "A page will not open: every screen is a web page shown by the WebGUI mod, so your client needs WebGUI and Rinku installed. The server tells you when yours is missing.",
       "Items look like plain vanilla items: the server's resource pack gives them their art. Accept it when you join; without it they still work.",
-      "A Pokémon says \"No profile\": it was caught before the mod, or on a world without it. An Ascension Sigil gives it a profile with a rolled rarity (Inspect, then Use Ascension Sigil).",
+      "A Pokémon says \"No profile\": you had it before the mod, it was traded or given to you, or it was caught in a place where the server has profiles switched off. An Ascension Sigil gives it a profile with a rolled rarity (Inspect, then Use Ascension Sigil).",
       "A Pokémon is locked: Tower rental Pokémon are on loan and cannot be changed.",
       "A craft button is greyed out: hover it, or read the red line beside it, for the exact reason (a missing material, a rank, a seal).",
       "Nothing happened after I confirmed: every action is checked and committed once by the server. If you see \"already used\" it had already gone through; reopen the page to see the result."

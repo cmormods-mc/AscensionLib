@@ -11,6 +11,11 @@ The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemo
 - Attunement goes to the Pokémon that actually fought, and a Pokémon with no profile is told why and can be given one with an Ascension Sigil.
 - Rare respec items: the Hourglass of Undoing (resets ranks, returns credits; refused on a Pokémon that has Overreached) and the Unbinding Prism (a free Unique swap).
 
+### Wild Pokémon and where profiles act
+- Profiles act against every wild Pokémon and every trainer's Pokémon, in every dimension, and everything you catch or hatch gets a profile. Fights between players are native for both sides.
+- Each dimension has a tier: 1 is the ordinary rarity table, higher tiers shift toward rarer (tier 5 gives 7% Mythic and 19% Legendary, against 0.1% and 0.9% at tier 1), tier 0 switches profiles off. The default tier, per-dimension tiers and the rarity table are in `config/ascensionlib.json` (`zones`).
+- Pokémon you already own keep no profile until you use an Ascension Sigil.
+
 ### Economy
 - A per-player wallet of eight materials, also as real items with resource-pack art: tradable vouchers (a 3% withdrawal fee, rounded up) and loot that joins the wallet when carried. Tower Marks are bound.
 - Tower completion chests: a guaranteed pile, a quality tier from challenge cards, Ascension cycle and a clean run, and a crown of notable items; a floor-5 mini chest; a daily limit of 20 full chests, then 25% dust.

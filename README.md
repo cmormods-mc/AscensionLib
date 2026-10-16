@@ -13,7 +13,7 @@ A progression overhaul for [Cobblemon](https://cobblemon.com) (Minecraft 1.21.1,
 - **Towers, trials, dungeons and raids** pay into the wallet. A Tower completion is an hour's work and pays a guaranteed pile, a quality tier earned by difficulty, and a crown of notable items; a daily limit keeps the easiest run from being the best one.
 - **Rare respec items.** The Hourglass of Undoing resets a Pokémon's ranks and gives its credits back; the Unbinding Prism swaps its Unique with no Catalyst. They drop from Tower completions and can be traded.
 - **The AscensionDex.** Right-click it for your party (pick a Pokémon to inspect or upgrade), your wallet, and the in-game guide.
-- **Scouting.** A one-use Scouter reveals an enemy's build first. A bleed badge on the overlay shows who is bleeding.
+- **Wild Pokémon have builds too.** Every wild and trainer Pokémon is rated, and everything you catch or hatch gets a profile; deeper places such as dungeons shift the odds toward rarer. Fights between players stay native. A one-use Scouter reveals an enemy's build first, and a bleed badge on the overlay shows who is bleeding.
 
 The full player guide is in the game (`/ascend guide`, or the Guide tab of the AscensionDex) and, as one document for a wiki, in [`docs/WIKI-HANDOFF.md`](docs/WIKI-HANDOFF.md). Both are generated from the same source with every number read from the code.
 

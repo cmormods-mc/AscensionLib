@@ -112,18 +112,26 @@ class WildRatingTest {
         assertThrows(IllegalArgumentException.class, () -> progression.rateWild(secret, id, types, 30, 0));
     }
 
-    @Test void aDeeperTierShiftsRaritiesUpwardAndStopsAddingAtTheCap() {
-        double[] mean = new double[8];
+    @Test void everyTierIsRarerThanTheOneBeforeItAllTheWayUp() {
         int trials = 6000;
+        double[] mean = new double[11];
         var random = new Random(21);
         for (int n = 0; n < trials; n++) {
             var id = new UUID(random.nextLong(), random.nextLong());
-            for (int tier : new int[] {1, 2, 4, 7}) mean[tier] += progression.rateWild(secret, id, types, 30, tier).rarity().ordinal();
+            for (int tier = 1; tier <= 10; tier++) mean[tier] += progression.rateWild(secret, id, types, 30, tier).rarity().ordinal();
         }
-        assertTrue(mean[2] > mean[1] + trials * 0.1, "Tier 2 beats tier 1 on average");
-        assertTrue(mean[4] > mean[2], "Tier 4 beats tier 2");
-        // Tiers beyond the cap draw the same number of times (four), though each is its own fixed rating
-        assertEquals(mean[4] / trials, mean[7] / trials, 0.15);
+        for (int tier = 2; tier <= 10; tier++) assertTrue(mean[tier] > mean[tier - 1], "Tier " + tier + " is rarer than tier " + (tier - 1) + " on average");
+    }
+
+    @Test void theRaritiesDrawnMatchTheTierTable() {
+        // 20000 ratings at tier 5 land within a point of the table in docs/ALL-WILD-PROFILES-DESIGN.md (9.5 / 16.1 / 23.0 / 25.4 / 19.0 / 7.0).
+        var random = new Random(77);
+        int[] counts = new int[6];
+        int trials = 20000;
+        for (int n = 0; n < trials; n++)
+            counts[progression.rateWild(secret, new UUID(random.nextLong(), random.nextLong()), types, 30, 5).rarity().ordinal()]++;
+        double[] expected = {9.54, 16.13, 22.95, 25.40, 18.97, 7.00};
+        for (int i = 0; i < 6; i++) assertEquals(expected[i], counts[i] * 100.0 / trials, 1.0, "rarity " + i);
     }
 
     @Test void aCaptureAtATierGivesExactlyTheRatingThePreviewShowed() {

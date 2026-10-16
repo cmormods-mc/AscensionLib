@@ -272,8 +272,8 @@ public final class ScoutEncounters {
 
     /**
      * Puts the wild Pokemon the player is looking at into their wild session, so a Scouter can reveal it ({@link #use}): the rating shown is
-     * the one it will have in a battle and when caught, at its zone's tier. Only an unowned Pokemon standing in a profile zone has a rating;
-     * anywhere else wild Pokemon are native and there is nothing to scout. Nothing is spent here. Server thread.
+     * the one it will have in a battle and when caught, at its zone's tier. Any unowned Pokemon has a rating, except in a dimension the
+     * configuration turns off (tier 0), where wild Pokemon are native and there is nothing to scout. Nothing is spent here. Server thread.
      */
     public static synchronized WildDeclared declareWild(net.minecraft.server.level.ServerPlayer player,
                                                         com.cobblemon.mod.common.entity.pokemon.PokemonEntity entity) {
@@ -282,7 +282,7 @@ public final class ScoutEncounters {
         var pokemon = entity.getPokemon();
         if (pokemon.getOwnerUUID() != null) return WildDeclared.no("That Pokémon belongs to someone.");
         int tier = com.ascensionlib.battle.ProfileZones.tierOf(entity.level().dimension().location());
-        if (tier < 1) return WildDeclared.no("Wild Pokémon only have an Ascension rating inside a profile zone, such as a dungeon.");
+        if (tier < 1) return WildDeclared.no("Profiles are switched off in this dimension, so wild Pokémon here have no Ascension rating.");
         var species = pokemon.getSpecies();
         var types = new ArrayList<String>();
         types.add(species.getPrimaryType().getName().toLowerCase(java.util.Locale.ROOT));

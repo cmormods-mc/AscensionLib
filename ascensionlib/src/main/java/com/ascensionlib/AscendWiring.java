@@ -66,12 +66,17 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.battle.Participation::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
-            // Only a capture inside a profile zone rolls a profile; the ball is thrown from the dimension the wild Pokemon is in.
-            // Everywhere else the Pokemon stays unprofiled until a Sigil is used on it. Hatching is the same: eggs get no profile.
+            // Every wild capture rolls a profile at its dimension's tier (1, the ordinary table, unless the configuration or a mod says otherwise); the
+            // ball is thrown from the dimension the wild Pokemon is in. A dimension set to tier 0 gives none: the Pokemon stays unprofiled until a Sigil.
             int tier = ProfileZones.tierOf(event.getPlayer().level().dimension().location());
             if (tier < 1) return;
             var s = event.getPlayer().getServer();
             if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, tier, s));
+        });
+        // A hatched egg is profiled too, at the ordinary table whatever dimension it hatches in (the Pokemon, not the place, earns the profile).
+        CobblemonEvents.HATCH_EGG_POST.subscribe((Consumer<com.cobblemon.mod.common.api.events.pokemon.HatchEggEvent.Post>) event -> {
+            var s = event.getPlayer().getServer();
+            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("hatch"), true, 1, s));
         });
         CobblemonEvents.LEVEL_UP_EVENT.subscribe((Consumer<LevelUpEvent>) event -> {
             // The event can fire before the new level is applied; read the authoritative level on the next task.
@@ -84,7 +89,7 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
         ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
-        LOG.info("Capture rarity (profile-zone captures only), level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
+        LOG.info("Capture and hatch rarity, wild and trainer ratings, level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
     }
 
     private void stop(MinecraftServer stopping) {
@@ -306,7 +311,7 @@ final class AscendWiring {
             if (profile.isEmpty()) {
                 source.sendFailure(Component.literal(service.quarantined().contains(pokemon.getUuid())
                         ? "This Pokemon's ascension data needs administrator review. It was preserved untouched."
-                        : "No ascension profile. Pokemon caught in a profile zone get one; an operator can initialize an existing Pokemon as Common."));
+                        : "No ascension profile. Pokemon you catch or hatch get one; for one you already had, use an Ascension Sigil (or an operator can initialize it as Common)."));
                 return 0;
             }
             // A client with WebGUI gets the inspection page; anyone else keeps the text lines.
@@ -436,7 +441,7 @@ final class AscendWiring {
     }
 
     /**
-     * Scouts the wild Pokemon the player is looking at (inside a profile zone): spends one Scouter and shows its rating, the one it will
+     * Scouts the wild Pokemon the player is looking at: spends one Scouter and shows its rating, the one it will
      * have in a battle and when caught. Opens the inspect page for a client with WebGUI, else prints the lines.
      */
     private int scoutLook(CommandSourceStack source) throws CommandSyntaxException {

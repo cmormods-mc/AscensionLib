@@ -10,7 +10,7 @@ import java.util.List;
  * the mod reads; the defaults are the owner-approved numbers.
  */
 public record Tunables(DailyRewardBudget budget, int withdrawalFeePercent, int respecMarksPrice, int attunementPerVictory,
-                       TowerCompletionBands towerCompletion, MiniChest miniChest) {
+                       TowerCompletionBands towerCompletion, MiniChest miniChest, ZoneSettings zones) {
     public static final int DEFAULT_FEE_PERCENT = 3;
     public static final int DEFAULT_RESPEC_MARKS_PRICE = 90;
     public static final int DEFAULT_ATTUNEMENT_PER_VICTORY = 3;
@@ -33,7 +33,7 @@ public record Tunables(DailyRewardBudget budget, int withdrawalFeePercent, int r
 
     public static Tunables defaults() {
         return new Tunables(DailyRewardBudget.DEFAULTS, DEFAULT_FEE_PERCENT, DEFAULT_RESPEC_MARKS_PRICE, DEFAULT_ATTUNEMENT_PER_VICTORY,
-                TowerCompletionBands.DEFAULTS, MiniChest.DEFAULTS);
+                TowerCompletionBands.DEFAULTS, MiniChest.DEFAULTS, ZoneSettings.DEFAULTS);
     }
 
     private static volatile Tunables current = defaults();
@@ -65,6 +65,7 @@ public record Tunables(DailyRewardBudget budget, int withdrawalFeePercent, int r
         mini.addProperty("marks", miniChest.marks());
         mini.addProperty("corePermille", miniChest.corePermille());
         root.add("towerMiniChest", mini);
+        root.add("zones", zones.toJson());
         return root;
     }
 
@@ -106,11 +107,20 @@ public record Tunables(DailyRewardBudget budget, int withdrawalFeePercent, int r
                 problems.add("towerMiniChest: " + bad.getMessage() + " (using the default)");
             }
         }
+        ZoneSettings zoneSettings = base.zones;
+        var z = obj(root, "zones");
+        if (z != null) {
+            try {
+                zoneSettings = ZoneSettings.fromJson(z, base.zones);
+            } catch (RuntimeException bad) {
+                problems.add("zones: " + bad.getMessage() + " (using the default)");
+            }
+        }
         for (var key : root.keySet()) {
-            if (!List.of("dailyBudget", "withdrawalFeePercent", "hourglassMarksPrice", "attunementPerVictory", "towerCompletion", "towerMiniChest").contains(key) && !key.startsWith("_"))
+            if (!List.of("dailyBudget", "withdrawalFeePercent", "hourglassMarksPrice", "attunementPerVictory", "towerCompletion", "towerMiniChest", "zones").contains(key) && !key.startsWith("_"))
                 problems.add("unknown setting \"" + key + "\" (ignored)");
         }
-        return new Tunables(budget, fee, price, attunement, towers, mini);
+        return new Tunables(budget, fee, price, attunement, towers, mini, zoneSettings);
     }
 
     static JsonObject obj(JsonObject parent, String key) {

@@ -85,4 +85,36 @@ class TunablesTest {
         assertTrue(chest.containsKey(MaterialId.ASCENSION_CORE), "a Core chance of 1000 permille always pays");
         assertEquals(100L, Tunables.current().towerCompletion().payout("e", new UUID(2, 2), 2, 0, false).materials().get(MaterialId.RESONANCE_DUST));
     }
+
+    @Test void theZoneSettingsReadFromTheFileAndRoundTrip() {
+        var problems = new ArrayList<String>();
+        var t = Tunables.parse(json("{\"zones\": {\"defaultTier\": 2, \"dimensions\": {\"minecraft:the_end\": 0, \"minecraft:the_nether\": 4}, \"rarityTilt\": 0.4,"
+                + " \"rarityWeights\": {\"6\": [1, 2, 3, 4, 5, 6]}}}"), problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        assertEquals(2, t.zones().defaultTier());
+        assertEquals(0, t.zones().dimensions().get("minecraft:the_end"));
+        assertEquals(4, t.zones().dimensions().get("minecraft:the_nether"));
+        assertEquals(0.4, t.zones().rarityTilt());
+        assertEquals(java.util.List.of(1, 2, 3, 4, 5, 6), t.zones().rarityWeights().get(6));
+        assertEquals(t.zones(), Tunables.parse(t.toJson(), new ArrayList<>()).zones(), "what the file shows reads back as the same settings");
+    }
+
+    @Test void badZoneSettingsFallBackTogetherAndAreNamed() {
+        for (String bad : new String[] {"{\"defaultTier\": 11}", "{\"dimensions\": {\"Not A Dimension\": 2}}", "{\"rarityTilt\": \"steep\"}",
+                "{\"rarityWeights\": {\"3\": [1, 2]}}", "{\"rarityWeights\": {\"x\": [1, 1, 1, 1, 1, 1]}}"}) {
+            var problems = new ArrayList<String>();
+            var t = Tunables.parse(json("{\"zones\": " + bad + "}"), problems);
+            assertEquals(ZoneSettings.DEFAULTS, t.zones(), bad);
+            assertEquals(1, problems.size(), bad + " -> " + problems);
+            assertTrue(problems.get(0).startsWith("zones:"), problems.get(0));
+        }
+    }
+
+    @Test void theDefaultsAreEveryDimensionAtTierOneWithTheApprovedTilt() {
+        var zones = Tunables.defaults().zones();
+        assertEquals(1, zones.defaultTier());
+        assertTrue(zones.dimensions().isEmpty());
+        assertEquals(0.30, zones.rarityTilt());
+        assertTrue(zones.rarityWeights().isEmpty());
+    }
 }

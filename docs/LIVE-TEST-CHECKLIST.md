@@ -47,6 +47,19 @@ With CobbleTowers installed, run a tower to its floor-10 champion with one accou
 - [ ] Upgrade from the previous release's world: a `progression.db.before-schema4-from3-<time>.bak` is made, then progression works.
 - [ ] Pull the WebGUI mod from a client: the player is told, and `/ascend wallet`, `/ascend inspect` still print text.
 
-## 6. Both Cobblemon versions
+## 6. Profiles on every wild Pokémon (new)
 
-Repeat sections 1 to 4 on **1.8.1** and on **1.8.2**. Record the result, the date and the versions in `docs/BUILD-STATUS.md`.
+These rely on two things never yet checked on a real server. Do them first; if either fails, stop and tell the developer.
+
+- [ ] **A wild Pokémon keeps its ID through capture.** Look at a wild Pokémon with a Scouter (`/ascend scout` or the Dex), note its rarity and modifiers, then catch it: the profile it gets is the same. Repeat with three.
+- [ ] **A trainer's Pokémon rates the same all through one battle:** in a trainer battle, the modifier effects on the trainer's Pokémon (with CobbleRaids installed) do not change when it is sent out again or the battle runs long.
+- [ ] Catching any wild Pokémon in an ordinary dimension gives a profile, tier 1 (mostly Common and Uncommon). Hatching an egg gives one too.
+- [ ] A Pokémon you already owned still says "No profile" until you use a Sigil on it.
+- [ ] A battle against a player (PvP) has no modifier effects on either side; a wild or trainer battle does.
+- [ ] `config/ascensionlib.json`: set `zones.dimensions` to `{"minecraft:the_nether": 6}`, run `/ascend admin reload`, and catch several Pokémon in the Nether: clearly rarer than in the overworld. Set it to 0: no profile and no effects there. Remove it again.
+- [ ] A dungeon (when ascensionDungeons is wired) opens its dimension at its tier and the captures and wild fights there are rated at it.
+- [ ] Battle speed: a trainer battle and a wild battle start without a noticeable pause.
+
+## 7. Both Cobblemon versions
+
+Repeat sections 1 to 4 and 6 on **1.8.1** and on **1.8.2**. Record the result, the date and the versions in `docs/BUILD-STATUS.md`.

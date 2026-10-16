@@ -1,3 +1,5 @@
+> **Superseded in part (2026-10-16):** profiles now act everywhere and every capture and hatch gets one; see `ALL-WILD-PROFILES-DESIGN.md`. A "zone" is now a dimension with a tier (every dimension has one; default 1), not a whitelist. The Sigil rules below still hold.
+
 # Profile zones and the Ascension Sigil
 
 Status: 2026-10-14. Owner decisions are marked **Decided**. The planned in-library "Exiled" dungeon dimension was dropped; dungeons will come from the separate server-side mod **ascensionDungeons**, which hooks in through `ProfileZones.allow()`.

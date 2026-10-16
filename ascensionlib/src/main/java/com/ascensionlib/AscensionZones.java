@@ -25,7 +25,7 @@ public final class AscensionZones {
      * Makes a dimension a profile zone of this tier, or changes its tier.
      *
      * @param dimensionId a dimension id such as {@code fantasy:run_ab12}
-     * @param tier        1 (shallowest) to {@code 10}; a deeper tier rates wild Pokemon higher and pays dungeon rewards more
+     * @param tier        1 (shallowest, the ordinary rarity table) to {@code 10}; a deeper tier rates wild and trainer Pokemon rarer. The owner can override it per dimension in config/ascensionlib.json
      * @return {@code true} when the zone is open; {@code false} for an invalid id or tier (nothing changes)
      */
     public static boolean openZone(String dimensionId, int tier) {
@@ -41,7 +41,7 @@ public final class AscensionZones {
         if (id != null) ProfileZones.close(id);
     }
 
-    /** The zone's tier, or 0 when the dimension is not an open zone. */
+    /** The dimension's tier: a tier the owner configured for it, else one a mod opened, else the default tier (1 unless changed); 0 where profiles do not act. */
     public static int zoneTier(String dimensionId) {
         var id = dimensionId == null ? null : ResourceLocation.tryParse(dimensionId);
         return id == null ? 0 : ProfileZones.tierOf(id);

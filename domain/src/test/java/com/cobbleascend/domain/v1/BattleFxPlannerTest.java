@@ -68,11 +68,23 @@ class BattleFxPlannerTest {
         assertTrue(BattleFxPlanner.plan(actors, true, false, true, null, id -> Optional.of(snapshot("p")), BattleFxPlannerTest::none).isEmpty());
     }
 
-    @Test void aTrainerIsNativeUnlessAnEncounterIsArmed() {
+    @Test void aTrainersPokemonIsRatedLikeAWildOneAndAnArmedEncounterStillOverridesIt() {
         var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.NPC, List.of(mon("trainer"))));
-        assertTrue(BattleFxPlanner.plan(actors, false, false, true, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w"))).isEmpty());
+        var rated = BattleFxPlanner.plan(actors, false, false, true, null, BattleFxPlannerTest::none, id -> Optional.of(snapshot("w")));
+        assertEquals(java.util.Set.of("trainer"), rated.keySet(), "a trainer's Pokemon acts from its derived rating");
         var armed = BattleFxPlanner.plan(actors, false, false, true, List.of(snapshot("e")), BattleFxPlannerTest::none, BattleFxPlannerTest::none);
         assertEquals(java.util.Set.of("trainer"), armed.keySet());
+        assertEquals(BattleFx.effectsOf(snapshot("e")), armed.get("trainer"), "the declared enemy wins over a rating");
+    }
+
+    @Test void aDimensionSwitchedOffIsNativeForWildAndTrainerAlike() {
+        var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.NPC, List.of(mon("trainer"))), new Actor(Kind.WILD, List.of(wildOne)));
+        assertTrue(BattleFxPlanner.plan(actors, false, false, false, null, id -> Optional.of(snapshot("p")), id -> Optional.of(snapshot("w"))).isEmpty());
+    }
+
+    @Test void pvpIsNativeEvenWhenTheOpponentIsATrainer() {
+        var actors = List.of(new Actor(Kind.PLAYER, List.of(mine)), new Actor(Kind.PLAYER, List.of(mon("other"))), new Actor(Kind.NPC, List.of(mon("trainer"))));
+        assertTrue(BattleFxPlanner.plan(actors, true, false, true, null, id -> Optional.of(snapshot("p")), id -> Optional.of(snapshot("w"))).isEmpty());
     }
 
     @Test void anArmedEncounterOverridesTheWildRatingAndItsEnemyIsTheDeclaredOne() {

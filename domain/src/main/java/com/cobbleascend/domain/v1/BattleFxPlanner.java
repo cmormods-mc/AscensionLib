@@ -14,14 +14,13 @@ import java.util.function.Function;
  *
  * <ul>
  *   <li><b>PvP</b>: nothing acts, ever.</li>
- *   <li><b>Only in three places</b>: a raid, an armed encounter, or a profile zone (a registered dimension such as the tower dimension). Anywhere else
- *       (an ordinary wild fight in any dimension) nothing acts on either side.</li>
+ *   <li><b>Everywhere but a dimension switched off</b>: a raid, an armed encounter, or a profile zone. Every dimension is a zone (tier 1 unless the
+ *       configuration or a mod says otherwise); only a dimension set to tier 0 is native for both sides.</li>
  *   <li><b>A player's Pokemon</b> act from their stored profile; a Pokemon with no profile does not act.</li>
  *   <li><b>An armed encounter</b> (a tower opponent or floor boss, a raid boss) assigns its declared enemy snapshots, in
  *       order, to the non-player Pokemon, so what a Scouter revealed is what fights.</li>
- *   <li><b>A wild Pokemon</b> (no armed encounter, not a raid) acts from its derived rating, the one a Scouter previews and
- *       a capture awards.</li>
- *   <li><b>Trainers and NPCs</b> are native unless an encounter is armed.</li>
+ *   <li><b>A wild Pokemon or a trainer's Pokemon</b> (no armed encounter, not a raid) acts from its derived rating, the one a Scouter previews and
+ *       a capture awards, at the zone's tier.</li>
  * </ul>
  */
 public final class BattleFxPlanner {
@@ -43,12 +42,12 @@ public final class BattleFxPlanner {
      * @param actors         every actor in battle order
      * @param pvp            two or more players fighting each other
      * @param raid           a raid-format battle, whose boss is never rated as a wild Pokemon
-     * @param profileZone    the wild opponent stands in a dimension where profiles act on wild Pokemon; with no raid, no
-     *                       armed encounter and no zone, nothing acts on either side
+     * @param profileZone    the wild or trainer opponent stands in a dimension where profiles act (every dimension unless the
+     *                       configuration turns it off); with no raid, no armed encounter and no zone, nothing acts on either side
      * @param armed          the declared enemies of an encounter armed for this battle, or {@code null} when none is armed;
      *                       an armed encounter with no enemies means "explicitly native"
      * @param playerSnapshot a player's Pokemon's stored profile as a snapshot, by original uuid
-     * @param wildSnapshot   a wild Pokemon's derived rating as a snapshot, empty when it cannot be rated
+     * @param wildSnapshot   a wild or trainer Pokemon's derived rating as a snapshot, empty when it cannot be rated
      * @return effects per packed uuid; Pokemon with none are absent
      */
     public static Map<String, List<BattleFx.Effect>> plan(List<Actor> actors, boolean pvp, boolean raid,
@@ -57,17 +56,16 @@ public final class BattleFxPlanner {
                                                           Function<UUID, Optional<CombatSnapshot>> wildSnapshot) {
         var result = new LinkedHashMap<String, List<BattleFx.Effect>>();
         if (pvp) return result;
-        // Profiles act only in a raid, an armed encounter (tower) or a profile zone (a registered dimension such as the tower dimension); an
-        // ordinary wild fight elsewhere is fully native for both sides.
+        // Profiles act in a raid, an armed encounter (tower) or a profile zone. Every dimension is a zone unless the configuration turns it off
+        // (default tier 0), so an ordinary wild or trainer fight is rated everywhere; a fight in a dimension that is off is fully native for both sides.
         if (armed == null && !raid && !profileZone) return result;
         var enemies = new ArrayList<Combatant>();
-        var wild = new ArrayList<Combatant>();
         for (var actor : actors) {
             for (var combatant : actor.pokemon()) {
                 switch (actor.kind()) {
                     case PLAYER -> playerSnapshot.apply(combatant.originalId())
                             .ifPresent(snapshot -> put(result, combatant, snapshot));
-                    case WILD -> { enemies.add(combatant); wild.add(combatant); }
+                    case WILD -> enemies.add(combatant);
                     case NPC -> enemies.add(combatant);
                 }
             }
@@ -75,7 +73,8 @@ public final class BattleFxPlanner {
         if (armed != null) {
             for (int i = 0; i < Math.min(armed.size(), enemies.size()); i++) put(result, enemies.get(i), armed.get(i));
         } else if (!raid) {
-            for (var combatant : wild) wildSnapshot.apply(combatant.originalId()).ifPresent(snapshot -> put(result, combatant, snapshot));
+            // A wild Pokemon and a trainer's Pokemon are rated the same way: from the Pokemon itself and the zone's tier.
+            for (var combatant : enemies) wildSnapshot.apply(combatant.originalId()).ifPresent(snapshot -> put(result, combatant, snapshot));
         }
         return result;
     }

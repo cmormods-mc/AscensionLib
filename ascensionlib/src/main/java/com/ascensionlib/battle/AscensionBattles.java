@@ -41,17 +41,19 @@ public final class AscensionBattles {
             if (battle == null) return Map.of();
 
             var actors = new ArrayList<BattleFxPlanner.Actor>();
-            // A wild Pokemon is rated from the Pokemon itself (its types and level), so keep it by its real uuid.
+            // A wild Pokemon and a trainer's Pokemon are rated from the Pokemon itself (its types and level), so keep them by their real uuid.
             var wildByUuid = new HashMap<UUID, Pokemon>();
             boolean profileZone = false;
             int zoneTier = 1;
             for (var actor : battle.getActors()) {
-                // The dimension is the wild opponent's, not the player's. No entity (a scripted battle) is not a zone.
-                if (actor.getType() == ActorType.WILD && actor instanceof EntityBackedBattleActor<?> backed
-                        && backed.getEntity() != null
-                        && ProfileZones.isZone(backed.getEntity().level().dimension().location())) {
-                    profileZone = true;
-                    zoneTier = Math.max(zoneTier, ProfileZones.tierOf(backed.getEntity().level().dimension().location()));
+                // The dimension is the opponent's (a wild Pokemon's or a trainer's), not the player's; its tier rates the opponent. A dimension the
+                // configuration turns off (tier 0) is native. No entity (a scripted battle) is native too.
+                if (actor.getType() != ActorType.PLAYER && actor instanceof EntityBackedBattleActor<?> backed && backed.getEntity() != null) {
+                    int tier = ProfileZones.tierOf(backed.getEntity().level().dimension().location());
+                    if (tier >= 1) {
+                        profileZone = true;
+                        zoneTier = Math.max(zoneTier, tier);
+                    }
                 }
                 var kind = actor.getType() == ActorType.PLAYER ? BattleFxPlanner.Kind.PLAYER
                         : actor.getType() == ActorType.WILD ? BattleFxPlanner.Kind.WILD : BattleFxPlanner.Kind.NPC;
@@ -59,7 +61,7 @@ public final class AscensionBattles {
                 for (var member : actor.getPokemonList()) {
                     Pokemon original = member.getOriginalPokemon();
                     combatants.add(new BattleFxPlanner.Combatant(member.getUuid().toString(), original.getUuid()));
-                    if (kind == BattleFxPlanner.Kind.WILD) wildByUuid.put(original.getUuid(), original);
+                    if (kind != BattleFxPlanner.Kind.PLAYER) wildByUuid.put(original.getUuid(), original);
                 }
                 actors.add(new BattleFxPlanner.Actor(kind, combatants));
             }
@@ -67,6 +69,7 @@ public final class AscensionBattles {
             final int tierForWild = zoneTier;
             boolean raid = "raid".equals(battle.getFormat().getBattleType().getName());
             var rules = service.get().rules();
+            // PvP is native for both sides until there is data to balance it (the planner returns nothing for it).
             var plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, profileZone, ScoutEncounters.armedEnemies(playerIds),
                     pokemonId -> service.get().snapshot(pokemonId),
                     pokemonId -> Optional.ofNullable(wildByUuid.get(pokemonId)).map(wild -> {
