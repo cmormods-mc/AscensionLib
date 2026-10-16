@@ -251,4 +251,4 @@ Each pair of Uniques fuses into one of 21 base Transcendents. A few dozen pairs 
 
 ## Credits and licences
 
-AscensionLib is by cmormods. The page font is Monocraft (OFL). Pokémon lore notes are summarised in our own words from the Cobblemon jar data, PokeAPI and Bulbapedia (see `THIRD-PARTY.md`). The item tooltips borrow the idea of rarity-coloured tooltips from Rarity Tooltips by Snuzzle (MIT); the tooltip frames themselves need Minecraft 1.21.2 or later.
+AscensionLib is by cmormods and is released under the MIT licence. The page font is Monocraft (OFL). Pokémon lore notes are summarised in our own words from the Cobblemon jar data, PokeAPI and Bulbapedia (see `THIRD-PARTY.md`). The item tooltips borrow the idea of rarity-coloured tooltips from Rarity Tooltips by Snuzzle (MIT); the tooltip frames themselves need Minecraft 1.21.2 or later.

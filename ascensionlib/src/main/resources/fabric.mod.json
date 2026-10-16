@@ -12,6 +12,7 @@
     "sources": "https://github.com/cmormods-mc/AscensionLib",
     "issues": "https://github.com/cmormods-mc/AscensionLib/issues"
   },
+  "license": "MIT",
   "icon": "assets/ascensionlib/icon.png",
   "environment": "*",
   "entrypoints": {

@@ -4,7 +4,7 @@ The Gradle wrapper scripts and bootstrap jar were copied from the existing local
 
 The addon builds against Minecraft, Fabric and Cobblemon rather than redistributing their complete jars. Production dependencies retain their own licenses. Cobblemon's artifact is pinned by Modrinth version ID and its SHA-512 was verified against the upstream release metadata. Gson is provided by Minecraft at runtime; JUnit is test-only. Development-only Kotlin/Graal/Mongo/ICU dependencies support running the target dependency under Loom.
 
-No license for publishing the original CobbleAscend source has been selected in this prototype. Choose one before public distribution. This note does not change ownership or license terms of any dependency.
+AscensionLib's own source is released under the MIT licence (see `LICENSE`). This note does not change the ownership or licence terms of any dependency.
 
 ## Reveal prototype
 

@@ -55,4 +55,4 @@ Design notes and decisions are in [`docs/`](docs/), starting with [`DESIGN.md`](
 
 ## Licence
 
-No licence has been chosen yet; until one is, all rights are reserved by the author. Pokémon is third-party franchise content.
+AscensionLib is released under the [MIT licence](LICENSE). Pokémon, Cobblemon and the Pokédex concept are third-party franchise content and are not covered by it; bundled third-party material keeps its own licence (see [`THIRD-PARTY.md`](THIRD-PARTY.md)).

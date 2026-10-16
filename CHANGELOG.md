@@ -29,7 +29,9 @@ The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemo
 - Store writes are measured at 0.6 ms each on an ordinary disk (see `docs/PERFORMANCE.md`).
 - Runs on Cobblemon 1.8.1 and 1.8.2.
 
+### Licence
+- Released under the MIT licence.
+
 ### Known limits
-- No licence has been chosen yet.
 - Tooltip frames and backgrounds by rarity need Minecraft 1.21.2 or later.
 - Core pity is not built (deferred by design).

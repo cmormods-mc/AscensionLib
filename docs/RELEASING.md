@@ -2,6 +2,7 @@
 
 A checklist so a release is the same every time. The version lives in one place, `build.gradle` (`version = ...`); `fabric.mod.json` and the jar name take it from there.
 
+0. The licence is MIT (`LICENSE`); keep `fabric.mod.json`, `README.md`, `THIRD-PARTY.md` and the wiki credits saying so.
 1. **Decide the version** and edit `build.gradle`, then add a section to `CHANGELOG.md` (what players and server owners will notice, known limits).
 2. **Run everything locally:**
    ```
