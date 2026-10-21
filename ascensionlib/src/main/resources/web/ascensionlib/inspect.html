@@ -74,7 +74,7 @@
   var TYPES = { normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', electric: '#f7d02c', grass: '#7ac74c', ice: '#96d9d6', fighting: '#c22e28', poison: '#a33ea1',
     ground: '#e2bf65', flying: '#a98ff3', psychic: '#f95587', bug: '#a6b91a', rock: '#b6a136', ghost: '#735797', dragon: '#6f35fc', dark: '#705746', steel: '#b7b7ce', fairy: '#d685ad' };
   var mode = '';           // owned | enemy
-  var owned = null, state = null, idx = 0, sel = 0, tries = 0, sigilArmed = false;
+  var owned = null, state = null, idx = 0, sel = 0, sigilArmed = false;
 
   function detail() { return mode === 'owned' ? (owned && owned.detail) : (state && state.entries[idx] ? state.entries[idx].detail : null); }
   function rowsOf(d) {
@@ -209,8 +209,8 @@
     A.text($('info'), mode === 'enemy' && state && !state.entries.length ? 'No encounter to scout.' : '');
   }
 
-  A.on('inspectOwned', function (o) { mode = 'owned'; owned = o; tries = 99; sel = 0; render(); });
-  A.on('inspectScout', function (s) { if (mode === '') mode = 'enemy'; if (mode !== 'enemy') return; tries = 99; state = s; idx = Math.min(idx, Math.max(0, s.entries.length - 1)); render(); });
+  A.on('inspectOwned', function (o) { mode = 'owned'; owned = o; sel = 0; render(); });
+  A.on('inspectScout', function (s) { if (mode === '') mode = 'enemy'; if (mode !== 'enemy') return; state = s; idx = Math.min(idx, Math.max(0, s.entries.length - 1)); render(); });
 
   $('close').addEventListener('click', function () { A.send('close'); });
   $('done').addEventListener('click', function () { A.send('close'); });
@@ -230,9 +230,7 @@
   $('next').addEventListener('click', function () { if (state) { idx = (idx + 1) % state.entries.length; sel = 0; render(); } });
 
   function ready() {
-    if (!A.g) { A.text($('info'), 'This page needs the WebGUI mod.'); return; }
-    A.send('ascension_inspect_ready');
-    if (++tries < 4) setTimeout(function () { if (!mode) ready(); }, 2000);
+    A.ready('ascension_inspect_ready', function () { return !!mode; }, $('info'));
   }
   render(); ready();
 })();

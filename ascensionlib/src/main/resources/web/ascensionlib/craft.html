@@ -73,7 +73,7 @@
   'use strict';
   var A = window.A, $ = A.$;
   var MODES = ['upgrade', 'refine', 'reforge', 'perfect', 'overreach', 'promote', 'unique', 'respec'];
-  var view = null, mode = 'upgrade', slotId = '', uniqueId = '', phase = 'browse', pendingOp = '', banner = '', bannerOk = false, waitTimer = 0, tries = 0, action = '';   // action: what the open dialog confirms when it is not simply the tab's own: 'prism' or 'buy'
+  var view = null, mode = 'upgrade', slotId = '', uniqueId = '', phase = 'browse', pendingOp = '', banner = '', bannerOk = false, waitTimer = 0, action = '';   // action: what the open dialog confirms when it is not simply the tab's own: 'prism' or 'buy'
 
   function slot() { for (var i = 0; i < view.slots.length; i++) if (view.slots[i].slotId === slotId) return view.slots[i]; return null; }
   function blockFor(s) {
@@ -122,7 +122,7 @@
     var box = $('tabs'); box.innerHTML = '';
     MODES.forEach(function (m) {
       var t = A.el('button', 'tab' + (m === mode ? ' on' : ''), A.cap(m));
-      t.addEventListener('click', function () { if (phase !== 'browse') return; mode = m; banner = ''; render(); });
+      t.addEventListener('click', function () { if (phase !== 'browse' || m === mode) return; mode = m; banner = ''; render('mode'); });
       box.appendChild(t);
     });
     var b = A.el('div', 'banner' + (banner ? (bannerOk ? ' ok' : ' bad') : ''), banner);
@@ -146,10 +146,11 @@
     if (mode === 'unique') {
       view.unique.options.forEach(function (o) {
         var r = A.el('div', 'row uopt' + (o.id === uniqueId ? ' sel' : ''));
+        r.dataset.k = o.id;
         r.appendChild(A.affixIcon(o.name, true));
         r.appendChild(A.el('div', 't1', o.name));
         if (o.current) { var h = A.el('div', 'v bad', 'held'); r.appendChild(h); }
-        r.addEventListener('click', function () { uniqueId = o.id; render(); });
+        r.addEventListener('click', function () { if (uniqueId === o.id) return; uniqueId = o.id; render('sel'); });
         box.appendChild(r);
       });
       return;
@@ -165,7 +166,8 @@
       var col = A.el('div'); col.appendChild(A.el('div', 't1', s.name));
       col.appendChild(A.el('div', 't2', (prefix ? 'Offense' : 'Defense') + ' · ' + A.roman[Math.max(1, Math.min(5, s.rank))] + (s.sealed ? ' · sealed' : ''))); r.appendChild(col);
       r.appendChild(A.el('div', 'v', '+' + s.value + '%'));
-      r.addEventListener('click', function () { slotId = s.slotId; render(); });
+      r.dataset.k = s.slotId;
+      r.addEventListener('click', function () { if (slotId === s.slotId) return; slotId = s.slotId; render('sel'); });
       box.appendChild(r);
     });
   }
@@ -183,7 +185,7 @@
     var col = A.el('div', 'c'); col.appendChild(A.el('div', 'muted', 'Cost'));
     col.appendChild(A.el('div', reason ? 'bad' : '', reason || shortCost())); c.appendChild(col);
     var rb = A.el('button', 'primary', 'Review'); rb.disabled = !canReview();
-    rb.addEventListener('click', function () { action = ''; phase = 'review'; render(); });
+    rb.addEventListener('click', function () { action = ''; phase = 'review'; render('phase'); });
     c.appendChild(rb); box.appendChild(c);
   }
 
@@ -210,7 +212,7 @@
       held.appendChild(A.el('div', 'c muted', 'You hold ' + rs.hourglasses + (rs.hourglasses === 1 ? ' Hourglass' : ' Hourglasses') + ' · ' + rs.marks + ' Tower Marks'));
       var buy = A.el('button', '', 'Buy for ' + rs.price + ' Marks');
       buy.disabled = rs.marks < rs.price || phase !== 'browse'; buy.title = rs.marks < rs.price ? 'Needs ' + rs.price + ' Tower Marks (about 20 hours of Tower play).' : 'Trades ' + rs.price + ' Tower Marks for one Hourglass of Undoing.';
-      buy.addEventListener('click', function () { if (phase === 'browse') { action = 'buy'; phase = 'review'; render(); } });
+      buy.addEventListener('click', function () { if (phase === 'browse') { action = 'buy'; phase = 'review'; render('phase'); } });
       held.appendChild(buy); box.appendChild(held);
       box.appendChild(A.el('div', 'spacer')); costRow(box, rs.hourglassBlock); return;
     }
@@ -234,7 +236,7 @@
         var pb = A.el('button', '', 'Use Unbinding Prism');
         var why = pz.prismBlock || (o.current ? 'Already held' : '');
         pb.disabled = !!why || phase !== 'browse'; pb.title = why || 'Swaps in ' + o.name + ' with no Catalyst and no Tower Mark.';
-        pb.addEventListener('click', function () { if (phase === 'browse') { action = 'prism'; phase = 'review'; render(); } });
+        pb.addEventListener('click', function () { if (phase === 'browse') { action = 'prism'; phase = 'review'; render('phase'); } });
         pr.appendChild(pb); box.appendChild(pr);
       }
       costRow(box, u.block || (o.current ? 'Already held' : '')); return;
@@ -320,12 +322,27 @@
     $('dOk').disabled = phase === 'waiting'; $('dCancel').disabled = phase === 'waiting';
   }
 
-  function render() {
+  /** Moves the highlight to the chosen row without rebuilding the list (rows carry their slot or Unique id in data-k). */
+  function markSel() {
+    var want = mode === 'unique' ? uniqueId : slotId, rows = $('list').children;
+    for (var i = 0; i < rows.length; i++) { var k = rows[i].dataset.k; if (k !== undefined) rows[i].classList.toggle('sel', k === want); }
+  }
+
+  /**
+   * Redraws only what a change touches. part: 'sel' (a row was chosen), 'mode' (a tab was chosen), 'phase' (a dialog opened, closed or is
+   * waiting); anything else is new data from the server and redraws everything.
+   */
+  function render(part) {
     if (!view) return;
+    if (part === 'sel') { markSel(); drawDetail(); return; }
+    if (part === 'mode') { drawTabs(); drawList(); drawDetail(); return; }
+    if (part === 'phase') { drawDetail(); drawDialog(); return; }
     A.text($('name'), view.name); A.text($('lvl'), 'Lv ' + view.level);
     var gr = $('grade'); A.text(gr, (view.rarityId === 'mythical' ? 'MYTHIC' : view.rarityId.toUpperCase()) + (view.uniqueName ? ' · UNIQUE' : ''));
     gr.style.background = 'var(--' + (view.rarityId || 'common') + '-bg)'; gr.style.color = 'var(--' + (view.rarityId || 'common') + ')';
-    var art = $('art'); art.innerHTML = ''; art.appendChild(A.sprite(view.speciesId, 2)); A.setBezel(view.rarityId); A.setBezel(view.rarityId);
+    var art = $('art');
+    if (art.dataset.species !== view.speciesId) { art.dataset.species = view.speciesId; art.innerHTML = ''; art.appendChild(A.sprite(view.speciesId, 2)); }   // not on every click: it flashes the name
+    A.setBezel(view.rarityId);
     A.text($('pend'), view.pending); A.text($('pendLabel'), view.pending === 1 ? 'upgrade available' : 'upgrades available');
     A.text($('next'), view.nextMilestone > 0 ? 'Next upgrade at Lv ' + view.nextMilestone : 'All level milestones reached');
     $('fuse').style.display = view.rarityId === 'mythical' ? '' : 'none';
@@ -333,7 +350,7 @@
   }
 
   function submit(kind, slot) {
-    pendingOp = A.newId(); phase = 'waiting'; render();
+    pendingOp = A.newId(); phase = 'waiting'; render('phase');
     A.send('ascension_craft_confirm', { operationId: pendingOp, pokemonId: view.pokemonId, kind: kind, slotId: slot || '',
       profileRevision: view.profileRevision, walletRevision: view.walletRevision });
     clearTimeout(waitTimer);
@@ -355,7 +372,7 @@
   }
 
   A.on('craftView', function (v) {
-    var first = !view; view = v; tries = 99;
+    var first = !view; view = v;
     if (first) { mode = v.pending > 0 ? 'upgrade' : 'refine'; if (v.slots.length) slotId = v.slots[0].slotId; }
     uniqueId = validUnique(uniqueId);
     var found = false; v.slots.forEach(function (s) { if (s.slotId === slotId) found = true; });
@@ -389,13 +406,11 @@
   $('close').addEventListener('click', function () { if (phase !== 'waiting') A.send('close'); });
   $('later').addEventListener('click', function () { if (phase !== 'waiting') A.send('close'); });
   $('fuse').addEventListener('click', function () { if (view && phase === 'browse') A.send('ascension_fusion_open', { hostId: view.pokemonId }); });
-  $('dCancel').addEventListener('click', function () { if (phase === 'review') { phase = 'browse'; action = ''; render(); } });
+  $('dCancel').addEventListener('click', function () { if (phase === 'review') { phase = 'browse'; action = ''; render('phase'); } });
   $('dOk').addEventListener('click', confirm);
 
   function ready() {
-    if (!A.g) { A.text($('next'), 'This page needs the WebGUI mod.'); return; }
-    A.send('ascension_craft_ready');
-    if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
+    A.ready('ascension_craft_ready', function () { return !!view; }, $('next'));
   }
   ready();
 })();

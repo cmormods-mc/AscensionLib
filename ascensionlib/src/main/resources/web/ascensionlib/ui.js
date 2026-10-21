@@ -25,7 +25,12 @@
     document.documentElement.style.setProperty('--ui-scale', s.toFixed(3));
   };
   A.fit();
-  window.addEventListener('resize', A.fit);
+  var fitQueued = false;
+  window.addEventListener('resize', function () {
+    if (fitQueued) return;
+    fitQueued = true;
+    requestAnimationFrame(function () { fitQueued = false; A.fit(); });   // at most one forced layout per frame while the window is dragged
+  });
   sizeControl();
   /** A header control to make the page bigger or smaller: the server keeps the choice and answers with the clamped value. */
   function sizeControl() {
@@ -46,19 +51,34 @@
     if (!g) return;
     g.on(event, function (data) { try { fn(typeof data === 'string' ? JSON.parse(data) : data); } catch (e) { if (window.console) console.error(event, e); } });
   };
+  /** Asks the server for the page's data, and asks again (up to 3 more times, 2 s apart) while loaded() is still false: the first ask can beat the page's listener. */
+  A.ready = function (channel, loaded, notice) {
+    if (!g) { A.text(notice, 'This page needs the WebGUI mod.'); return; }
+    var asked = 0;
+    (function ask() {
+      A.send(channel);
+      if (++asked < 4) setTimeout(function () { if (!loaded()) ask(); }, 2000);
+    })();
+  };
   A.text = function (el, value) { el.textContent = value == null ? '' : String(value); };
   A.cap = function (s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; };
   A.rarityName = function (id) { return id ? (id === 'mythical' ? 'Mythic' : A.cap(id)) : ''; };
   A.roman = ['', 'I', 'II', 'III', 'IV', 'V'];
   // A modifier's crest (icons/affix/<id>.png, drawn by tools/affix_art.py). The id is the display name lower-cased with every non-alphanumeric as _; `unique` is a Unique power.
   // A type-bound modifier is named "Type Focus (fire)": it has a crest in its type's colour (type_focus_fire.png), falling back to the plain one.
+  var iconCache = {};   // one resolved <img> per icon; later rows clone it, which reuses the decoded picture instead of asking for the file again
   A.affixIcon = function (name, unique, cls) {
-    var img = new Image(); img.alt = ''; img.className = 'afx' + (cls ? ' ' + cls : '');
     var m = unique ? null : /^(.*?)\s*\(([a-z]+)\)\s*$/.exec(String(name || ''));
     var base = unique ? 'unique' : (m ? m[1] : String(name || '')).toLowerCase().replace(/[^a-z0-9]/g, '_');
-    var tried = false;
-    img.onerror = function () { if (m && !tried) { tried = true; img.src = 'icons/affix/' + base + '.png'; } else img.style.visibility = 'hidden'; };
-    img.src = 'icons/affix/' + base + (m ? '_' + m[2] : '') + '.png';
+    var key = base + (m ? '_' + m[2] : '');
+    var hit = iconCache[key];
+    if (!hit) {
+      hit = iconCache[key] = new Image(); hit.alt = '';
+      var tried = false;
+      hit.onerror = function () { if (m && !tried) { tried = true; hit.src = 'icons/affix/' + base + '.png'; } else hit.style.visibility = 'hidden'; };
+      hit.src = 'icons/affix/' + key + '.png';
+    }
+    var img = hit.cloneNode(false); img.className = 'afx' + (cls ? ' ' + cls : '');
     return img;
   };
   A.num = function (n) { n = Number(n) || 0; return n >= 10000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-US'); };
@@ -98,7 +118,10 @@
     common: ['#6c7585', '#aeb6c4', '#3f4755'], uncommon: ['#14877a', '#4fd3c1', '#0a4a42'], rare: ['#1d6db0', '#5bb7ee', '#0f3f6e'],
     epic: ['#6a35b8', '#af69ff', '#341a66'], legendary: ['#b88a12', '#ffd437', '#6b4f08'], mythical: ['#8e1426', '#d0404f', '#620512']
   };
+  var bezelFor = null;
   A.setBezel = function (rarityId) {
+    if (bezelFor === (rarityId || '')) return;   // the rarity rarely changes; re-setting --bezel re-decodes the frame's border-image
+    bezelFor = rarityId || '';
     var c = SHELLS[rarityId] || SHELLS.mythical;
     var cols = ['#1b120d', c[1], c[0], c[0], c[2], '#1b120d', '#cbd3df', '#eef2f7'], parts = '';
     cols.forEach(function (col, i) {

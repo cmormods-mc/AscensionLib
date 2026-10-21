@@ -20,7 +20,7 @@ b, strong { font-weight: 400; }
 /* ---- the tablet: a stepped pixel bezel (hard edges only; a blurred shadow renders as a black halo in WebGUI) ---- */
 .frame { width: 1040px; height: 600px; transform: scale(var(--ui-scale, 1)); display: flex; flex-direction: column; background: var(--scr); background-clip: padding-box;
          position: relative; border: 18px solid transparent; border-image: var(--bezel, none) 8 / 18px stretch; image-rendering: pixelated; }
-.frame::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 20;
+.frame::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 20; will-change: transform; contain: strict;   /* own layer: a click underneath no longer repaints the scanlines */
          background: repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.42)); }
 .head { background: var(--head); padding: 8px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid var(--line); text-shadow: var(--glow); letter-spacing: .1em; color: var(--acc); }
 .head::before { content: ""; flex: none; width: 14px; height: 14px; margin-right: 76px; background: #4ad8f6;
@@ -40,7 +40,7 @@ b, strong { font-weight: 400; }
 .foot .msg { flex: 1; }
 
 /* pixel keys: raised, they press down */
-button { font: inherit; padding: 6px 14px; border: 2px solid var(--line); background: #0f3347; color: var(--ink); cursor: pointer; text-shadow: var(--glow);
+button { font: inherit; padding: 6px 14px; border: 2px solid var(--line); background: #0f3347; color: var(--ink); cursor: pointer;
          box-shadow: inset 0 -4px 0 rgba(0,0,0,.3), inset 0 2px 0 rgba(255,255,255,.14); }
 button:hover:not(:disabled) { border-color: var(--acc); color: #fff; }
 button:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -1px 0 rgba(0,0,0,.3); }

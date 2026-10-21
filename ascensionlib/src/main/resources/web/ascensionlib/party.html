@@ -69,7 +69,7 @@
 (function () {
   'use strict';
   var A = window.A, $ = A.$;
-  var view = null, sel = -1, tries = 0, tab = 'party', wallet = null, guide = null, partyInfo = '';
+  var view = null, sel = -1, tab = 'party', wallet = null, guide = null, partyInfo = '';
 
   function pick(i) { sel = i; draw(); }
   function inspect() { var s = view && view.slots[sel]; if (s && s.id) A.send('ascension_inspect_open', { kind: 'owned', id: s.id }); }
@@ -101,7 +101,7 @@
     if (tab === 'party') A.text($('info'), partyInfo);
   }
 
-  A.on('partyView', function (v) { view = v; tries = 99; if (sel < 0 || !v.slots[sel] || !v.slots[sel].id) { sel = -1; for (var i = 0; i < v.slots.length; i++) if (v.slots[i].id) { sel = i; break; } } draw(); });
+  A.on('partyView', function (v) { view = v; if (sel < 0 || !v.slots[sel] || !v.slots[sel].id) { sel = -1; for (var i = 0; i < v.slots.length; i++) if (v.slots[i].id) { sel = i; break; } } draw(); });
   // The two tabs: the party, and the wallet (the same panel as the Wallet page, mounted the first time it is opened).
   function showTab(name) {
     tab = name;
@@ -133,11 +133,9 @@
   $('done').addEventListener('click', function () { A.send('close'); });
 
   function ready() {
-    if (!A.g) { A.text($('info'), 'This page needs the WebGUI mod.'); return; }
-    A.send('ascension_party_ready');
-    if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
+    A.ready('ascension_party_ready', function () { return !!view; }, $('info'));
   }
-  A.setBezel(''); ready();
+  ready();
 })();
 </script>
 </body>

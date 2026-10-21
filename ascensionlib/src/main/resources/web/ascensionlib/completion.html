@@ -62,7 +62,7 @@
 (function () {
   'use strict';
   var A = window.A, $ = A.$;
-  var view = null, tries = 0, timers = [], ctx = null, step = 0;
+  var view = null, timers = [], ctx = null, step = 0;
   var TIER = { bronze: ['#cd8a4b', '#2b1a0d', 'common'], silver: ['#cfd6e4', '#1c2330', 'rare'], gold: ['#ffd437', '#2b2308', 'legendary'], mythic: ['#ff3448', '#2e0710', 'mythical'] };
 
   // A tick that rises in pitch per line, and a bigger chord for a headline item. Sound is a bonus: any failure is ignored.
@@ -156,14 +156,12 @@
   $('share').addEventListener('click', function () { if (view && !view.preview && !$('share').disabled) { $('share').disabled = true; A.send('ascension_completion_share'); A.text($('msg'), 'Shared in chat.'); } });
   $('skip').addEventListener('click', function () { timers.forEach(clearTimeout); timers = []; play(); });
 
-  A.on('completionView', function (v) { view = v; tries = 99; play(); });
+  A.on('completionView', function (v) { view = v; play(); });
 
   function ready() {
-    if (!A.g) { A.text($('msg'), 'This page needs the WebGUI mod.'); return; }
-    A.send('ascension_completion_ready');
-    if (++tries < 4) setTimeout(function () { if (!view) ready(); }, 2000);
+    A.ready('ascension_completion_ready', function () { return !!view; }, $('msg'));
   }
-  A.setBezel(''); ready();
+  ready();
   // Tell the server this page is still up (Esc sends nothing), so another mod does not open its own screen over the reveal.
   if (A.g) setInterval(function () { A.send('ascension_screen_ping'); }, 1500);
 })();

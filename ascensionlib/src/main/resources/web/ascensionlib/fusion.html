@@ -94,8 +94,6 @@
     g.postToGame(o);
   }
   function parse(data) { return typeof data === 'string' ? JSON.parse(data) : data; }
-  function text(el, value) { el.textContent = value == null ? '' : String(value); }
-  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; }
   function colorOf(r) { return RARITY[r] ? 'var(' + RARITY[r] + ')' : 'var(--edge)'; }
   function nice(species) { var i = species.indexOf(':'); return (i >= 0 ? species.slice(i + 1) : species).replace(/_/g, ' '); }
 
@@ -105,9 +103,9 @@
     well.style.borderColor = e ? colorOf(e.rarityId) : 'var(--line)'; if (prefix === 'host') window.A.setBezel(e ? e.rarityId : '');
     if (!e) { var s = document.createElement('div'); s.className = 'muted'; s.textContent = 'empty'; well.appendChild(s); }
     else { well.appendChild(window.A.sprite(e.speciesId, 2)); }
-    text($(prefix + 'Name'), e ? e.name : '');
-    var r = $(prefix + 'Rarity'); text(r, e ? e.rarityId : ''); r.style.color = e && e.rarityId ? colorOf(e.rarityId) : '';
-    text($(prefix + 'Unique'), e ? e.uniqueName : '');
+    A.text($(prefix + 'Name'), e ? e.name : '');
+    var r = $(prefix + 'Rarity'); A.text(r, e ? e.rarityId : ''); r.style.color = e && e.rarityId ? colorOf(e.rarityId) : '';
+    A.text($(prefix + 'Unique'), e ? e.uniqueName : '');
   }
 
   function line(parent, cls, value) { var p = document.createElement('p'); if (cls) p.className = cls; p.textContent = value; parent.appendChild(p); return p; }
@@ -126,7 +124,7 @@
     if (!detail.name) { line(box, 'bad', detail.block); return; }
     var h = document.createElement('h2'); h.textContent = detail.name; box.appendChild(h);
     line(box, '', 'Fused from: ' + detail.fromUniques);
-    line(box, 'muted', cap(detail.harmony) + ' harmony: ' + detail.benefit + '% of the benefits, ' + detail.drawback + '% of the drawbacks');
+    line(box, 'muted', A.cap(detail.harmony) + ' harmony: ' + detail.benefit + '% of the benefits, ' + detail.drawback + '% of the drawbacks');
     if (detail.blurb) line(box, 'muted', detail.blurb);
     line(box, '', 'Core: ' + detail.core);
     line(box, '', 'Clutch: ' + detail.clutch);
@@ -134,8 +132,8 @@
     line(box, '', 'Twist, ' + detail.twistName + ': ' + detail.twistText);
     line(box, '', 'Rider: ' + detail.riderText);
     var types = [];
-    if (detail.hostType) types.push('+10% ' + cap(detail.hostType) + ' moves');
-    if (detail.donorType) types.push('-10% damage from ' + cap(detail.donorType) + ' moves');
+    if (detail.hostType) types.push('+10% ' + A.cap(detail.hostType) + ' moves');
+    if (detail.donorType) types.push('-10% damage from ' + A.cap(detail.donorType) + ' moves');
     if (types.length) line(box, '', 'Types: ' + types.join('; '));
     var p = detail.price, b = detail.balances;
     line(box, 'gold', 'Price: ' + p[0] + ' Resonance Dust, ' + p[1] + ' Facets, ' + p[2] + ' Cores, ' + p[3] + ' Catalyst, ' + p[4] + ' Tower Marks');
@@ -157,8 +155,8 @@
     fuse.disabled = phase === 'waiting' || (phase === 'browse' && !(detail && !detail.block && detail.name));
     $('cancel').textContent = idle ? 'Close' : 'Cancel';
     var m = $('msg');
-    if (banner) { text(m, banner); m.className = 'msg ' + (bannerOk ? 'ok' : 'bad'); }
-    else { text(m, donor ? 'The donor is lost for good.' : ''); m.className = 'msg muted'; }
+    if (banner) { A.text(m, banner); m.className = 'msg ' + (bannerOk ? 'ok' : 'bad'); }
+    else { A.text(m, donor ? 'The donor is lost for good.' : ''); m.className = 'msg muted'; }
     renderResult();
   }
 
@@ -186,7 +184,7 @@
   }
   function closePicker() { $('scrim').className = 'scrim'; }
   function drawPicker() {
-    var grid = $('grid'); grid.innerHTML = ''; text($('reason'), '');
+    var grid = $('grid'); grid.innerHTML = ''; A.text($('reason'), '');
     if (!pick.entries) { var d = document.createElement('div'); d.className = 'empty'; d.textContent = 'Reading your Pokémon…'; grid.appendChild(d); return; }
     var needle = pick.search.toLowerCase().trim();
     var list = pick.entries.filter(function (e) {
@@ -214,7 +212,7 @@
       var sp = window.A.sprite(e.speciesId, 1); sp.style.margin = '2px auto'; t.insertBefore(sp, n);
       var r = document.createElement('div'); r.className = 'r'; r.textContent = e.rarityId || 'no profile'; r.style.color = e.rarityId ? colorOf(e.rarityId) : ''; t.appendChild(r);
       t.addEventListener('mouseenter', function () {
-        text($('reason'), e.block || (e.uniqueName ? e.name + ' · ' + e.uniqueName : e.name));
+        A.text($('reason'), e.block || (e.uniqueName ? e.name + ' · ' + e.uniqueName : e.name));
         $('reason').style.color = e.block ? 'var(--crimson)' : 'var(--muted)';
       });
       t.addEventListener('click', function () {
@@ -264,7 +262,7 @@
   $('scrim').addEventListener('click', function (ev) { if (ev.target === $('scrim')) closePicker(); });
   $('tabParty').addEventListener('click', function () { pick.pc = false; $('tabParty').className = 'on'; $('tabPc').className = ''; drawPicker(); });
   $('tabPc').addEventListener('click', function () { pick.pc = true; $('tabPc').className = 'on'; $('tabParty').className = ''; drawPicker(); });
-  $('sort').addEventListener('click', function () { pick.sort = pick.sort === 'rarity' ? 'name' : 'rarity'; text($('sort'), 'Sort: ' + (pick.sort === 'rarity' ? 'Rarity' : 'Name')); drawPicker(); });
+  $('sort').addEventListener('click', function () { pick.sort = pick.sort === 'rarity' ? 'name' : 'rarity'; A.text($('sort'), 'Sort: ' + (pick.sort === 'rarity' ? 'Rarity' : 'Name')); drawPicker(); });
   $('search').addEventListener('input', function (ev) { pick.search = ev.target.value; drawPicker(); });
   $('swap').addEventListener('click', function () {
     if ($('swap').disabled) return;
@@ -285,7 +283,7 @@
 
   // ---- start ----
   function ready() {
-    if (!g) { text($('msg'), 'This page needs the WebGUI mod.'); return; }
+    if (!g) { A.text($('msg'), 'This page needs the WebGUI mod.'); return; }
     send('ascension_fusion_ready');
     if (++readyTries < 4) setTimeout(function () { if (!host) ready(); }, 2000);
   }

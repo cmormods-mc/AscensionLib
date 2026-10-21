@@ -36,7 +36,6 @@
   $('close').addEventListener('click', function () { A.send('close'); });
   $('done').addEventListener('click', function () { A.send('close'); });
   $('depositAll').addEventListener('click', function () { panel.depositAll(); });
-  A.setBezel('');
   if (!A.g) A.text($('free'), 'This page needs the WebGUI mod.'); else panel.refresh();
 })();
 </script>
