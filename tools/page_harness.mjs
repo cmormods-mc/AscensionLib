@@ -677,6 +677,38 @@ await check('party: the Guide tab shows the same guide inside the AscensionDex',
   noErrors(p);
 });
 
+await check('party: choosing a Pokemon only moves the highlight (the cards are not rebuilt)', async () => {
+  const p = await open(null, 'party.html', 1920, 1080);
+  const mon = (id, name) => ({ slot: 0, id, name, speciesId: 'cobblemon:' + name.toLowerCase(), level: 10, rarityId: 'rare', pending: 0, hp: 100, fainted: false, shiny: false, locked: false });
+  await emit(p, 'partyView', { slots: [mon('a1', 'Arcanine'), mon('b2', 'Growlithe')] });
+  await p.evaluate(() => { document.querySelectorAll('.card').forEach(c => { c.dataset.same = '1'; }); });
+  await p.locator('.card').nth(1).click();
+  eq(await p.locator('.card[data-same="1"]').count(), 2, 'the same card elements are still there');
+  eq(await p.locator('.card.sel').count(), 1, 'one card is highlighted');
+  yes((await p.locator('.card.sel').textContent()).includes('Growlithe'), 'the picked card is the highlighted one');
+  yes((await p.textContent('#info')).includes('Growlithe'), 'the footer follows the pick');
+  noErrors(p);
+});
+
+await check('perf: a page times its renders and reports them to the server in the bounds the server accepts', async () => {
+  const p = await open(null, 'party.html', 1920, 1080);
+  const mon = (id, name) => ({ slot: 0, id, name, speciesId: 'cobblemon:' + name.toLowerCase(), level: 10, rarityId: 'rare', pending: 0, hp: 100, fainted: false, shiny: false, locked: false });
+  await emit(p, 'partyView', { slots: [mon('a1', 'Arcanine')] });
+  await emit(p, 'partyView', { slots: [mon('a1', 'Arcanine')] });
+  yes(!(await sentAll(p)).some(m => m.channel === 'ascension_perf'), 'nothing is sent while the page is open and quiet');
+  await p.click('#close');
+  const m = (await sentAll(p)).find(x => x.channel === 'ascension_perf');
+  yes(m, 'closing sends the timings first');
+  eq(m.page, 'party', 'the page name');
+  eq(m.t['render.partyView'].length, 2, 'both renders were timed');
+  yes(m.t.firstData.length === 1 && m.t.firstData[0] > 0, 'the first data time is reported once');
+  yes(Object.keys(m.t).length <= 12 && Object.keys(m.t).every(k => /^[a-z][a-zA-Z0-9.]{0,23}$/.test(k)), 'every label passes the server rule');
+  yes(Object.values(m.t).every(a => a.length <= 20 && a.every(v => typeof v === 'number' && v >= 0)), 'samples are bounded numbers');
+  const order = (await sentAll(p)).map(x => x.channel);
+  yes(order.indexOf('ascension_perf') < order.indexOf('close'), 'the report goes out before the close request');
+  noErrors(p);
+});
+
 await check('pages degrade without WebGUI (no window.webgui): no crash', async () => {
   const ctx = await browser.newContext(); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', e => errors.push(e.message));

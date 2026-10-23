@@ -22,6 +22,7 @@ Each world keeps its data in `<world>/cobbleascend/`:
 | `progression.db` | The SQLite store: profiles, wallets, vouchers, the daily budget. Back it up with the world. |
 | `authority.id` | A marker that ties the database to this world. A mismatch disables progression instead of mixing worlds. |
 | `backups/` | Dated snapshots (see below). |
+| `telemetry/` | The balance and performance log, one JSON-lines file per UTC day, 30 days kept (see `PERFORMANCE.md`). Safe to delete; switch off with `-Dascensionlib.telemetry=false`. |
 
 Page sizes are saved per player in `<world>/ascensionlib-ui.json`.
 

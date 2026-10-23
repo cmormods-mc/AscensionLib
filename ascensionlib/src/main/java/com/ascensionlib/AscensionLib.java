@@ -1,11 +1,14 @@
 package com.ascensionlib;
 
+import com.ascensionlib.telemetry.BalanceLog;
+import com.ascensionlib.telemetry.Telemetry;
 import com.cobbleascend.domain.v1.RankedRules;
 import com.cobbleascend.store.ProgressionStore;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +37,7 @@ public final class AscensionLib implements ModInitializer {
         // A player who leaves keeps neither their request throttles nor an "armed" battle: the encounter owner re-arms at the next battle.
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             var id = handler.getPlayer().getUUID();
+            BalanceLog.left(handler.getPlayer());
             com.ascensionlib.net.RateLimit.forget(id);
             com.ascensionlib.web.HudWeb.forget(id);
             com.ascensionlib.web.WebSprites.forget(id);
@@ -55,9 +59,14 @@ public final class AscensionLib implements ModInitializer {
         runtime = AscensionRuntime.open(server, rules);
         AscensionApi.attach(runtime, runtime.enabled() ? new ProfileService(runtime, rules) : null, server);
         com.ascensionlib.scout.ScoutEncounters.attach(server);
+        Telemetry.open(server.getWorldPath(LevelResource.ROOT).resolve(AscensionRuntime.DATA_DIRECTORY).resolve("telemetry"));
+        if (runtime.enabled()) BalanceLog.attach(runtime.store());
+        BalanceLog.serverStarted(server, changed);
     }
 
     private void stop(MinecraftServer server) {
+        BalanceLog.serverStopping(server);
+        Telemetry.close();
         com.ascensionlib.net.RateLimit.clear();
         com.ascensionlib.scout.ScoutEncounters.detach();
         AscensionApi.detach();

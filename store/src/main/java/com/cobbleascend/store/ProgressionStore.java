@@ -15,6 +15,7 @@ import java.security.SecureRandom;
 import java.sql.*;
 import java.time.Clock;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.random.RandomGenerator;
 
@@ -59,7 +60,16 @@ public final class ProgressionStore implements AutoCloseable {
 
     /** What a fresh operation produced, before it is recorded. */
     private record Fresh(Kind kind, UUID playerId, UUID pokemonId, ProfileV1 profile, MaterialWallet wallet,
-                         Map<MaterialId, Long> cost, int creditsSpent) {}
+                         Map<MaterialId, Long> cost, int creditsSpent, Map<MaterialId, Long> spent, Map<MaterialId, Long> gained, String detail) {
+        Fresh(Kind kind, UUID playerId, UUID pokemonId, ProfileV1 profile, MaterialWallet wallet, Map<MaterialId, Long> cost, int creditsSpent) {
+            this(kind, playerId, pokemonId, profile, wallet, cost, creditsSpent, Map.of(), Map.of(), "");
+        }
+
+        /** What the commit listener reports as moved; {@code cost} stays what the persisted result says, whatever it means for this kind. */
+        Fresh moved(Map<MaterialId, Long> spent, Map<MaterialId, Long> gained, String detail) {
+            return new Fresh(kind, playerId, pokemonId, profile, wallet, cost, creditsSpent, Map.copyOf(spent), Map.copyOf(gained), detail);
+        }
+    }
 
     private record Recorded(String hash, Kind kind, UUID pokemonId, String result) {}
 
@@ -495,7 +505,7 @@ public final class ProgressionStore implements AutoCloseable {
             insertProfile(profile);
             recordMilestones(profile.profileId(), profile.awardedMilestones(), operationId);
             saveWallet(playerId, before, after);
-            return new Fresh(Kind.USE_SIGIL, playerId, pokemonId, profile, after, cost, 0);
+            return new Fresh(Kind.USE_SIGIL, playerId, pokemonId, profile, after, cost, 0).moved(cost, Map.of(), "sigil");
         });
     }
 
@@ -509,7 +519,7 @@ public final class ProgressionStore implements AutoCloseable {
             var after = before.credit(materials);
             if (after == before) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to grant");
             saveWallet(playerId, before, after);
-            return new Fresh(Kind.GRANT, playerId, null, null, after, Map.of(), 0);
+            return new Fresh(Kind.GRANT, playerId, null, null, after, Map.of(), 0).moved(Map.of(), materials, reason);
         });
     }
 
@@ -562,7 +572,7 @@ public final class ProgressionStore implements AutoCloseable {
                 statement.setLong(1, day - 7);
                 statement.executeUpdate();
             }
-            return new Fresh(Kind.GRANT, playerId, null, null, after, Map.copyOf(paid), 0);
+            return new Fresh(Kind.GRANT, playerId, null, null, after, Map.copyOf(paid), 0).moved(Map.of(), paid, paid == materials ? reason : reason + " (reduced)");
         });
     }
 
@@ -577,7 +587,7 @@ public final class ProgressionStore implements AutoCloseable {
             if (after == before) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to spend");
             options.faults().at(Faults.Point.AFTER_VALIDATION);
             saveWallet(playerId, before, after);
-            return new Fresh(Kind.SPEND, playerId, null, null, after, materials, 0);
+            return new Fresh(Kind.SPEND, playerId, null, null, after, materials, 0).moved(materials, Map.of(), reason);
         });
     }
 
@@ -590,8 +600,8 @@ public final class ProgressionStore implements AutoCloseable {
             var after = before.assembleCatalyst(options.config().catalystFragments());
             options.faults().at(Faults.Point.AFTER_VALIDATION);
             saveWallet(playerId, before, after);
-            return new Fresh(Kind.ASSEMBLE_CATALYST, playerId, null, null, after,
-                    Map.of(MaterialId.UNIQUE_FRAGMENT, (long) options.config().catalystFragments()), 0);
+            var fragments = Map.of(MaterialId.UNIQUE_FRAGMENT, (long) options.config().catalystFragments());
+            return new Fresh(Kind.ASSEMBLE_CATALYST, playerId, null, null, after, fragments, 0).moved(fragments, Map.of(MaterialId.UNIQUE_CATALYST, 1L), "assemble");
         });
     }
 
@@ -613,7 +623,7 @@ public final class ProgressionStore implements AutoCloseable {
             if (after == before) throw new CraftException(CraftException.Reason.INVALID_AMOUNT, "Nothing to exchange");
             options.faults().at(Faults.Point.AFTER_VALIDATION);
             saveWallet(playerId, before, after);
-            return new Fresh(Kind.EXCHANGE, playerId, null, null, after, pay, 0);
+            return new Fresh(Kind.EXCHANGE, playerId, null, null, after, pay, 0).moved(pay, receive, reason);
         });
     }
 
@@ -638,7 +648,8 @@ public final class ProgressionStore implements AutoCloseable {
             var before = loadWallet(playerId);
             if (expectedWalletRevision != CraftRequest.ANY_REVISION && before.revision() != expectedWalletRevision)
                 throw new StoreException(Code.STALE_WALLET, "Wallet changed since it was shown");
-            var after = before.debit(Map.of(material, amount + CurrencyItems.withdrawalFee(amount)));
+            var debit = Map.of(material, amount + CurrencyItems.withdrawalFee(amount));
+            var after = before.debit(debit);
             options.faults().at(Faults.Point.AFTER_VALIDATION);
             saveWallet(playerId, before, after);
             try (var statement = db.prepareStatement(
@@ -651,7 +662,7 @@ public final class ProgressionStore implements AutoCloseable {
                 statement.setLong(6, options.clock().millis());
                 statement.executeUpdate();
             }
-            return new Fresh(Kind.MINT_VOUCHER, playerId, null, null, after, Map.of(material, amount), 0);
+            return new Fresh(Kind.MINT_VOUCHER, playerId, null, null, after, Map.of(material, amount), 0).moved(debit, Map.of(), "voucher");
         });
     }
 
@@ -723,7 +734,7 @@ public final class ProgressionStore implements AutoCloseable {
                 statement.setString(2, batchId.toString());
                 statement.executeUpdate();
             }
-            return new Fresh(Kind.REDEEM_VOUCHER, redeemerId, null, null, after, Map.of(batch.material(), credit), 0);
+            return new Fresh(Kind.REDEEM_VOUCHER, redeemerId, null, null, after, Map.of(batch.material(), credit), 0).moved(Map.of(), Map.of(batch.material(), credit), "voucher");
         });
     }
 
@@ -777,7 +788,7 @@ public final class ProgressionStore implements AutoCloseable {
                 recordMilestones(next.profileId(), added, request.operationId());
             }
             if (after != null && after != before) saveWallet(request.playerId(), before, after);
-            return new Fresh(request.kind(), request.playerId(), request.pokemonId(), next, after, cost, credits);
+            return new Fresh(request.kind(), request.playerId(), request.pokemonId(), next, after, cost, credits).moved(cost, Map.of(), "");
         });
     }
 
@@ -855,7 +866,7 @@ public final class ProgressionStore implements AutoCloseable {
             var next = host.bumped();
             updateProfile(next, host.revision());
             saveWallet(request.playerId(), before, after);
-            return new Fresh(Kind.FUSE, request.playerId(), request.hostId(), next, after, cost, 0);
+            return new Fresh(Kind.FUSE, request.playerId(), request.hostId(), next, after, cost, 0).moved(cost, Map.of(), "");
         });
     }
 
@@ -864,7 +875,9 @@ public final class ProgressionStore implements AutoCloseable {
     private Outcome run(UUID operationId, String canonicalRequest, Work<Fresh> work) {
         Objects.requireNonNull(operationId);
         String hash = sha256(canonicalRequest);
-        return transaction(() -> {
+        long started = System.nanoTime();
+        var committed = new Fresh[1];
+        var outcome = transaction(() -> {
             var prior = lookupOperation(operationId);
             if (prior != null) {
                 if (!prior.hash().equals(hash))
@@ -872,6 +885,7 @@ public final class ProgressionStore implements AutoCloseable {
                 return decodeOutcome(operationId, prior).asReplay();
             }
             var fresh = work.run();
+            committed[0] = fresh;
             String result = encodeOutcome(fresh);
             try (var statement = db.prepareStatement("""
                     INSERT INTO operations(operation_id, request_hash, kind, pokemon_id, committed_at, result)
@@ -887,6 +901,58 @@ public final class ProgressionStore implements AutoCloseable {
             return new Outcome(operationId, fresh.kind(), fresh.profile(), fresh.wallet(), fresh.cost(),
                     fresh.creditsSpent(), false);
         });
+        notifyCommitted(committed[0], operationId, System.nanoTime() - started);
+        return outcome;
+    }
+
+    private volatile Consumer<Committed> commitListener;
+
+    /**
+     * Reports every operation this store commits, once it is durable, to {@code listener} (null stops it). A replay is not reported: it changed nothing.
+     * The listener runs on the committing thread while the store is locked, so it must only record and return; its failures are swallowed so a
+     * logging fault can never undo or fail an economy change.
+     */
+    public void onCommit(Consumer<Committed> listener) { this.commitListener = listener; }
+
+    private void notifyCommitted(Fresh fresh, UUID operationId, long nanos) {
+        var listener = commitListener;
+        if (listener == null || fresh == null) return;
+        try {
+            listener.accept(new Committed(fresh.kind(), operationId, fresh.playerId(), fresh.pokemonId(), fresh.detail(), fresh.spent(), fresh.gained(),
+                    fresh.creditsSpent(), fresh.profile(), fresh.wallet(), nanos));
+        } catch (RuntimeException ignored) {
+            // observation only
+        }
+    }
+
+    /**
+     * Total of each material across every wallet: the economy's money supply, for balancing. One aggregate query; the balances of players who
+     * never come back count as well.
+     */
+    public synchronized Map<MaterialId, Long> materialSupply() {
+        var supply = new EnumMap<MaterialId, Long>(MaterialId.class);
+        try (var statement = db.prepareStatement("SELECT material_id, SUM(amount) FROM wallet_balances GROUP BY material_id");
+             var rows = statement.executeQuery()) {
+            while (rows.next()) {
+                try {
+                    supply.put(MaterialId.fromId(rows.getString(1)), rows.getLong(2));
+                } catch (IllegalArgumentException unknown) {
+                    // a material written by a newer build
+                }
+            }
+        } catch (SQLException exception) {
+            throw new StoreException(Code.STORE_UNAVAILABLE, "Cannot total the wallets", exception);
+        }
+        return supply;
+    }
+
+    /** How many wallets exist (players who ever held a material). */
+    public synchronized int walletCount() {
+        try (var statement = db.prepareStatement("SELECT COUNT(*) FROM wallets"); var rows = statement.executeQuery()) {
+            return rows.next() ? rows.getInt(1) : 0;
+        } catch (SQLException exception) {
+            throw new StoreException(Code.STORE_UNAVAILABLE, "Cannot count the wallets", exception);
+        }
     }
 
     private <T> T transaction(Work<T> work) {

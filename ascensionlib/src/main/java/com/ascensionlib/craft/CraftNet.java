@@ -1,24 +1,37 @@
 package com.ascensionlib.craft;
 
 import com.ascensionlib.AscensionApi;
+import com.ascensionlib.CraftLocks;
 import com.ascensionlib.ProfileService;
+import com.ascensionlib.Profiler;
+import com.ascensionlib.net.RateLimit;
+import com.ascensionlib.telemetry.BalanceLog;
+import com.ascensionlib.wallet.WalletWeb;
 import com.ascensionlib.web.WebSprites;
 import com.ascensionlib.web.WebUi;
+import com.cobbleascend.domain.Cost;
 import com.cobbleascend.domain.Rarity;
 import com.cobbleascend.domain.v1.Category;
 import com.cobbleascend.domain.v1.CraftException;
 import com.cobbleascend.domain.v1.MaterialId;
 import com.cobbleascend.domain.v1.OrdinarySlot;
 import com.cobbleascend.domain.v1.ProfileV1;
+import com.cobbleascend.domain.v1.RankedProgression;
+import com.cobbleascend.domain.v1.RankedRules;
+import com.cobbleascend.domain.v1.Tunables;
 import com.cobbleascend.store.CraftRequest;
 import com.cobbleascend.store.Kind;
+import com.cobbleascend.store.StoreConfig;
 import com.cobbleascend.store.StoreException;
 import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +47,7 @@ public final class CraftNet {
     private CraftNet() {}
 
     /** The Pokemon each player's craft page should show once it reports that it has loaded. */
-    private static final java.util.Map<UUID, String> PENDING = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<UUID, String> PENDING = new ConcurrentHashMap<>();
 
     /** Forgets the page state of a player who left. */
     public static void forget(UUID player) { PENDING.remove(player); }
@@ -44,32 +57,28 @@ public final class CraftNet {
             var pokemon = PENDING.get(player.getUUID());
             if (pokemon == null) return;
             // Each open scans the player's party and PC and reads the wallet: a page must not be able to spam it.
-            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "craft.open", 6, 3)) return;
-            long profiled = com.ascensionlib.Profiler.start();
+            if (!RateLimit.allow(player.getUUID(), "craft.open", 6, 3)) return;
             try {
                 findOwned(player, pokemon).ifPresent(p -> {
-                    var locked = com.ascensionlib.CraftLocks.reason(p);
-                    if (locked.isPresent()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(locked.get()));
+                    var locked = CraftLocks.reason(p);
+                    if (locked.isPresent()) player.sendSystemMessage(Component.literal(locked.get()));
                     else sendView(player, p, false, "");
                 });
             } catch (RuntimeException exception) {
                 LOG.error("Craft open failed for {}", player.getGameProfile().getName(), exception);
             }
-            com.ascensionlib.Profiler.stop("server.craftOpen", profiled);
         });
         // The inspect and fusion pages open this one: the page names a Pokemon and the server opens the screen if it is allowed to.
         WebUi.listen("ascension_craft_open", (player, o) -> {
-            if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "craft.openpage", 4, 2)) return;
+            if (!RateLimit.allow(player.getUUID(), "craft.openpage", 4, 2)) return;
             findOwned(player, WebUi.id(o, "pokemonId")).ifPresent(p -> openFor(player, p));
         });
         WebUi.listen("ascension_wallet_open", (player, o) -> {
-            if (com.ascensionlib.net.RateLimit.allow(player.getUUID(), "wallet.open", 3, 1)) com.ascensionlib.wallet.WalletWeb.open(player);
+            if (RateLimit.allow(player.getUUID(), "wallet.open", 3, 1)) WalletWeb.open(player);
         });
         WebUi.listen("ascension_craft_confirm", (player, o) -> {
-            long profiled = com.ascensionlib.Profiler.start();
             confirm(player, new CraftPayloads.Confirm(WebUi.id(o, "operationId"), WebUi.id(o, "pokemonId"), WebUi.str(o, "kind", 16),
                     WebUi.str(o, "slotId", 32), WebUi.num(o, "profileRevision"), WebUi.num(o, "walletRevision")));
-            com.ascensionlib.Profiler.stop("server.craftConfirm", profiled);
         });
     }
 
@@ -80,10 +89,10 @@ public final class CraftNet {
     public static boolean openFor(ServerPlayer player, Pokemon pokemon) {
         var service = AscensionApi.service().orElse(null);
         if (service == null) return false;
-        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
-        if (locked.isPresent()) { player.sendSystemMessage(net.minecraft.network.chat.Component.literal(locked.get())); return false; }
+        var locked = CraftLocks.reason(pokemon);
+        if (locked.isPresent()) { player.sendSystemMessage(Component.literal(locked.get())); return false; }
         if (service.canonical(pokemon).isEmpty()) {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("That Pokémon has no ascension profile."));
+            player.sendSystemMessage(Component.literal("That Pokémon has no ascension profile."));
             return false;
         }
         PENDING.put(player.getUUID(), pokemon.getUuid().toString());
@@ -94,26 +103,26 @@ public final class CraftNet {
     public static Optional<Pokemon> findOwned(ServerPlayer player, String pokemonId) {
         UUID id;
         try { id = UUID.fromString(pokemonId); } catch (IllegalArgumentException e) { return Optional.empty(); }
-        long profiled = com.ascensionlib.Profiler.start();
+        long profiled = Profiler.start();
         List<Pokemon> all = new ArrayList<>();
         Cobblemon.INSTANCE.getStorage().getParty(player).forEach(all::add);
         Cobblemon.INSTANCE.getStorage().getPC(player).forEach(all::add);
         var found = all.stream().filter(p -> p.getUuid().equals(id) && !p.isBattleClone() && player.getUUID().equals(p.getOwnerUUID())).findFirst();
-        com.ascensionlib.Profiler.stop("server.findOwned", profiled);
+        Profiler.stop("server.findOwned", profiled);
         return found;
     }
 
     public static boolean sendView(ServerPlayer player, Pokemon pokemon, boolean open, String message) {
         var service = AscensionApi.service().orElse(null);
         if (service == null) return false;
-        if (com.ascensionlib.CraftLocks.locked(pokemon)) return false;     // a lent Pokemon has no upgrade screen
-        long profiled = com.ascensionlib.Profiler.start();
+        if (CraftLocks.locked(pokemon)) return false;     // a lent Pokemon has no upgrade screen
+        long profiled = Profiler.start();
         var profile = service.canonical(pokemon);
-        com.ascensionlib.Profiler.stop("server.canonical", profiled);
+        Profiler.stop("server.canonical", profiled);
         if (profile.isEmpty()) return false;
-        profiled = com.ascensionlib.Profiler.start();
+        profiled = Profiler.start();
         var built = view(player, pokemon, service, profile.get(), open, message);
-        com.ascensionlib.Profiler.stop("server.craftView", profiled);
+        Profiler.stop("server.craftView", profiled);
         WebSprites.feed(player, List.of(built.speciesId()));
         WebUi.emit(player, "craftView", built);
         return true;
@@ -132,6 +141,7 @@ public final class CraftNet {
         boolean canRefine = wallet.canAfford(MaterialId.of(refineCost));
         boolean canReforge = wallet.canAfford(MaterialId.of(reforgeCost));
         var types = service.typesFor(pokemon);
+        var progressionRules = new RankedProgression(rules);
         List<CraftPayloads.SlotView> slots = new ArrayList<>();
         for (var slot : profile.ordinarySlots()) {
             var affix = rules.affix(slot.affixId());
@@ -140,18 +150,17 @@ public final class CraftNet {
             var next = top ? null : affix.band(slot.rank() + 1);
             String upgradeBlock = profile.pendingCredits() < 1 ? "No pending upgrade" : top ? "Already at the top rank" : "";
             String refineBlock = slot.sealed() ? "Sealed: only a reforge" : canRefine ? "" : "Needs " + describe(refineCost);
-            var progressionRules = new com.cobbleascend.domain.v1.RankedProgression(rules);
             int effectiveFloor = progressionRules.effectiveFloor(slot);
             boolean canPerfect = !slot.sealed() && slot.rank() >= 5 && effectiveFloor < band.max();
             int perfectCost = canPerfect ? progressionRules.perfectCost(slot) : 0;
             String perfectBlock = slot.sealed() ? "Sealed: only a reforge" : slot.rank() < 5 ? "Needs rank V" : !canPerfect ? "The floor is already at the top of the band"
                     : wallet.balance(MaterialId.RESONANCE_DUST) < perfectCost ? "Needs " + perfectCost + " Resonance Dust" : "";
             String overreachBlock = slot.sealed() ? "Already attempted: sealed" : slot.rank() < 5 ? "Needs rank V" : slot.rolledValue() < band.max() ? "The value must be at the band maximum"
-                    : wallet.balance(MaterialId.RESONANCE_DUST) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST
-                    || wallet.balance(MaterialId.FACET) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS
-                    || wallet.balance(MaterialId.TOWER_MARK) < com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MARKS
-                    ? "Needs " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST + " Resonance Dust + " + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS + " Facets + "
-                    + com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MARKS + " Tower Mark" : "";
+                    : wallet.balance(MaterialId.RESONANCE_DUST) < RankedProgression.OVERREACH_DUST
+                    || wallet.balance(MaterialId.FACET) < RankedProgression.OVERREACH_FACETS
+                    || wallet.balance(MaterialId.TOWER_MARK) < RankedProgression.OVERREACH_MARKS
+                    ? "Needs " + RankedProgression.OVERREACH_DUST + " Resonance Dust + " + RankedProgression.OVERREACH_FACETS + " Facets + "
+                    + RankedProgression.OVERREACH_MARKS + " Tower Mark" : "";
             String reforgeBlock = "";
             int pool = 0;
             try {
@@ -165,11 +174,11 @@ public final class CraftNet {
             slots.add(new CraftPayloads.SlotView(slot.slotId(), slot.category().id(), slotName(service, slot),
                     affix.base().condition() == null ? "" : affix.base().condition(), slot.rank(), slot.rolledValue(), band.min(), band.max(),
                     next == null ? -1 : next.min(), next == null ? -1 : next.max(), upgradeBlock, refineBlock, reforgeBlock, pool,
-                    perfectBlock, perfectCost, effectiveFloor, overreachBlock, slot.sealed(), com.cobbleascend.domain.v1.RankedProgression.OVERREACH_DUST,
-                    com.cobbleascend.domain.v1.RankedProgression.OVERREACH_FACETS, com.cobbleascend.domain.v1.RankedProgression.OVERREACH_CHANCE_PERCENT,
-                    band.max() + Math.max(1, Math.round(band.max() * com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MIN_PERCENT / 100f)),
-                    Math.min(com.cobbleascend.domain.v1.RankedRules.overreachCeiling(band.max()),
-                            band.max() + Math.max(1, Math.round(band.max() * com.cobbleascend.domain.v1.RankedProgression.OVERREACH_MAX_PERCENT / 100f)))));
+                    perfectBlock, perfectCost, effectiveFloor, overreachBlock, slot.sealed(), RankedProgression.OVERREACH_DUST,
+                    RankedProgression.OVERREACH_FACETS, RankedProgression.OVERREACH_CHANCE_PERCENT,
+                    band.max() + Math.max(1, Math.round(band.max() * RankedProgression.OVERREACH_MIN_PERCENT / 100f)),
+                    Math.min(RankedRules.overreachCeiling(band.max()),
+                            band.max() + Math.max(1, Math.round(band.max() * RankedProgression.OVERREACH_MAX_PERCENT / 100f)))));
         }
         CraftPayloads.Promotion promotion;
         if (profile.rarity() == Rarity.MYTHICAL) {
@@ -189,18 +198,17 @@ public final class CraftNet {
                     definition.id().equals(held)));
         long catalysts = wallet.balance(MaterialId.UNIQUE_CATALYST);
         var uniqueState = new CraftPayloads.UniqueState(held, catalysts, wallet.balance(MaterialId.UNIQUE_FRAGMENT),
-                com.cobbleascend.store.StoreConfig.defaults().catalystFragments(), uniqueOptions,
-                service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be replaced" : catalysts < 1 || wallet.balance(MaterialId.TOWER_MARK) < com.cobbleascend.domain.v1.RankedProgression.INSTALL_MARKS
-                        ? "Needs 1 Unique Catalyst + " + com.cobbleascend.domain.v1.RankedProgression.INSTALL_MARKS + " Tower Mark" : "");
-        var respecRules = new com.cobbleascend.domain.v1.RankedProgression(rules);
+                StoreConfig.defaults().catalystFragments(), uniqueOptions,
+                service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be replaced" : catalysts < 1 || wallet.balance(MaterialId.TOWER_MARK) < RankedProgression.INSTALL_MARKS
+                        ? "Needs 1 Unique Catalyst + " + RankedProgression.INSTALL_MARKS + " Tower Mark" : "");
         long hourglasses = wallet.balance(MaterialId.RANK_RESPEC), prisms = wallet.balance(MaterialId.UNIQUE_RESPEC);
-        String hourglassBlock = respecRules.respecRanksBlock(profile);
+        String hourglassBlock = progressionRules.respecRanksBlock(profile);
         if (hourglassBlock.isEmpty() && hourglasses < 1) hourglassBlock = "You have no Hourglass of Undoing";
         String prismBlock = service.isFused(pokemon.getUuid()) ? "A Transcendent's power cannot be swapped"
                 : profile.unique() == null ? "Install a Unique with a Catalyst first" : prisms < 1 ? "You have no Unbinding Prism" : "";
         var resets = new ArrayList<CraftPayloads.ResetLine>();
         for (var slot : profile.ordinarySlots()) resets.add(new CraftPayloads.ResetLine(slotName(service, slot), slot.rank(), slot.floor()));
-        var respec = new CraftPayloads.Respec(hourglasses, prisms, wallet.balance(MaterialId.TOWER_MARK), com.cobbleascend.domain.v1.Tunables.current().respecMarksPrice(),
+        var respec = new CraftPayloads.Respec(hourglasses, prisms, wallet.balance(MaterialId.TOWER_MARK), Tunables.current().respecMarksPrice(),
                 profile.spentUpgradeCredits(), hourglassBlock, prismBlock, resets);
         int nextMilestone = 0;
         for (int m = 10; m <= 100; m += 10) if (m > profile.highestLevelObserved()) { nextMilestone = m; break; }
@@ -213,7 +221,7 @@ public final class CraftNet {
                 new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, respec, slots, message, open);
     }
 
-    static String describe(com.cobbleascend.domain.Cost cost) {
+    static String describe(Cost cost) {
         List<String> parts = new ArrayList<>();
         if (cost.dust() > 0) parts.add(cost.dust() + " Resonance Dust");
         if (cost.facets() > 0) parts.add(cost.facets() + " Facet" + (cost.facets() == 1 ? "" : "s"));
@@ -223,7 +231,7 @@ public final class CraftNet {
 
     private static void confirm(ServerPlayer player, CraftPayloads.Confirm request) {
         // Every distinct operation id is a store transaction (an fsync): bound how fast one player can submit them.
-        if (!com.ascensionlib.net.RateLimit.allow(player.getUUID(), "craft.confirm", 4, 2)) {
+        if (!RateLimit.allow(player.getUUID(), "craft.confirm", 4, 2)) {
             WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), false, "Too many requests. Wait a moment.",
                     request.slotId(), "", 0, 0, "", 0, 0, false));
             return;
@@ -235,7 +243,7 @@ public final class CraftNet {
         var found = findOwned(player, request.pokemonId());
         if (found.isEmpty()) { fail(player, request, "That Pokémon is no longer yours to change."); return; }
         var pokemon = found.get();
-        var locked = com.ascensionlib.CraftLocks.reason(pokemon);
+        var locked = CraftLocks.reason(pokemon);
         if (locked.isPresent()) { fail(player, request, locked.get()); return; }
         var before = service.canonical(pokemon);
         if (before.isEmpty()) { fail(player, request, "That Pokémon has no ascension profile."); return; }
@@ -269,6 +277,7 @@ public final class CraftNet {
         }
         try {
             var outcome = service.craft(pokemon, craft);
+            BalanceLog.craft(player, craft, before.get(), outcome);
             if (craft.kind() == Kind.RESPEC_RANKS) {
                 LOG.info("respec_ranks committed on Pokemon {} ({} credits returned) by {} (operation {}{})", pokemon.getUuid(), before.get().spentUpgradeCredits(),
                         player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
@@ -285,7 +294,7 @@ public final class CraftNet {
                 sendView(player, pokemon, false, "");
                 return;
             }
-            if (craft.kind() == com.cobbleascend.store.Kind.PROMOTE) {
+            if (craft.kind() == Kind.PROMOTE) {
                 LOG.info("promote committed on Pokemon {} {} -> {} by {} (operation {}{})", pokemon.getUuid(), before.get().rarity().id(),
                         outcome.profile().rarity().id(), player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
                 WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", "", before.get().rarity().id(), 0, 0,
@@ -294,7 +303,7 @@ public final class CraftNet {
                 return;
             }
             var oldSlot = before.get().slot(request.slotId());
-            var newSlot = outcome.profile() == null ? java.util.Optional.<OrdinarySlot>empty() : outcome.profile().slot(request.slotId());
+            var newSlot = outcome.profile() == null ? Optional.<OrdinarySlot>empty() : outcome.profile().slot(request.slotId());
             LOG.info("{} {} on Pokemon {} slot {} by {} (operation {}{})", request.kind(), "committed", pokemon.getUuid(), request.slotId(),
                     player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
             WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", request.slotId(),
@@ -333,7 +342,7 @@ public final class CraftNet {
     /** The number a finished craft reports for a slot: its value, or for Perfecting its floor (what the craft changed). */
     private static int shownValue(ProfileService service, CraftRequest craft, Optional<OrdinarySlot> slot) {
         if (slot.isEmpty()) return 0;
-        return craft.kind() == Kind.PERFECT ? new com.cobbleascend.domain.v1.RankedProgression(service.rules()).effectiveFloor(slot.get()) : slot.get().rolledValue();
+        return craft.kind() == Kind.PERFECT ? new RankedProgression(service.rules()).effectiveFloor(slot.get()) : slot.get().rolledValue();
     }
 
     private static String uniqueName(ProfileService service, String id) {
@@ -343,8 +352,8 @@ public final class CraftNet {
     /** The Marks route: {@code RESPEC_MARKS_PRICE} Tower Marks for one Hourglass of Undoing, in one transaction. */
     private static void buyHourglass(ServerPlayer player, ProfileService service, Pokemon pokemon, CraftPayloads.Confirm request, UUID operation) {
         try {
-            var price = (long) com.cobbleascend.domain.v1.Tunables.current().respecMarksPrice();
-            var outcome = service.store().exchange(operation, player.getUUID(), java.util.Map.of(MaterialId.TOWER_MARK, price), java.util.Map.of(MaterialId.RANK_RESPEC, 1L),
+            var price = (long) Tunables.current().respecMarksPrice();
+            var outcome = service.store().exchange(operation, player.getUUID(), Map.of(MaterialId.TOWER_MARK, price), Map.of(MaterialId.RANK_RESPEC, 1L),
                     "hourglass of undoing", request.walletRevision());
             LOG.info("hourglass bought for {} Marks by {} (operation {}{})", price, player.getGameProfile().getName(), operation, outcome.replayed() ? ", replayed" : "");
             WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", "", "", 0, 0, "Hourglass of Undoing", 0, 0, outcome.replayed()));
@@ -354,7 +363,7 @@ public final class CraftNet {
                     ? "Your materials changed. Review it again." : "The Hourglass could not be bought: " + exception.getMessage());
         } catch (CraftException exception) {
             fail(player, request, exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS
-                    ? "You need " + com.cobbleascend.domain.v1.Tunables.current().respecMarksPrice() + " Tower Marks." : "The Hourglass could not be bought: " + exception.getMessage());
+                    ? "You need " + Tunables.current().respecMarksPrice() + " Tower Marks." : "The Hourglass could not be bought: " + exception.getMessage());
         } catch (RuntimeException exception) {
             LOG.error("Hourglass purchase failed for {}", player.getGameProfile().getName(), exception);
             fail(player, request, "Something went wrong; nothing was spent.");
@@ -381,6 +390,7 @@ public final class CraftNet {
     }
 
     private static void fail(ServerPlayer player, CraftPayloads.Confirm request, String message) {
+        BalanceLog.craftRefused(player, request.kind(), request.slotId(), message);
         WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), false, message, request.slotId(), "", 0, 0, "", 0, 0, false));
         findOwned(player, request.pokemonId()).ifPresent(p -> sendView(player, p, false, message));
     }

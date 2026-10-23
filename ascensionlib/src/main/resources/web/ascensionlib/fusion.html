@@ -95,7 +95,6 @@
   }
   function parse(data) { return typeof data === 'string' ? JSON.parse(data) : data; }
   function colorOf(r) { return RARITY[r] ? 'var(' + RARITY[r] + ')' : 'var(--edge)'; }
-  function nice(species) { var i = species.indexOf(':'); return (i >= 0 ? species.slice(i + 1) : species).replace(/_/g, ' '); }
 
   function chamber(prefix, e) {
     var well = $(prefix + 'Well');

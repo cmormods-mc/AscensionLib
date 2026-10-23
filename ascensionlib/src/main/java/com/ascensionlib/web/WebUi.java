@@ -1,5 +1,6 @@
 package com.ascensionlib.web;
 
+import com.ascensionlib.Profiler;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -89,6 +90,7 @@ public final class WebUi {
             LOG.warn("Page event {} for {} is {} characters, over WebGUI's limit; not sent", event, player.getGameProfile().getName(), json.length());
             return;
         }
+        Profiler.sample("emit." + event + ".chars", json.length());
         land.webgui.api.WebviewApi.emitToPage(player, event, json);
     }
 
@@ -104,7 +106,11 @@ public final class WebUi {
         land.webgui.api.WebviewApi.onPageEvent(channel, (player, raw) -> {
             var server = player.getServer();
             if (server == null || raw == null || raw.length() > MAX_MESSAGE) return;
+            long queued = Profiler.start();
             server.execute(() -> {
+                // "wait" is how long the message sat in the server thread's queue (a busy tick shows here); "run" is the handler itself.
+                Profiler.stop("page." + channel + ".wait", queued);
+                long started = Profiler.start();
                 try {
                     JsonElement parsed = JsonParser.parseString(raw);
                     if (parsed.isJsonObject()) handler.handle(player, parsed.getAsJsonObject());
@@ -113,6 +119,7 @@ public final class WebUi {
                 } catch (RuntimeException exception) {
                     LOG.error("Page request {} failed for {}", channel, player.getGameProfile().getName(), exception);
                 }
+                Profiler.stop("page." + channel + ".run", started);
             });
         });
     }

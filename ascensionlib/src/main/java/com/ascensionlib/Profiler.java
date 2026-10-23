@@ -1,126 +1,99 @@
 package com.ascensionlib;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An opt-in stopwatch for the screens and the server paths behind them. Off unless {@code -Dascensionlib.profile=true}, the
- * environment variable {@code ASCENSIONLIB_PROFILE=1}, the file {@code config/ascensionlib-profile.flag}, or the client setting {@code uiProfile=true}; when off every call is a
- * single boolean test. When on, each label's samples are summarised in the log every five seconds as count, average, 95th
- * percentile and maximum in milliseconds, so a slow frame or a slow server reply shows up as a number instead of a feeling.
+ * The mod's stopwatch: named timings (the server thread's tick, a store transaction, a page request, a page's own render time as the page reports it)
+ * and named sizes (bytes of a page event), summarised as count, average, 95th percentile and maximum.
+ *
+ * <p>It is always on, because a measurement that has to be switched on is missing on the day it is needed; a sample costs one clock read and a short
+ * lock. {@link #drain} hands the summaries over and starts a fresh window: {@code BalanceLog} calls it once a minute and writes the result to the
+ * telemetry file. Setting {@code -Dascensionlib.profile=true}, {@code ASCENSIONLIB_PROFILE=1} or an empty {@code config/ascensionlib-profile.flag}
+ * additionally prints every summary to the server log.
  */
 public final class Profiler {
     private static final Logger LOG = LoggerFactory.getLogger("ascensionlib");
-    private static final long FLUSH_NANOS = 5_000_000_000L;
-    private static final int KEEP = 1024;
-
-    public static volatile boolean on = Boolean.getBoolean("ascensionlib.profile") || "1".equals(System.getenv("ASCENSIONLIB_PROFILE")) || flagFile();
-
-    /** For hosts with no way to edit JVM arguments: an empty file {@code config/ascensionlib-profile.flag} turns it on at the next start. */
-    private static boolean flagFile() {
-        try {
-            return java.nio.file.Files.exists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("ascensionlib-profile.flag"));
-        } catch (RuntimeException | LinkageError e) {
-            return false;
-        }
-    }
+    /** The most recent samples kept per label for the percentile; the count, total and maximum cover all of them. */
+    private static final int KEEP = 512;
+    /** A page can only reach labels the server named, but a bug must not grow the table without limit. */
+    private static final int MAX_LABELS = 256;
 
     private static final Map<String, Stat> STATS = new HashMap<>();
-    private static final Map<String, Long> LAST_FRAME = new HashMap<>();
-    private static long lastFlush = System.nanoTime();
 
     private static final class Stat {
+        final boolean time;
         long count, total, max;
         final long[] recent = new long[KEEP];
+        Stat(boolean time) { this.time = time; }
     }
+
+    /** One label's window. {@code unit} is {@code "ms"} for timings and {@code "n"} for sizes and counts. */
+    public record Summary(String label, String unit, long count, double avg, double p95, double max) {}
 
     private Profiler() {}
 
     /** Starts a measurement; pass the result to {@link #stop}. */
-    public static long start() { return on ? System.nanoTime() : 0L; }
+    public static long start() { return System.nanoTime(); }
 
-    public static void stop(String label, long startedAt) {
-        if (on && startedAt != 0L) record(label, System.nanoTime() - startedAt);
-    }
+    public static void stop(String label, long startedAt) { record(label, System.nanoTime() - startedAt); }
 
-    private static final com.sun.management.ThreadMXBean THREADS = threads();
+    /** Records one duration in nanoseconds. */
+    public static void record(String label, long nanos) { add(label, true, Math.max(0, nanos)); }
 
-    private static com.sun.management.ThreadMXBean threads() {
-        try {
-            return java.lang.management.ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean t ? t : null;
-        } catch (RuntimeException | LinkageError e) {
-            return null;
+    /** Records one size or count (for example the characters of a page event). */
+    public static void sample(String label, long value) { add(label, false, Math.max(0, value)); }
+
+    private static synchronized void add(String label, boolean time, long value) {
+        var stat = STATS.get(label);
+        if (stat == null) {
+            if (STATS.size() >= MAX_LABELS) return;
+            stat = new Stat(time);
+            STATS.put(label, stat);
         }
-    }
-
-    /** Bytes this thread has allocated so far, whether or not profiling is on; 0 when the JVM cannot say. */
-    public static long allocatedBytes() {
-        return THREADS != null ? THREADS.getCurrentThreadAllocatedBytes() : 0L;
-    }
-
-    /** Bytes this thread has allocated so far, or 0 when profiling is off or the JVM cannot say; pair with {@link #stopAlloc}. */
-    public static long startAlloc() {
-        return on && THREADS != null ? THREADS.getCurrentThreadAllocatedBytes() : 0L;
-    }
-
-    /** Records the bytes allocated since {@link #startAlloc} under {@code label}; it is reported in KB, not ms. */
-    public static void stopAlloc(String label, long before) {
-        if (on && THREADS != null && before != 0L) record(label + ".allocKB", THREADS.getCurrentThreadAllocatedBytes() - before);
-    }
-
-    /** Call once per rendered frame of a screen: records the time since the previous frame, i.e. the whole frame, world included. */
-    public static void frame(String label) {
-        if (!on) return;
-        long now = System.nanoTime();
-        synchronized (Profiler.class) {
-            Long last = LAST_FRAME.put(label, now);
-            if (last != null && now - last < 1_000_000_000L) recordLocked(label, now - last);
-        }
-    }
-
-    /** Forget frame timing, so the first frame after a screen opens is not measured against the last time it was open. */
-    public static void resetFrames() {
-        if (!on) return;
-        synchronized (Profiler.class) { LAST_FRAME.clear(); }
-    }
-
-    public static synchronized void record(String label, long nanos) { recordLocked(label, nanos); }
-
-    private static void recordLocked(String label, long nanos) {
-        var stat = STATS.computeIfAbsent(label, k -> new Stat());
-        stat.recent[(int) (stat.count % KEEP)] = nanos;
+        stat.recent[(int) (stat.count % KEEP)] = value;
         stat.count++;
-        stat.total += nanos;
-        stat.max = Math.max(stat.max, nanos);
-        long now = System.nanoTime();
-        if (now - lastFlush >= FLUSH_NANOS) { lastFlush = now; flushLocked(); }
+        stat.total += value;
+        stat.max = Math.max(stat.max, value);
     }
 
-    private static void flushLocked() {
-        for (var entry : new java.util.TreeMap<>(STATS).entrySet()) {
+    /** The summaries of everything recorded since the last call, busiest label first, and a fresh window. */
+    public static synchronized List<Summary> drain() {
+        var out = new ArrayList<Summary>(STATS.size());
+        for (var entry : STATS.entrySet()) {
             var s = entry.getValue();
             if (s.count == 0) continue;
             int n = (int) Math.min(s.count, KEEP);
             long[] sorted = Arrays.copyOf(s.recent, n);
             Arrays.sort(sorted);
             long p95 = sorted[Math.min(n - 1, (int) Math.ceil(n * 0.95) - 1)];
-            if (entry.getKey().endsWith(".allocKB")) {
-                LOG.info("[profile] {}: n={} avg={}KB p95={}KB max={}KB", entry.getKey(), s.count, s.total / s.count / 1024, p95 / 1024, s.max / 1024);
-                continue;
-            }
-            LOG.info("[profile] {}: n={} avg={}ms p95={}ms max={}ms", entry.getKey(), s.count,
-                    String.format("%.3f", s.total / s.count / 1e6), String.format("%.3f", p95 / 1e6), String.format("%.3f", s.max / 1e6));
+            double scale = s.time ? 1e6 : 1.0;
+            out.add(new Summary(entry.getKey(), s.time ? "ms" : "n", s.count, s.total / (double) s.count / scale, p95 / scale, s.max / scale));
         }
-        var rt = Runtime.getRuntime();
-        LOG.info("[profile] heap: used={}MB max={}MB", (rt.totalMemory() - rt.freeMemory()) >> 20, rt.maxMemory() >> 20);
         STATS.clear();
+        out.sort(Comparator.comparingLong(Summary::count).reversed().thenComparing(Summary::label));
+        if (LOG_SUMMARIES) for (var s : out)
+            LOG.info("[profile] {}: n={} avg={}{} p95={}{} max={}{}", s.label(), s.count(), round(s.avg()), s.unit(), round(s.p95()), s.unit(), round(s.max()), s.unit());
+        return out;
     }
 
-    /** Writes out whatever is pending, e.g. when a screen closes. */
-    public static synchronized void flush() {
-        if (on) { lastFlush = System.nanoTime(); flushLocked(); }
+    /** Three decimals, enough to tell a 0.04 ms call from a 0.4 ms one. */
+    public static double round(double value) { return Math.round(value * 1000.0) / 1000.0; }
+
+    private static final boolean LOG_SUMMARIES = Boolean.getBoolean("ascensionlib.profile") || "1".equals(System.getenv("ASCENSIONLIB_PROFILE")) || flagFile();
+
+    /** For hosts with no way to edit JVM arguments: an empty file {@code config/ascensionlib-profile.flag} turns the log lines on at the next start. */
+    private static boolean flagFile() {
+        try {
+            return java.nio.file.Files.exists(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("ascensionlib-profile.flag"));
+        } catch (RuntimeException | LinkageError e) {
+            return false;
+        }
     }
 }

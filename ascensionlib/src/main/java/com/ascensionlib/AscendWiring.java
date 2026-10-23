@@ -5,6 +5,7 @@ import com.cobbleascend.domain.v1.Origin;
 import com.cobbleascend.domain.v1.ProfileV1;
 import com.cobbleascend.domain.v1.RankedRules;
 import com.ascensionlib.battle.ProfileZones;
+import com.ascensionlib.telemetry.BalanceLog;
 import com.cobblemon.mod.common.Cobblemon;
 import com.cobblemon.mod.common.api.events.CobblemonEvents;
 import com.cobblemon.mod.common.api.events.pokemon.LevelUpEvent;
@@ -56,7 +57,10 @@ final class AscendWiring {
         ServerLifecycleEvents.SERVER_STARTED.register(com.ascensionlib.BackupJob::started);
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.BackupJob::tick);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
+        ServerTickEvents.START_SERVER_TICK.register(BalanceLog::tickStart);
+        ServerTickEvents.END_SERVER_TICK.register(BalanceLog::tickEnd);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> {
+            BalanceLog.joined(handler.getPlayer());
             enqueueSweep(handler.getPlayer());
             safely("voucher delivery", () -> com.ascensionlib.wallet.WalletItems.deliverPending(handler.getPlayer()));
         }));
@@ -89,7 +93,7 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
         ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
-        LOG.info("Capture and hatch rarity, wild and trainer ratings, level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle); crafting and Trials are NOT active.");
+        LOG.info("Capture and hatch rarity, wild and trainer ratings, level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle).");
     }
 
     private void stop(MinecraftServer stopping) {
@@ -158,10 +162,12 @@ final class AscendWiring {
             if (service == null) continue;
             try {
                 var profile = service.acquire(item.pokemon(), item.origin(), item.rollRarity(), item.tier());
+                var owner = s.getPlayerList().getPlayer(item.owner());
+                BalanceLog.acquired(item.owner(), owner == null ? null : owner.level().dimension().location().toString(), item.tier(), item.pokemon(), profile);
                 LOG.info("acquired {} Pokemon {} ({}): {} slots {}", item.origin().kind(), item.pokemon().getUuid(),
                         profile.rarity().id(), profile.ordinarySlots().size(),
                         profile.ordinarySlots().stream().map(x -> x.slotId() + "=" + x.affixId() + "@" + x.rolledValue()).toList());
-                var player = s.getPlayerList().getPlayer(item.owner());
+                var player = owner;
                 if (player != null) {
                     // A wild capture gets the card reveal if the client has the channel; everyone else (and hatches) keep the chat line.
                     boolean revealed = item.rollRarity() && com.ascensionlib.scout.CaptureRevealNet.send(player, item.pokemon(), service, profile);

@@ -1,5 +1,6 @@
 package com.ascensionlib;
 
+import com.ascensionlib.telemetry.BalanceLog;
 import com.cobbleascend.domain.v1.MaterialId;
 import com.cobbleascend.domain.v1.ScouterDrops;
 import com.cobbleascend.domain.v1.TowerCompletionBands;
@@ -44,9 +45,9 @@ public final class AscensionRewards {
                     .forEach((material, amount) -> amounts.put(material.id(), amount));
             payouts.put(player, amounts);
         }
+        BalanceLog.encounter("tower_boss", encounterId, Map.of("fromFloor", fromFloor, "bossFloor", bossFloor, "players", players.size()));
         var result = settleBudgeted(encounterId, outcome, "tower_boss", payouts);
-        var paid = new java.util.ArrayList<UUID>();
-        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        var paid = paidPlayers(result);
         awardAttunement("tower_boss:" + encounterId, paid);
         settleSigilDrops(encounterId, outcome, bossFloor, players);
         return result;
@@ -82,9 +83,10 @@ public final class AscensionRewards {
             completion.materials().forEach((material, amount) -> amounts.put(material.id(), amount));
             payouts.put(player, amounts);
         }
+        BalanceLog.encounter("tower_completion", encounterId, Map.of("bossFloor", bossFloor, "cycle", cycle, "cards", challengeCards,
+                "flawless", flawless, "players", players.size()));
         var result = settleBudgeted(encounterId, outcome, "tower_completion", payouts);
-        var paid = new java.util.ArrayList<UUID>();
-        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        var paid = paidPlayers(result);
         awardAttunement("tower_completion:" + encounterId, paid);
         var fresh = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED")) fresh.add(player); });
@@ -104,6 +106,13 @@ public final class AscensionRewards {
         extras.put("tickets", completion.tickets());
         extras.put("tier", completion.tier().ordinal());
         return extras;
+    }
+
+    /** The players whose settlement came back paid now or earlier: the ones a reward's side effects (attunement, the reveal) still apply to. */
+    private static java.util.List<UUID> paidPlayers(Map<UUID, String> result) {
+        var paid = new java.util.ArrayList<UUID>();
+        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        return paid;
     }
 
     private static void reveal(java.util.Collection<UUID> fresh, Map<UUID, TowerCompletionBands.Completion> completions, int cycle, int cards,
@@ -171,9 +180,9 @@ public final class AscensionRewards {
                     .forEach((material, amount) -> amounts.put(material.id(), amount));
             payouts.put(player, amounts);
         }
+        BalanceLog.encounter("dungeon_run", runId, Map.of("tier", tier, "arenaWins", arenaWins, "boss", bossDefeated, "players", players.size()));
         var result = settleBudgeted(runId, outcome, "dungeon_run", payouts);
-        var paid = new java.util.ArrayList<UUID>();
-        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        var paid = paidPlayers(result);
         awardAttunement("dungeon:" + runId, paid);
         var sigils = new LinkedHashMap<UUID, Map<String, Long>>();
         for (var player : players)
@@ -202,9 +211,9 @@ public final class AscensionRewards {
         com.cobbleascend.domain.v1.TrialRewardBands.payout(rank).forEach((material, amount) -> amounts.put(material.id(), amount));
         var payouts = new LinkedHashMap<UUID, Map<String, Long>>();
         for (var player : players) payouts.put(player, amounts);
+        BalanceLog.encounter("trial_rank_" + rank, encounterId, Map.of("rank", rank, "players", players.size()));
         var result = settleBudgeted(encounterId, outcome, "trial_rank_" + rank, payouts);
-        var paid = new java.util.ArrayList<UUID>();
-        result.forEach((player, status) -> { if (status.equals("GRANTED") || status.equals("ALREADY_GRANTED")) paid.add(player); });
+        var paid = paidPlayers(result);
         awardAttunement("trial:" + encounterId, paid);
         return result;
     }
@@ -285,25 +294,34 @@ public final class AscensionRewards {
      * budget ({@code DailyRewardBudget}: 20 full chests a UTC day, then dust at 25 percent). A player whose chest was cut is told in chat.
      */
     static Map<UUID, String> settleBudgeted(UUID encounterId, String outcome, String rewardKind, Map<UUID, Map<String, Long>> payouts) {
+        var settlement = settlement(encounterId, outcome, rewardKind, payouts);
+        var rewards = AscensionApi.encounterRewards();
+        if (rewards.isEmpty()) return disabled(settlement);
+        var result = new LinkedHashMap<UUID, String>();
+        var budget = com.cobbleascend.domain.v1.Tunables.current().budget();
+        rewards.get().settleBudgeted(settlement, budget).forEach((player, answer) -> {
+            result.put(player, answer.status().name());
+            if (answer.reduced() && answer.status() == EncounterRewards.Status.GRANTED) tellReduced(player, budget);
+        });
+        BalanceLog.settlement(rewardKind, encounterId, outcome, result);
+        return result;
+    }
+
+    /** The store-side settlement for a caller's per-player material ids; an unknown id or outcome is the caller's mistake and throws. */
+    private static EncounterRewards.Settlement settlement(UUID encounterId, String outcome, String rewardKind, Map<UUID, Map<String, Long>> payouts) {
         var parsed = new java.util.ArrayList<EncounterRewards.Payout>();
         payouts.forEach((player, materials) -> {
             var amounts = new java.util.EnumMap<MaterialId, Long>(MaterialId.class);
             materials.forEach((id, amount) -> amounts.put(MaterialId.fromId(id), amount));
             parsed.add(new EncounterRewards.Payout(player, amounts));
         });
-        var settlement = new EncounterRewards.Settlement(encounterId.toString(),
-                EncounterRewards.EncounterOutcome.valueOf(outcome), rewardKind, parsed);
-        var rewards = AscensionApi.encounterRewards();
+        return new EncounterRewards.Settlement(encounterId.toString(), EncounterRewards.EncounterOutcome.valueOf(outcome), rewardKind, parsed);
+    }
+
+    /** What every player of a settlement is told when there is no running world or progression is off: nothing was written, settle again later. */
+    private static Map<UUID, String> disabled(EncounterRewards.Settlement settlement) {
         var result = new LinkedHashMap<UUID, String>();
-        if (rewards.isEmpty()) {
-            parsed.forEach(payout -> result.put(payout.playerId(), "DISABLED"));
-            return result;
-        }
-        var budget = com.cobbleascend.domain.v1.Tunables.current().budget();
-        rewards.get().settleBudgeted(settlement, budget).forEach((player, answer) -> {
-            result.put(player, answer.status().name());
-            if (answer.reduced() && answer.status() == EncounterRewards.Status.GRANTED) tellReduced(player, budget);
-        });
+        settlement.payouts().forEach(payout -> result.put(payout.playerId(), "DISABLED"));
         return result;
     }
 
@@ -328,21 +346,12 @@ public final class AscensionRewards {
      */
     public static Map<UUID, String> settle(UUID encounterId, String outcome, String rewardKind,
                                            Map<UUID, Map<String, Long>> payouts) {
-        var parsed = new java.util.ArrayList<EncounterRewards.Payout>();
-        payouts.forEach((player, materials) -> {
-            var amounts = new java.util.EnumMap<MaterialId, Long>(MaterialId.class);
-            materials.forEach((id, amount) -> amounts.put(MaterialId.fromId(id), amount));
-            parsed.add(new EncounterRewards.Payout(player, amounts));
-        });
-        var settlement = new EncounterRewards.Settlement(encounterId.toString(),
-                EncounterRewards.EncounterOutcome.valueOf(outcome), rewardKind, parsed);
+        var settlement = settlement(encounterId, outcome, rewardKind, payouts);
         var rewards = AscensionApi.encounterRewards();
+        if (rewards.isEmpty()) return disabled(settlement);
         var result = new LinkedHashMap<UUID, String>();
-        if (rewards.isEmpty()) {
-            parsed.forEach(payout -> result.put(payout.playerId(), "DISABLED"));
-            return result;
-        }
         rewards.get().settle(settlement).forEach((player, status) -> result.put(player, status.name()));
+        BalanceLog.settlement(rewardKind, encounterId, outcome, result);
         return result;
     }
 }

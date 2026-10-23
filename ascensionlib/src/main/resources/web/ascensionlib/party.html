@@ -71,14 +71,17 @@
   var A = window.A, $ = A.$;
   var view = null, sel = -1, tab = 'party', wallet = null, guide = null, partyInfo = '';
 
-  function pick(i) { sel = i; draw(); }
+  var cards = [];   // the drawn cards by slot, so choosing one only moves the highlight instead of rebuilding the grid and re-decoding every sprite
+
+  function pick(i) { sel = i; select(); }
   function inspect() { var s = view && view.slots[sel]; if (s && s.id) A.send('ascension_inspect_open', { kind: 'owned', id: s.id }); }
 
   function draw() {
     if (!view) return;
-    var grid = $('grid'); grid.innerHTML = '';
+    var grid = $('grid'); grid.innerHTML = ''; cards = [];
     view.slots.forEach(function (s, i) {
-      var card = A.el('div', 'card' + (s.id ? '' : ' empty') + (i === sel ? ' sel' : '') + (s.fainted ? ' faint' : ''));
+      var card = A.el('div', 'card' + (s.id ? '' : ' empty') + (s.fainted ? ' faint' : ''));
+      cards.push(card);
       card.appendChild(A.el('span', 'slot', String(i + 1)));
       if (!s.id) { card.appendChild(A.el('div', 'sub', 'Empty slot')); grid.appendChild(card); return; }
       if (s.pending > 0) card.appendChild(A.el('span', 'badge', s.pending + (s.pending === 1 ? ' upgrade' : ' upgrades')));
@@ -93,6 +96,12 @@
       card.addEventListener('dblclick', function () { pick(i); inspect(); });
       grid.appendChild(card);
     });
+    select();
+  }
+
+  /** Highlights the chosen card and sets the buttons and the footer line to match it. */
+  function select() {
+    cards.forEach(function (card, i) { card.classList.toggle('sel', i === sel); });
     var s = view.slots[sel];
     $('inspect').disabled = !(s && s.id);
     $('upgrade').disabled = !(s && s.id && s.rarityId && !s.locked);

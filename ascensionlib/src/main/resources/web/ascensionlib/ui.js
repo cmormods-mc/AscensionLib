@@ -7,6 +7,33 @@
   A.$ = function (id) { return document.getElementById(id); };
 
   /**
+   * The page's own stopwatch, for the server's performance log (UiMetrics.java): how long each server event took to draw, how long the first data took
+   * to arrive, and the browser's long tasks. Samples are batched (at most 12 labels of 20) and sent every 30 s and when the page closes.
+   */
+  var perfPage = (location.pathname.split('/').pop() || 'page').replace(/\.html?$/, '').replace(/[^a-z]/g, '') || 'page';
+  var perfBuf = {}, perfLabels = 0, perfSamples = 0;
+  A.perf = {
+    add: function (label, ms) {
+      label = String(label).replace(/[^a-zA-Z0-9.]/g, '').slice(0, 24);
+      var list = perfBuf[label];
+      if (!list) { if (!label || perfLabels >= 12) return; list = perfBuf[label] = []; perfLabels++; }
+      if (list.length < 20) { list.push(Math.round(ms * 10) / 10); perfSamples++; }
+    },
+    time: function (label, fn) { var t = performance.now(); try { return fn(); } finally { A.perf.add(label, performance.now() - t); } },
+    flush: function () {
+      if (!g || !perfSamples) return;
+      var body = { page: perfPage, t: perfBuf };
+      perfBuf = {}; perfLabels = 0; perfSamples = 0;
+      A.send('ascension_perf', body);
+    }
+  };
+  setInterval(A.perf.flush, 30000);
+  window.addEventListener('pagehide', A.perf.flush);
+  try {
+    new PerformanceObserver(function (list) { list.getEntries().forEach(function (e) { A.perf.add('longtask', e.duration); }); }).observe({ entryTypes: ['longtask'] });
+  } catch (e) { /* the browser does not report long tasks */ }
+
+  /**
    * WebGUI draws a page at the screen's real pixel size, so a fixed 1040 px tablet is small on a large monitor. This scales the tablet (and the
    * dialogs and overlay that sit beside it) to fill FILL of the window, set as the CSS variable --ui-scale that ascension.css applies. The
    * text is vector and the icons are pixel art drawn with image-rendering: pixelated, so a bigger scale stays crisp, not blurry.
@@ -46,10 +73,20 @@
     var close = head.querySelector('.x:last-child'); head.insertBefore(box, close || null);
     label.textContent = A.pref + '%';
   }
-  A.send = function (channel, body) { if (!g) return; var o = body || {}; o.channel = channel; g.postToGame(o); };
+  A.send = function (channel, body) {
+    if (!g) return;
+    if (channel === 'close') A.perf.flush();
+    var o = body || {}; o.channel = channel; g.postToGame(o);
+  };
+  var firstData = false;
   A.on = function (event, fn) {
     if (!g) return;
-    g.on(event, function (data) { try { fn(typeof data === 'string' ? JSON.parse(data) : data); } catch (e) { if (window.console) console.error(event, e); } });
+    g.on(event, function (data) {
+      var t = performance.now();
+      if (!firstData && event !== 'sprites' && event !== 'uiScale') { firstData = true; A.perf.add('firstData', t); }   // ms since the page began loading
+      try { fn(typeof data === 'string' ? JSON.parse(data) : data); } catch (e) { if (window.console) console.error(event, e); }
+      A.perf.add('render.' + event, performance.now() - t);
+    });
   };
   /** Asks the server for the page's data, and asks again (up to 3 more times, 2 s apart) while loaded() is still false: the first ask can beat the page's listener. */
   A.ready = function (channel, loaded, notice) {
@@ -66,19 +103,21 @@
   A.roman = ['', 'I', 'II', 'III', 'IV', 'V'];
   // A modifier's crest (icons/affix/<id>.png, drawn by tools/affix_art.py). The id is the display name lower-cased with every non-alphanumeric as _; `unique` is a Unique power.
   // A type-bound modifier is named "Type Focus (fire)": it has a crest in its type's colour (type_focus_fire.png), falling back to the plain one.
-  var iconCache = {};   // one resolved <img> per icon; later rows clone it, which reuses the decoded picture instead of asking for the file again
+  var iconUrl = {};   // the file that worked for each icon (or '' when none did), so later rows ask for it directly and the browser reuses the decoded picture
   A.affixIcon = function (name, unique, cls) {
     var m = unique ? null : /^(.*?)\s*\(([a-z]+)\)\s*$/.exec(String(name || ''));
     var base = unique ? 'unique' : (m ? m[1] : String(name || '')).toLowerCase().replace(/[^a-z0-9]/g, '_');
     var key = base + (m ? '_' + m[2] : '');
-    var hit = iconCache[key];
-    if (!hit) {
-      hit = iconCache[key] = new Image(); hit.alt = '';
-      var tried = false;
-      hit.onerror = function () { if (m && !tried) { tried = true; hit.src = 'icons/affix/' + base + '.png'; } else hit.style.visibility = 'hidden'; };
-      hit.src = 'icons/affix/' + key + '.png';
-    }
-    var img = hit.cloneNode(false); img.className = 'afx' + (cls ? ' ' + cls : '');
+    var img = new Image(); img.alt = ''; img.className = 'afx' + (cls ? ' ' + cls : '');
+    var known = iconUrl[key];
+    if (known === '') { img.style.visibility = 'hidden'; return img; }
+    var tried = false;
+    // each row carries its own fallback: a handler is not copied by cloneNode, so a shared element would leave rows made before the error with the broken file
+    img.onerror = function () {
+      if (m && !tried) { tried = true; iconUrl[key] = 'icons/affix/' + base + '.png'; img.src = iconUrl[key]; }
+      else { iconUrl[key] = ''; img.style.visibility = 'hidden'; }
+    };
+    img.src = known || 'icons/affix/' + key + '.png';
     return img;
   };
   A.num = function (n) { n = Number(n) || 0; return n >= 10000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-US'); };

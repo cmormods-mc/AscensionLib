@@ -21,6 +21,9 @@ The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemo
 - Tower completion chests: a guaranteed pile, a quality tier from challenge cards, Ascension cycle and a clean run, and a crown of notable items; a floor-5 mini chest; a daily limit of 20 full chests, then 25% dust.
 - The Hourglass can be bought with 90 Tower Marks.
 
+### Logging and measurement
+- A telemetry log for balancing (every economy operation, crafts and refusals, new profiles, encounter results, sessions, material supply) and for performance (server tick, store writes, page requests, and the pages' own render times). See `docs/PERFORMANCE.md` and `tools/telemetry_report.py`.
+
 ### Screens (WebGUI pages)
 - Craft, Fusion, Inspect, Wallet, the AscensionDex (party, wallet and guide tabs), the completion reveal and an overlay (capture cards, scouting panel, bleed badge).
 - Pages scale to the screen and each player sizes them (60 to 160 percent, saved on the server; `/ascend ui`).
