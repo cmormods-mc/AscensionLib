@@ -93,7 +93,7 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
         ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
-        LOG.info("Capture and hatch rarity, wild and trainer ratings, level milestones and /ascend inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle).");
+        LOG.info("Capture and hatch rarity, wild and trainer ratings, level milestones and ascension inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle).");
     }
 
     private void stop(MinecraftServer stopping) {
@@ -172,8 +172,8 @@ final class AscendWiring {
                     // A wild capture gets the card reveal if the client has the channel; everyone else (and hatches) keep the chat line.
                     boolean revealed = item.rollRarity() && com.ascensionlib.scout.CaptureRevealNet.send(player, item.pokemon(), service, profile);
                     player.sendSystemMessage(Component.literal(revealed
-                            ? "[Ascend] " + title(profile) + " ascension assigned. /ascend inspect"
-                            : "[Ascend] " + title(profile) + " ascension assigned. /ascend inspect — modifiers act in battle only with CobbleRaids installed."));
+                            ? "[Ascend] " + title(profile) + " ascension assigned. Open your AscensionDex to inspect it."
+                            : "[Ascend] " + title(profile) + " ascension assigned. Open your AscensionDex to inspect it — modifiers act in battle only with CobbleRaids installed."));
                 }
             } catch (RuntimeException exception) {
                 LOG.error("Acquisition failed for Pokemon {}; existing data preserved", item.pokemon().getUuid(), exception);
@@ -187,52 +187,10 @@ final class AscendWiring {
         return Commands.literal("ascend")
                 .executes(ctx -> status(ctx.getSource()))
                 .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
-                .then(Commands.literal("inspect")
-                        .executes(ctx -> inspect(ctx.getSource(), 1))
-                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
-                                .executes(ctx -> inspect(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
-                .then(Commands.literal("wallet").executes(ctx -> wallet(ctx.getSource()))
-                        .then(Commands.literal("gui").executes(ctx -> walletGui(ctx.getSource())))
-                        // /ascend wallet withdraw <material> <amount>: turn wallet balance into tradable voucher items.
-                        .then(Commands.literal("withdraw")
-                                .then(Commands.argument("material", StringArgumentType.word())
-                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
-                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1, (int) com.cobbleascend.store.ProgressionStore.MAX_MINT))
-                                                .executes(ctx -> walletWithdraw(ctx.getSource(), StringArgumentType.getString(ctx, "material"),
-                                                        IntegerArgumentType.getInteger(ctx, "amount"))))))
-                        // /ascend wallet deposit [material]: redeem the voucher items you carry.
-                        .then(Commands.literal("deposit").executes(ctx -> walletDeposit(ctx.getSource(), null))
-                                .then(Commands.argument("material", StringArgumentType.word())
-                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
-                                        .executes(ctx -> walletDeposit(ctx.getSource(), StringArgumentType.getString(ctx, "material"))))))
-                // /ascend craft [slot]: open the upgrade / refine / reforge screen for a party Pokemon (slot 1 by default).
-                // /ascend ui [percent]: how big your Ascension pages are, 60 to 160 percent of the automatic fit (100 is the default).
-                // /ascend dex: get an AscensionDex (right-click it to review your party); /ascend party opens the same page directly.
-                // /ascend guide (or help): the in-game guide, the same text as the wiki.
+                // /ascend dex: get an AscensionDex (right-click it to review your party). Every page is reached from it.
+                // /ascend guide: the in-game guide, the same text as the wiki.
                 .then(Commands.literal("guide").executes(ctx -> openGuide(ctx.getSource())))
-                .then(Commands.literal("help").executes(ctx -> openGuide(ctx.getSource())))
                 .then(Commands.literal("dex").executes(ctx -> dex(ctx.getSource())))
-                .then(Commands.literal("party").executes(ctx -> {
-                    var player = ctx.getSource().getPlayerOrException();
-                    return com.ascensionlib.dex.PartyWeb.open(player) ? 1 : 0;
-                }))
-                .then(Commands.literal("ui")
-                        .executes(ctx -> uiSize(ctx.getSource(), -1))
-                        .then(Commands.argument("percent", IntegerArgumentType.integer(com.ascensionlib.web.UiPrefs.MIN_PERCENT, com.ascensionlib.web.UiPrefs.MAX_PERCENT))
-                                .executes(ctx -> uiSize(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "percent")))))
-                .then(Commands.literal("craft")
-                        .executes(ctx -> craft(ctx.getSource(), 1))
-                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
-                                .executes(ctx -> craft(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
-                // /ascend fuse [slot]: open the fusion screen with a party Pokemon as the host (slot 1 by default).
-                .then(Commands.literal("fuse")
-                        .executes(ctx -> fuse(ctx.getSource(), 1))
-                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
-                                .executes(ctx -> fuse(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
-                // /ascend sigil <slot>: spend one Ascension Sigil to give a party Pokemon that has no profile one (rarity rolled).
-                .then(Commands.literal("sigil")
-                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
-                                .executes(ctx -> sigil(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
                 .then(Commands.literal("scout")
                         .executes(ctx -> scoutList(ctx.getSource()))
                         .then(Commands.literal("look").executes(ctx -> scoutLook(ctx.getSource())))
@@ -240,6 +198,37 @@ final class AscendWiring {
                                 .then(Commands.argument("enemy", IntegerArgumentType.integer(1, 16))
                                         .executes(ctx -> scoutUse(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "enemy"))))))
                 .then(Commands.literal("admin").requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("inspect")
+                                .executes(ctx -> inspect(ctx.getSource(), 1))
+                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                        .executes(ctx -> inspect(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
+                        .then(Commands.literal("wallet").executes(ctx -> wallet(ctx.getSource()))
+                                // /ascend wallet withdraw <material> <amount>: turn wallet balance into tradable voucher items.
+                                .then(Commands.literal("withdraw")
+                                        .then(Commands.argument("material", StringArgumentType.word())
+                                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
+                                                .then(Commands.argument("amount", IntegerArgumentType.integer(1, (int) com.cobbleascend.store.ProgressionStore.MAX_MINT))
+                                                        .executes(ctx -> walletWithdraw(ctx.getSource(), StringArgumentType.getString(ctx, "material"),
+                                                                IntegerArgumentType.getInteger(ctx, "amount"))))))
+                                // /ascend wallet deposit [material]: redeem the voucher items you carry.
+                                .then(Commands.literal("deposit").executes(ctx -> walletDeposit(ctx.getSource(), null))
+                                        .then(Commands.argument("material", StringArgumentType.word())
+                                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(Stream.of(MaterialId.values()).map(MaterialId::id), builder))
+                                                .executes(ctx -> walletDeposit(ctx.getSource(), StringArgumentType.getString(ctx, "material"))))))
+                        // /ascend craft [slot]: open the upgrade / refine / reforge screen for a party Pokemon (slot 1 by default).
+                        .then(Commands.literal("craft")
+                                .executes(ctx -> craft(ctx.getSource(), 1))
+                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                        .executes(ctx -> craft(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
+                        // /ascend fuse [slot]: open the fusion screen with a party Pokemon as the host (slot 1 by default).
+                        .then(Commands.literal("fuse")
+                                .executes(ctx -> fuse(ctx.getSource(), 1))
+                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                        .executes(ctx -> fuse(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
+                        // /ascend sigil <slot>: spend one Ascension Sigil to give a party Pokemon that has no profile one (rarity rolled).
+                        .then(Commands.literal("sigil")
+                                .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                        .executes(ctx -> sigil(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
                         .then(Commands.literal("initialize")
                                 .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
                                         .executes(ctx -> initialize(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
@@ -364,7 +353,7 @@ final class AscendWiring {
             LOG.info("Player {} used an Ascension Sigil on Pokemon {}: {}", player.getUUID(), pokemon.getUuid(), profile.rarity().id());
             boolean revealed = com.ascensionlib.scout.CaptureRevealNet.send(player, pokemon, service, profile);
             source.sendSuccess(() -> Component.literal("[Ascend] The Sigil is spent: slot " + slot + " is now " + title(profile)
-                    + (revealed ? "." : ". /ascend inspect " + slot)), false);
+                    + (revealed ? "." : ". Inspect it from your AscensionDex.")), false);
             return 1;
         } catch (IllegalArgumentException | IllegalStateException exception) {
             source.sendFailure(Component.literal("Sigil not used: " + exception.getMessage()));
@@ -374,13 +363,6 @@ final class AscendWiring {
             source.sendFailure(Component.literal("The Sigil could not be used right now. You were not charged."));
             return 0;
         }
-    }
-
-    private int walletGui(CommandSourceStack source) throws CommandSyntaxException {
-        if (!ready(source)) return 0;
-        var player = source.getPlayerOrException();
-        if (!com.ascensionlib.wallet.WalletWeb.open(player)) return 0;
-        return 1;
     }
 
     private int walletWithdraw(CommandSourceStack source, String materialId, int amount) throws CommandSyntaxException {
@@ -582,18 +564,6 @@ final class AscendWiring {
         }
         source.sendSuccess(() -> Component.literal("[Ascend] Backed up the progression store to " + path.get() + " (the newest "
                 + com.cobbleascend.store.StoreBackups.KEEP + " are kept)."), true);
-        return 1;
-    }
-
-    private int uiSize(CommandSourceStack source, int percent) throws CommandSyntaxException {
-        var player = source.getPlayerOrException();
-        if (percent >= 0) {
-            com.ascensionlib.web.UiPrefsWeb.of(player.getServer()).set(player.getUUID(), percent);
-            com.ascensionlib.web.UiPrefsWeb.send(player);
-        }
-        int now = com.ascensionlib.web.UiPrefsWeb.percentOf(player);
-        source.sendSuccess(() -> Component.literal("[Ascend] Your page size is " + now + "% (" + com.ascensionlib.web.UiPrefs.MIN_PERCENT + " to "
-                + com.ascensionlib.web.UiPrefs.MAX_PERCENT + "; /ascend ui <percent> or the - and + in a page header)."), false);
         return 1;
     }
 

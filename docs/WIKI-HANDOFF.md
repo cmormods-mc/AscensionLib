@@ -15,7 +15,7 @@ Every Pokémon you catch or hatch gets an ascension profile: a rarity and a few 
 5. Scout enemies. A Scouter reveals an enemy's rarity and modifiers before you commit: use the opponent panel on the overlay (press WebGUI's interact key to click it) or /ascend scout.
 6. Go deep. At rank V you can Perfect and Overreach a modifier; a Catalyst installs a Unique power; two Mythics can be fused into a Transcendent.
 
-> **Tip:** Every page has a − and + in its header to make it bigger or smaller. It is remembered for you (/ascend ui <percent> does the same).
+> **Tip:** Every page has a − and + in its header to make it bigger or smaller. It is remembered for you.
 
 ## Rarity and modifiers
 
@@ -38,7 +38,7 @@ Two modifiers of the same family never share a Pokémon. Themes (Tempo, Toxin, P
 
 ## Growing a Pokémon
 
-Open Craft from the inspector (Upgrade button) or with /ascend craft. Nothing is spent until you press Review and then Confirm.
+Open Craft from the inspector (Upgrade button). Nothing is spent until you press Review and then Confirm.
 
 | Action | What it does | Cost |
 |---|---|---|
@@ -80,11 +80,11 @@ Fusion makes a Transcendent: a Mythic host that holds a Unique and an Epic-or-be
 - Host: Mythic, every upgrade credit spent, at least 150 attunement, holding a Unique.
 - Donor: Epic or better, holding a different Unique, and not already a Transcendent.
 - Price: 600 dust, 30 facets, 10 cores, 1 Catalyst and 5 Tower Marks.
-- The Fuse button is on the Craft page and /ascend fuse opens it. A Transcendent's power cannot be replaced.
+- The Fuse button is on the Craft page. A Transcendent's power cannot be replaced.
 
 ## Materials and your wallet
 
-Materials live in your wallet, which is saved with the world. Loot that drops as an item joins the wallet by itself when you carry it. Open it from the Wallet tab of the AscensionDex, the Wallet button in Craft, or /ascend wallet gui.
+Materials live in your wallet, which is saved with the world. Loot that drops as an item joins the wallet by itself when you carry it. Open it from the Wallet tab of the AscensionDex, the Wallet button in Craft.
 
 | Item | Rarity | What it is for | Trade |
 |---|---|---|---|
@@ -150,14 +150,7 @@ Two rare items undo an investment. They drop from Tower completion chests, and t
 | Command | What it does |
 |---|---|
 | /ascend dex | Gives you an AscensionDex (right-click it for your party and wallet). |
-| /ascend party | Opens the party page without the item. |
-| /ascend inspect [slot] | Shows a party Pokémon's rarity and modifiers. |
-| /ascend craft [slot] | Opens the craft page for a party Pokémon. |
-| /ascend fuse [slot] | Opens the fusion page with a party Pokémon as the host. |
-| /ascend wallet [gui\|withdraw <material> <amount>\|deposit [material]] | Shows or opens your wallet; takes currency out as items or puts it back. |
 | /ascend scout [look\|use <enemy>] | Lists or uses Scouters on the enemies you face. |
-| /ascend sigil <slot> | Spends an Ascension Sigil to give a Pokémon with no profile one. |
-| /ascend ui [percent] | Shows or sets your page size, 60 to 160 percent. |
 | /ascend guide | Opens this guide. |
 
 ## Help and troubleshooting
@@ -178,7 +171,7 @@ AscensionLib is a server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8
 - Resource pack: the pack in build/AscensionLib-resourcepack.zip gives the items their art. Host it and set resource-pack and resource-pack-sha1 in server.properties, or, with Polymer, add it to config/polymer/resource-pack.json under include_zips and enable auto-host.
 - Page sizes are saved per player in <world>/ascensionlib-ui.json.
 - Tuning: config/ascensionlib.json (written with every default on the first start) holds the economy's dials: the daily budget, the withdrawal fee, the Hourglass price, attunement per victory, the mini chest and the whole completion chest. Edit it and run /ascend admin reload, which reports what changed. The in-game guide shows the server's own numbers.
-- Admin commands (permission level 2): /ascend admin grant <player> <material> <amount>, backup, reload, attunement <slot> <points>, initialize <slot>, completion <tier> [pay], reveal, acquire, rate-target.
+- Admin commands (permission level 2): /ascend admin grant <player> <material> <amount>, backup, reload, inspect [slot], craft [slot], fuse [slot], sigil <slot>, wallet [withdraw|deposit], attunement <slot> <points>, initialize <slot>, completion <tier> [pay], reveal, acquire, rate-target.
 
 ## Modifier catalog
 

@@ -1,8 +1,11 @@
 # Changelog
 
-## 1.0.0-beta.1
+## 1.0.0+fabric
 
-The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2; clients need WebGUI and Rinku.
+The first full release (Fabric build). Server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2; clients need WebGUI and Rinku.
+
+### Commands
+- Players need only `/ascend dex` (the AscensionDex reaches every page), `/ascend guide`, `/ascend status` and `/ascend scout`. `inspect`, `craft`, `fuse`, `sigil` and `wallet withdraw|deposit` are operator-only under `/ascend admin`; `help`, `party`, `ui` and `wallet gui` are gone (the Dex tabs and the page headers cover them).
 
 ### Progression
 - Every captured or hatched Pokémon gets a rarity (Common to Mythic) and modifiers; 34 modifiers with ranks I to V.
@@ -29,7 +32,7 @@ The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemo
 
 ### Screens (WebGUI pages)
 - Craft, Fusion, Inspect, Wallet, the AscensionDex (party, wallet and guide tabs), the completion reveal and an overlay (capture cards, scouting panel, bleed badge).
-- Pages scale to the screen and each player sizes them (60 to 160 percent, saved on the server; `/ascend ui`).
+- Pages scale to the screen and each player sizes them (60 to 160 percent, saved on the server; the − and + in each page header).
 - An in-game guide (`/ascend guide`) and a wiki handoff, generated from one source with every number read from the code.
 
 ### Items and tooltips

@@ -63,7 +63,7 @@
   function sizeControl() {
     var head = document.querySelector('.frame .head');
     if (!head || head.querySelector('.uisize')) return;
-    var box = document.createElement('span'); box.className = 'uisize'; box.title = 'Page size (also /ascend ui <percent>)';
+    var box = document.createElement('span'); box.className = 'uisize'; box.title = 'Page size';
     var minus = document.createElement('button'), plus = document.createElement('button'), label = document.createElement('span');
     minus.className = plus.className = 'x'; minus.textContent = '\u2212'; plus.textContent = '+'; label.className = 'pct'; label.id = 'uipct';
     minus.title = 'Smaller'; plus.title = 'Larger';
@@ -177,7 +177,7 @@
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
   };
   if (g && g.isHud) document.body.classList.add('hud');
-  // The player's saved size: asked for once the page loads and again whenever it changes (the header buttons or /ascend ui).
+  // The player's saved size: asked for once the page loads and again whenever it changes (the header buttons).
   A.on('uiScale', function (s) {
     A.pref = s.percent; A.prefRange = [s.min, s.max];
     var label = document.getElementById('uipct'); if (label) label.textContent = s.percent + '%';

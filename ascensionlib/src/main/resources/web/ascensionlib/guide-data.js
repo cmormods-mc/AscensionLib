@@ -39,7 +39,7 @@ window.GUIDE = {
     },
     {
      "type": "tip",
-     "text": "Every page has a − and + in its header to make it bigger or smaller. It is remembered for you (/ascend ui <percent> does the same)."
+     "text": "Every page has a − and + in its header to make it bigger or smaller. It is remembered for you."
     }
    ]
   },
@@ -118,7 +118,7 @@ window.GUIDE = {
    "blocks": [
     {
      "type": "p",
-     "text": "Open Craft from the inspector (Upgrade button) or with /ascend craft. Nothing is spent until you press Review and then Confirm."
+     "text": "Open Craft from the inspector (Upgrade button). Nothing is spent until you press Review and then Confirm."
     },
     {
      "type": "table",
@@ -268,7 +268,7 @@ window.GUIDE = {
       "Host: Mythic, every upgrade credit spent, at least 150 attunement, holding a Unique.",
       "Donor: Epic or better, holding a different Unique, and not already a Transcendent.",
       "Price: 600 dust, 30 facets, 10 cores, 1 Catalyst and 5 Tower Marks.",
-      "The Fuse button is on the Craft page and /ascend fuse opens it. A Transcendent's power cannot be replaced."
+      "The Fuse button is on the Craft page. A Transcendent's power cannot be replaced."
      ]
     }
    ]
@@ -279,7 +279,7 @@ window.GUIDE = {
    "blocks": [
     {
      "type": "p",
-     "text": "Materials live in your wallet, which is saved with the world. Loot that drops as an item joins the wallet by itself when you carry it. Open it from the Wallet tab of the AscensionDex, the Wallet button in Craft, or /ascend wallet gui."
+     "text": "Materials live in your wallet, which is saved with the world. Loot that drops as an item joins the wallet by itself when you carry it. Open it from the Wallet tab of the AscensionDex, the Wallet button in Craft."
     },
     {
      "type": "table",
@@ -505,36 +505,8 @@ window.GUIDE = {
        "Gives you an AscensionDex (right-click it for your party and wallet)."
       ],
       [
-       "/ascend party",
-       "Opens the party page without the item."
-      ],
-      [
-       "/ascend inspect [slot]",
-       "Shows a party Pokémon's rarity and modifiers."
-      ],
-      [
-       "/ascend craft [slot]",
-       "Opens the craft page for a party Pokémon."
-      ],
-      [
-       "/ascend fuse [slot]",
-       "Opens the fusion page with a party Pokémon as the host."
-      ],
-      [
-       "/ascend wallet [gui|withdraw <material> <amount>|deposit [material]]",
-       "Shows or opens your wallet; takes currency out as items or puts it back."
-      ],
-      [
        "/ascend scout [look|use <enemy>]",
        "Lists or uses Scouters on the enemies you face."
-      ],
-      [
-       "/ascend sigil <slot>",
-       "Spends an Ascension Sigil to give a Pokémon with no profile one."
-      ],
-      [
-       "/ascend ui [percent]",
-       "Shows or sets your page size, 60 to 160 percent."
       ],
       [
        "/ascend guide",

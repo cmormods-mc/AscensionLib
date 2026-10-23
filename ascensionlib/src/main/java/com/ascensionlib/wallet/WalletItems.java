@@ -74,7 +74,7 @@ public final class WalletItems {
         var lore = new ArrayList<Component>();
         lore.add(rarityLine(spec.rarity(), spec.kind()));
         for (var line : spec.lore()) lore.add(Component.literal(line).withStyle(plain.withColor(net.minecraft.ChatFormatting.GRAY)));
-        lore.add(Component.literal(batch == null ? "Joins your wallet when you carry it." : "Voucher: /ascend wallet deposit redeems it.")
+        lore.add(Component.literal(batch == null ? "Joins your wallet when you carry it." : "Voucher: redeem it in the Wallet tab of your AscensionDex.")
                 .withStyle(plain.withColor(net.minecraft.ChatFormatting.DARK_GRAY)));
         stack.set(DataComponents.LORE, new ItemLore(lore));
         return stack;
