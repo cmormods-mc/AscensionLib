@@ -81,6 +81,7 @@ class ContractSignaturesTest {
                 UUID.class, String.class, int.class, int.class, int.class, boolean.class, Collection.class);
         assertContract(AscensionRewards.class, "towerCompletionExtras", Map.class,
                 UUID.class, UUID.class, int.class, int.class, boolean.class);
+        assertContract(AscensionRewards.class, "towerCompletionPreview", Map.class);
         assertEquals(1, AscensionZones.contractVersion());
     }
 }

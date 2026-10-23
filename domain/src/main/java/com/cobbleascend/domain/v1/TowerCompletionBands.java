@@ -130,17 +130,23 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
         return found;
     }
 
+    /** The guaranteed pile of one tier, before the crown rolls: what every player who reaches that tier is paid. */
+    public Map<MaterialId, Long> pileFor(TierSpec spec) {
+        var pile = new EnumMap<MaterialId, Long>(MaterialId.class);
+        add(pile, MaterialId.RESONANCE_DUST, scaled(dust, spec.multiplierPercent()));
+        add(pile, MaterialId.FACET, scaled(facets, spec.multiplierPercent()));
+        add(pile, MaterialId.UNIQUE_FRAGMENT, scaled(fragments, spec.multiplierPercent()));
+        add(pile, MaterialId.SCOUTER, scouters);
+        add(pile, MaterialId.TOWER_MARK, marks + (spec.tier().ordinal() >= Tier.GOLD.ordinal() ? goldMarkBonus : 0)
+                + (spec.tier() == Tier.MYTHIC ? mythicMarkBonus : 0));
+        return pile;
+    }
+
     public Completion payout(String encounterId, UUID player, int challengeCards, int cycle, boolean flawless) {
         int score = score(challengeCards, cycle, flawless);
         var spec = tierFor(score);
         var random = new Random(RewardSeed.of("tower-completion", encounterId, player));
-        var materials = new EnumMap<MaterialId, Long>(MaterialId.class);
-        add(materials, MaterialId.RESONANCE_DUST, scaled(dust, spec.multiplierPercent()));
-        add(materials, MaterialId.FACET, scaled(facets, spec.multiplierPercent()));
-        add(materials, MaterialId.UNIQUE_FRAGMENT, scaled(fragments, spec.multiplierPercent()));
-        add(materials, MaterialId.SCOUTER, scouters);
-        add(materials, MaterialId.TOWER_MARK, marks + (spec.tier().ordinal() >= Tier.GOLD.ordinal() ? goldMarkBonus : 0)
-                + (spec.tier() == Tier.MYTHIC ? mythicMarkBonus : 0));
+        var materials = new EnumMap<>(pileFor(spec));
         var pile = Collections.unmodifiableMap(new EnumMap<>(materials));
         var crowns = new ArrayList<Crown>();
         int armor = 0, tickets = 0;

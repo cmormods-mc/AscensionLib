@@ -20,6 +20,21 @@ class TowerCompletionContractTest {
                 () -> AscensionRewards.settleTowerCompletion(UUID.randomUUID(), "VICTORY", 10, -1, 0, false, List.of(UUID.randomUUID())));
     }
 
+    @Test void thePreviewShowsEveryTierAndMatchesWhatIsPaid() {
+        var preview = AscensionRewards.towerCompletionPreview();
+        assertEquals(java.util.List.of("BRONZE", "SILVER", "GOLD", "MYTHIC"), List.copyOf(preview.keySet()));
+        var bands = com.cobbleascend.domain.v1.TowerCompletionBands.DEFAULTS;
+        for (var spec : bands.tiers()) {
+            var tier = preview.get(spec.tier().name());
+            assertEquals(spec.crownSlots(), tier.get("crownSlots"));
+            @SuppressWarnings("unchecked") var pile = (java.util.Map<String, Long>) tier.get("pile");
+            bands.pileFor(spec).forEach((material, amount) -> assertEquals(amount, pile.get(material.id())));
+            @SuppressWarnings("unchecked") var crown = (java.util.Map<String, Double>) tier.get("crown");
+            assertEquals(100.0, crown.values().stream().mapToDouble(Double::doubleValue).sum(), 0.5);
+        }
+        assertFalse(((java.util.Map<?, ?>) preview.get("BRONZE").get("crown")).containsKey("catalyst"), "Bronze never rolls a Catalyst");
+    }
+
     @Test void theExtrasAgreeWithThePayoutSeedAndAreStable() {
         var encounter = UUID.randomUUID();
         var player = UUID.randomUUID();

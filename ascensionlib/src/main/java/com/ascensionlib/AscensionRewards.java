@@ -108,6 +108,36 @@ public final class AscensionRewards {
         return extras;
     }
 
+    /**
+     * What a completion chest can pay, for a mod that wants to show it (CobbleTowers' chest preview) instead of copying numbers that drift when the
+     * balance is tuned. Pure and read-only: it pays nothing and reads the live tunables. One entry per tier, in order (BRONZE, SILVER, GOLD, MYTHIC),
+     * each a map of {@code minScore} (int), {@code pilePercent} (int), {@code crownSlots} (int), {@code pile} (material id to amount, guaranteed) and
+     * {@code crown} (crown item, lower case, to its percent chance on each slot, one decimal). {@code armor} and {@code ticket} are CobbleTowers' own items.
+     */
+    public static Map<String, Map<String, Object>> towerCompletionPreview() {
+        var bands = com.cobbleascend.domain.v1.Tunables.current().towerCompletion();
+        var preview = new LinkedHashMap<String, Map<String, Object>>();
+        for (var spec : bands.tiers()) {
+            var pile = new LinkedHashMap<String, Long>();
+            bands.pileFor(spec).forEach((material, amount) -> pile.put(material.id(), amount));
+            int total = 0;
+            for (int weight : spec.weights()) total += weight;
+            var crown = new LinkedHashMap<String, Double>();
+            for (var item : TowerCompletionBands.Crown.values()) {
+                int weight = spec.weights()[item.ordinal()];
+                if (weight > 0) crown.put(item.name().toLowerCase(java.util.Locale.ROOT), Math.round(weight * 1000.0 / total) / 10.0);
+            }
+            var tier = new LinkedHashMap<String, Object>();
+            tier.put("minScore", spec.minScore());
+            tier.put("pilePercent", spec.multiplierPercent());
+            tier.put("crownSlots", spec.crownSlots());
+            tier.put("pile", pile);
+            tier.put("crown", crown);
+            preview.put(spec.tier().name(), tier);
+        }
+        return preview;
+    }
+
     /** The players whose settlement came back paid now or earlier: the ones a reward's side effects (attunement, the reveal) still apply to. */
     private static java.util.List<UUID> paidPlayers(Map<UUID, String> result) {
         var paid = new java.util.ArrayList<UUID>();

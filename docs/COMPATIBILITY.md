@@ -24,7 +24,7 @@ These methods are looked up by name and parameter types by CobbleRaids, CobbleTo
 
 | Class and method | Used by |
 |---|---|
-| `AscensionRewards.settleTowerBoss`, `settleScouterDrops`, `settleTrial`, `settleTowerCompletion`, `towerCompletionExtras`, `settle` | CobbleTowers |
+| `AscensionRewards.settleTowerBoss`, `settleScouterDrops`, `settleTrial`, `settleTowerCompletion`, `towerCompletionExtras`, `towerCompletionPreview` (read-only, for the chest preview), `settle` | CobbleTowers |
 | `AscensionRewards.settleRaidAttunement`, `scaleItemQuantity` | CobbleRaids, CobbleTowers |
 | `AscensionRewards.settleDungeonRun` | ascensionDungeons |
 | `AscensionEncounters.declareEnemy`, `armBattle`, `disarmBattle`, `end` | CobbleRaids, CobbleTowers |
