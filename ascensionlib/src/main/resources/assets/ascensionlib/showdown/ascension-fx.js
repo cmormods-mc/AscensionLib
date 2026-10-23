@@ -321,7 +321,11 @@ function apply(battle, payload) {
       const result = originalFaint.apply(this, arguments);
       for (const holder of scorers) {
         try {
-          if (holder.hp > 0 && !holder.fainted) momentum.set(holder, Math.min(MOMENTUM_STACKS, (momentum.get(holder) || 0) + 1));
+          if (holder.hp > 0 && !holder.fainted) {
+            const before = momentum.get(holder) || 0;
+            momentum.set(holder, Math.min(MOMENTUM_STACKS, before + 1));
+            if (momentum.get(holder) > before) note(battle, `${holder.name}'s Momentum rises! (stack ${momentum.get(holder)})`);
+          }
         } catch (err) { /* fail open */ }
       }
       for (const [holder, heals] of killers) {
@@ -613,7 +617,8 @@ function applyMechanics(battle, byUuid, of, has, momentum) {
             if (rolled.has(key)) continue;
             rolled.add(key);
             if (target.hasAbility('shielddust') || target.hasItem('covertcloak')) continue;
-            if (rolls.some(chance)) this.boost({spe: -1}, target, source, effectOf('ascensionensnare', 'Ensnaring'), true);
+            // the badge line only when the engine really lowered Speed (Clear Body, Mist and a Substitute make boost() report false)
+            if (rolls.some(chance) && this.boost({spe: -1}, target, source, effectOf('ascensionensnare', 'Ensnaring'), true)) note(this, `${target.name} was ensnared!`);
           }
         }
       } catch (err) { /* fail open: the hit already happened */ }
@@ -699,6 +704,7 @@ function applyMechanics(battle, byUuid, of, has, momentum) {
     if (has(holder, MOMENTUM)) {
       const rawClear = holder.clearVolatile;
       holder.clearVolatile = function () {
+        if (momentum.get(this) > 0) note(battle, `${this.name}'s Momentum faded.`);
         momentum.delete(this);
         return rawClear.apply(this, arguments);
       };

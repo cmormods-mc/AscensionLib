@@ -30,6 +30,7 @@ public final class WebSprites {
     /** Comfortably under WebGUI's 32 KB event limit once JSON escaping is counted. */
     private static final int BATCH_CHARS = 24_000;
 
+    private static final int MAX_CACHED = 2048;
     private static final Map<String, Optional<String>> CACHE = new ConcurrentHashMap<>();
     private static final Map<UUID, Set<String>> SENT = new ConcurrentHashMap<>();
 
@@ -43,6 +44,7 @@ public final class WebSprites {
     /** The data URL for a species (its bare path, e.g. {@code mewtwo}), or empty when no installed mod provides it. */
     public static Optional<String> dataUrl(String speciesPath) {
         if (!speciesPath.matches("[a-z0-9_]+")) return Optional.empty();
+        if (CACHE.size() >= MAX_CACHED) CACHE.clear();    // far more than the species that exist; a cap only so a stray id can never grow it without limit
         return CACHE.computeIfAbsent(speciesPath, WebSprites::load);
     }
 

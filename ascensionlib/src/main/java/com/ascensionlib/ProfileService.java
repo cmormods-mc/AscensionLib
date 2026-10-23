@@ -106,18 +106,6 @@ public final class ProfileService {
         return Optional.of(profile);
     }
 
-    /** A dry run of a craft on a copy: what it would cost and whether the rules allow it. Rolls nothing that is kept or shown. */
-    public RankedProgression.CraftResult preview(ProfileV1 profile, com.cobbleascend.store.Kind kind, String slotId, List<String> types) {
-        var fixed = new java.util.Random(1);
-        return switch (kind) {
-            case UPGRADE -> progression.upgrade(profile, slotId, fixed);
-            case REFINE -> progression.refine(profile, slotId, fixed);
-            case PERFECT -> progression.perfect(profile, slotId);
-            case REFORGE -> progression.reforge(profile, slotId, types, fixed);
-            default -> throw new IllegalArgumentException("Not previewable: " + kind);
-        };
-    }
-
     /**
      * Registers an owned Pokemon once. The rarity roll happens inside the store transaction only when this
      * Pokemon has no committed acquisition, so repeated callbacks and restarts never re-roll.

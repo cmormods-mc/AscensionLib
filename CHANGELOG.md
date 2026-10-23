@@ -21,6 +21,9 @@ The first public beta. Server-side Fabric mod for Minecraft 1.21.1 with Cobblemo
 - Tower completion chests: a guaranteed pile, a quality tier from challenge cards, Ascension cycle and a clean run, and a crown of notable items; a floor-5 mini chest; a daily limit of 20 full chests, then 25% dust.
 - The Hourglass can be bought with 90 Tower Marks.
 
+### Battle overlay
+- Momentum shows as a standing badge with its stacks, and Wardstone and Ensnaring flash when they act, for both sides, next to the bleed badge.
+
 ### Logging and measurement
 - A telemetry log for balancing (every economy operation, crafts and refusals, new profiles, encounter results, sessions, material supply) and for performance (server tick, store writes, page requests, and the pages' own render times). See `docs/PERFORMANCE.md` and `tools/telemetry_report.py`.
 

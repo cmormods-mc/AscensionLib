@@ -140,7 +140,6 @@ public final class CraftNet {
         var reforgeCost = rules.base().craftCost("reforge");
         boolean canRefine = wallet.canAfford(MaterialId.of(refineCost));
         boolean canReforge = wallet.canAfford(MaterialId.of(reforgeCost));
-        var types = service.typesFor(pokemon);
         var progressionRules = new RankedProgression(rules);
         List<CraftPayloads.SlotView> slots = new ArrayList<>();
         for (var slot : profile.ordinarySlots()) {
@@ -161,16 +160,10 @@ public final class CraftNet {
                     || wallet.balance(MaterialId.TOWER_MARK) < RankedProgression.OVERREACH_MARKS
                     ? "Needs " + RankedProgression.OVERREACH_DUST + " Resonance Dust + " + RankedProgression.OVERREACH_FACETS + " Facets + "
                     + RankedProgression.OVERREACH_MARKS + " Tower Mark" : "";
-            String reforgeBlock = "";
-            int pool = 0;
-            try {
-                service.preview(profile, Kind.REFORGE, slot.slotId(), types);
-                var others = profile.ordinarySlots().stream().filter(s -> !s.slotId().equals(slot.slotId())).map(s -> rules.affix(s.affixId()).family()).toList();
-                pool = (int) rules.affixes().stream().filter(a -> a.category() == slot.category() && !others.contains(a.family())).count();
-                if (!canReforge) reforgeBlock = "Needs " + describe(reforgeCost);
-            } catch (CraftException exception) {
-                reforgeBlock = "No other affix can take this slot";
-            }
+            // The affixes this slot could become: its category, minus the families the other slots already hold (the same filter a reforge draws from).
+            var others = profile.ordinarySlots().stream().filter(s -> !s.slotId().equals(slot.slotId())).map(s -> rules.affix(s.affixId()).family()).toList();
+            int pool = (int) rules.affixes().stream().filter(a -> a.category() == slot.category() && !others.contains(a.family())).count();
+            String reforgeBlock = pool == 0 ? "No other affix can take this slot" : !canReforge ? "Needs " + describe(reforgeCost) : "";
             slots.add(new CraftPayloads.SlotView(slot.slotId(), slot.category().id(), slotName(service, slot),
                     affix.base().condition() == null ? "" : affix.base().condition(), slot.rank(), slot.rolledValue(), band.min(), band.max(),
                     next == null ? -1 : next.min(), next == null ? -1 : next.max(), upgradeBlock, refineBlock, reforgeBlock, pool,

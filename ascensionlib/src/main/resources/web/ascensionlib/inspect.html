@@ -74,7 +74,7 @@
   var TYPES = { normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', electric: '#f7d02c', grass: '#7ac74c', ice: '#96d9d6', fighting: '#c22e28', poison: '#a33ea1',
     ground: '#e2bf65', flying: '#a98ff3', psychic: '#f95587', bug: '#a6b91a', rock: '#b6a136', ghost: '#735797', dragon: '#6f35fc', dark: '#705746', steel: '#b7b7ce', fairy: '#d685ad' };
   var mode = '';           // owned | enemy
-  var owned = null, state = null, idx = 0, sel = 0, sigilArmed = false;
+  var owned = null, state = null, idx = 0, sel = 0, sigilArmed = false, rowEls = [];
 
   function detail() { return mode === 'owned' ? (owned && owned.detail) : (state && state.entries[idx] ? state.entries[idx].detail : null); }
   function rowsOf(d) {
@@ -120,7 +120,7 @@
 
   function drawRows(d) {
     var box = $('rows'); box.innerHTML = '';
-    var rows = rowsOf(d);
+    var rows = rowsOf(d); rowEls = [];
     if (!d) {
       box.appendChild(A.el('div', 'empty', mode === 'owned' ? (owned ? 'This Pokémon has no ascension profile.' : 'Loading server data…') : 'Scout to reveal rarity and modifiers.'));
       A.text($('count'), '? / ?'); A.text($('strip'), 'Click a modifier to see what it does.'); return;
@@ -133,6 +133,7 @@
     sel = Math.max(0, Math.min(sel, rows.length - 1));
     rows.forEach(function (r, i) {
       var el = A.el('div', 'row' + (r.unique ? ' uniq' : '') + (i === sel ? ' sel' : ''));
+      rowEls.push(el);
       el.appendChild(A.affixIcon(r.name, r.unique));
       var col = A.el('div'); var t1 = A.el('div', 't1', r.unique ? 'UNIQUE  ' + r.name : r.name);
       if (r.theme) t1.appendChild(A.el('span', 'theme', r.theme));
@@ -148,13 +149,15 @@
       }
       el.appendChild(col);
       if (r.value) el.appendChild(A.el('div', 'v', '+' + r.value));
-      el.addEventListener('click', function () { sel = i; render(); });
-      el.addEventListener('mouseenter', function () { A.text($('strip'), r.condition || (r.prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.')); });
+      el.addEventListener('click', function () { sel = i; rowEls.forEach(function (e, k) { e.classList.toggle('sel', k === i); }); A.text($('strip'), describe(r)); });   // only the highlight moves; the sprite and stats stay
+      el.addEventListener('mouseenter', function () { A.text($('strip'), describe(r)); });
       box.appendChild(el);
     });
     drawResonance(d);
-    if (rows.length) A.text($('strip'), rows[sel].condition || (rows[sel].prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.'));
+    if (rows.length) A.text($('strip'), describe(rows[sel]));
   }
+
+  function describe(r) { return r.condition || (r.prefix ? 'An offensive modifier.' : 'A defensive or recovery modifier.'); }
 
   function drawResonance(d) {
     var box = $('reso'); box.innerHTML = '';

@@ -505,6 +505,27 @@ await check('hud: bleed badges show side, stacks and turns, stay open while anyo
   noErrors(p);
 });
 
+await check('hud: Momentum stays as a badge, Wardstone and Ensnaring flash once, both sides, and the overlay closes after', async () => {
+  const p = await open(null, 'hud.html');
+  await emit(p, 'hudEffects', { momentum: [{ name: 'Arcanine', side: 'ally', stacks: 2 }, { name: 'Houndoom', side: 'foe', stacks: 1 }], procs: [{ name: 'Growlithe', side: 'ally', kind: 'wardstone' }, { name: 'Houndoom', side: 'foe', kind: 'ensnaring' }] });
+  eq(await p.locator('.eff.mom').count(), 2, 'a Momentum badge per holder');
+  yes((await p.locator('.eff.mom').first().textContent()).includes('MOMENTUM x2'), 'stacks shown');
+  eq(await p.locator('.eff.mom.foe').count(), 1, 'the foe has its own colour');
+  yes((await p.locator('.eff.flash.wardstone').textContent()).includes('status resisted'), 'the Wardstone flash');
+  yes((await p.locator('.eff.flash.ensnaring.foe').textContent()).includes('Speed lowered'), 'the Ensnaring flash on the foe');
+  await emit(p, 'hudEffects', { momentum: [{ name: 'Arcanine', side: 'ally', stacks: 3 }], procs: [] });
+  eq(await p.locator('.eff.mom').count(), 1, 'the standing badges are replaced by the new list');
+  yes((await p.locator('.eff.mom').textContent()).includes('x3'), 'and show the new stacks');
+  eq(await p.locator('.eff.flash').count(), 2, 'a flash is not cleared by a later update');
+  await p.waitForTimeout(3200);
+  yes(!(await sent(p)).some(m => m.channel === 'close'), 'the overlay stays open while Momentum stands');
+  await emit(p, 'hudEffects', { momentum: [], procs: [] });
+  await p.waitForTimeout(4200);
+  eq(await p.locator('.eff').count(), 0, 'the flashes ended by themselves');
+  yes((await sent(p)).some(m => m.channel === 'close'), 'then the overlay closes itself');
+  noErrors(p);
+});
+
 await check('every page scales its tablet to fill the window at any resolution, and stays inside it', async () => {
   for (const [w, h] of [[2560, 1440], [1920, 1080], [1280, 720], [3840, 2160]]) {
     for (const file of ['craft.html', 'inspect.html', 'wallet.html', 'completion.html']) {

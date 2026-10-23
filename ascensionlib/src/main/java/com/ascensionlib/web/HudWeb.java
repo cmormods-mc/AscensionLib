@@ -31,6 +31,8 @@ public final class HudWeb {
     private static final Map<UUID, Deque<CaptureRevealPayload>> QUEUED = new ConcurrentHashMap<>();
     /** The bleeds last pushed to each player, re-sent when the overlay finishes loading. */
     private static final Map<UUID, List<Views.BleedView>> BLEEDS = new ConcurrentHashMap<>();
+    /** The Momentum stacks last pushed to each player, re-sent the same way. */
+    private static final Map<UUID, List<Views.MomentumView>> MOMENTUM = new ConcurrentHashMap<>();
 
     private HudWeb() {}
 
@@ -42,6 +44,8 @@ public final class HudWeb {
             if (queued != null) queued.forEach(reveal -> { WebSprites.feed(player, List.of(reveal.speciesId())); WebUi.emit(player, "hudReveal", reveal); });
             var bleeds = BLEEDS.get(player.getUUID());
             if (bleeds != null && !bleeds.isEmpty()) WebUi.emit(player, "hudBleed", bleeds);
+            var momentum = MOMENTUM.get(player.getUUID());
+            if (momentum != null && !momentum.isEmpty()) WebUi.emit(player, "hudEffects", new Views.EffectsView(momentum, List.of()));
             var state = com.ascensionlib.scout.ScoutEncounters.stateFor(player.getUUID());
             WebUi.emit(player, "hudScout", Views.state(state));
             if (!state.entries().isEmpty()) sendTeam(player);
@@ -55,6 +59,7 @@ public final class HudWeb {
         OPENING.remove(player);
         QUEUED.remove(player);
         BLEEDS.remove(player);
+        MOMENTUM.remove(player);
         com.ascensionlib.battle.BleedWatch.forget(player);
         com.ascensionlib.battle.Participation.forget(player);
     }
@@ -96,6 +101,19 @@ public final class HudWeb {
         if (bleeds.isEmpty() && !OPEN.contains(player.getUUID())) return;
         if (!bleeds.isEmpty()) ensureOpen(player);
         if (OPEN.contains(player.getUUID())) WebUi.emit(player, "hudBleed", bleeds);
+    }
+
+    /**
+     * Momentum stacks or a Wardstone/Ensnaring proc in this player's battle: show the strip, opening the overlay for the first one. Stacks stay until
+     * an update without them; a proc is flashed once and not kept (an overlay that is still loading misses it, the stacks are re-sent).
+     */
+    public static void pushEffects(ServerPlayer player, Views.EffectsView effects) {
+        if (effects.momentum().isEmpty()) MOMENTUM.remove(player.getUUID()); else MOMENTUM.put(player.getUUID(), List.copyOf(effects.momentum()));
+        if (!WebUi.canShow(player)) return;
+        boolean any = !effects.momentum().isEmpty() || !effects.procs().isEmpty();
+        if (!any && !OPEN.contains(player.getUUID())) return;
+        if (any) ensureOpen(player);
+        if (OPEN.contains(player.getUUID())) WebUi.emit(player, "hudEffects", effects);
     }
 
     private static void sendTeam(ServerPlayer player) {

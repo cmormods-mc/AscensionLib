@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Shows bleed on the overlay. Cobblemon draws icons only for the native statuses, so a bleed (a custom condition inside the simulator) would
+ * Shows bleed, Momentum stacks and Wardstone/Ensnaring procs ({@link BattleEffectTracker}) on the overlay. Cobblemon draws icons only for the native statuses, so a bleed (a custom condition inside the simulator) would
  * otherwise be a chat line and nothing else. Each second this reads the new protocol lines of every in-battle player's battle into a
  * {@link BleedTracker}, resolves each name to a side from the battle's actors, and pushes the list to the player's overlay when it changed.
  * Reading only: nothing here touches the battle. Without WebGUI on the client there is nothing to draw, so it does nothing.
@@ -23,7 +23,7 @@ public final class BleedWatch {
     private static final Logger LOG = LoggerFactory.getLogger("ascensionlib");
     private static final int PERIOD_TICKS = 10;
 
-    private record Watch(UUID battleId, BleedTracker tracker, int read) {}
+    private record Watch(UUID battleId, BleedTracker tracker, BattleEffectTracker effects, int read) {}
 
     private static final Map<UUID, Watch> WATCHES = new HashMap<>();
     private static int ticks;
@@ -50,18 +50,30 @@ public final class BleedWatch {
             if (existing != null) {
                 WATCHES.remove(player.getUUID());
                 if (!existing.tracker().idle()) HudWeb.pushBleed(player, List.of());
+                if (!existing.effects().idle()) HudWeb.pushEffects(player, new Views.EffectsView(List.of(), List.of()));
             }
             return;
         }
-        if (existing == null || !existing.battleId().equals(battle.getBattleId())) existing = new Watch(battle.getBattleId(), new BleedTracker(), 0);
+        if (existing == null || !existing.battleId().equals(battle.getBattleId())) existing = new Watch(battle.getBattleId(), new BleedTracker(), new BattleEffectTracker(), 0);
         var messages = battle.getShowdownMessages();
         int size = messages.size();
-        for (int i = existing.read(); i < size; i++) existing.tracker().feed(messages.get(i));
-        WATCHES.put(player.getUUID(), new Watch(existing.battleId(), existing.tracker(), size));
-        if (!existing.tracker().takeChanged()) return;
-        var views = new ArrayList<Views.BleedView>();
-        for (var bleed : existing.tracker().bleeds()) views.add(new Views.BleedView(bleed.name(), sideOf(battle, player, bleed.name()), bleed.stacks(), bleed.turnsLeft()));
-        HudWeb.pushBleed(player, views);
+        for (int i = existing.read(); i < size; i++) {
+            existing.tracker().feed(messages.get(i));
+            existing.effects().feed(messages.get(i));
+        }
+        WATCHES.put(player.getUUID(), new Watch(existing.battleId(), existing.tracker(), existing.effects(), size));
+        if (existing.tracker().takeChanged()) {
+            var views = new ArrayList<Views.BleedView>();
+            for (var bleed : existing.tracker().bleeds()) views.add(new Views.BleedView(bleed.name(), sideOf(battle, player, bleed.name()), bleed.stacks(), bleed.turnsLeft()));
+            HudWeb.pushBleed(player, views);
+        }
+        if (existing.effects().takeChanged()) {
+            var momentum = new ArrayList<Views.MomentumView>();
+            for (var m : existing.effects().momentum()) momentum.add(new Views.MomentumView(m.name(), sideOf(battle, player, m.name()), m.stacks()));
+            var procs = new ArrayList<Views.ProcView>();
+            for (var proc : existing.effects().takeProcs()) procs.add(new Views.ProcView(proc.name(), sideOf(battle, player, proc.name()), proc.kind()));
+            HudWeb.pushEffects(player, new Views.EffectsView(momentum, procs));
+        }
     }
 
     /** "ally" when a Pokemon of that name is on the player's side of the battle, otherwise "foe". */

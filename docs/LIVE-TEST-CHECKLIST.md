@@ -38,6 +38,7 @@ With CobbleTowers installed, run a tower to its floor-10 champion with one accou
 - [ ] `- 100% +` in each header and `/ascend ui 130` change the size and it is still there after relogging.
 - [ ] A 1080p and a 4K window both fit; the overlay sits cleanly over Cobblemon's battle screen.
 - [ ] A bleed badge appears in a real battle with Rending or Rupture, counts down and clears.
+- [ ] **Effect badges (never run live; the simulator lines were added 2026-10-23):** a Momentum badge with its stacks after a KO, gone when its holder is withdrawn; a Wardstone flash when a foe's status fails; an Ensnaring flash when a hit lowers Speed (none when the target has Clear Body); the foe's own badges in orange.
 
 ## 5. Operations
 
