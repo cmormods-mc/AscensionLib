@@ -34,6 +34,7 @@ public final class AscensionBattles {
     private AscensionBattles() {}
 
     public static Map<String, String> fieldsFor(UUID battleId, List<UUID> playerIds) {
+        if (BattleNormalization.isSuppressed(battleId)) return BattleNormalization.fieldsFor(battleId);
         try {
             var service = AscensionApi.service();
             if (service.isEmpty()) return Map.of();

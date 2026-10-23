@@ -42,6 +42,11 @@ class ContractSignaturesTest {
                 UUID.class, String.class, String.class, Map.class);
     }
 
+    @Test void combatFxContractMatchesWhatDungeonsLooksUp() throws Exception {
+        assertContract(AscensionCombatFx.class, "effectsOf", java.util.List.class, Object.class, int.class);
+        assertContract(AscensionCombatFx.class, "caps", int[].class);
+    }
+
     @Test void trialContractMatchesWhatTowersLooksUp() throws Exception {
         assertContract(AscensionRewards.class, "settleTrial", Map.class,
                 UUID.class, String.class, int.class, Collection.class);
