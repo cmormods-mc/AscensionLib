@@ -14,6 +14,7 @@ What AscensionLib 1.0.0 beta is built for, what has been checked, and what has n
 ## Not yet verified
 
 - A live **floor-10 champion clear** in CobbleTowers paying the completion chest and handing over the armor piece and pack (the code path is covered by tests and by `/ascend admin completion <tier> pay`; the Towers half has run only in unit tests).
+- **WebGUI 1.8.1**: below the declared range (`suggests >=2.0.0`). The pages appeared to work on a test server running it, but that is not a supported combination.
 - CobbleRaids, CobbleTowers and WebGUI together on **Cobblemon 1.8.2** (each pins its own Cobblemon version in its own repository).
 - **ascensionDungeons** calling `AscensionZones` and `settleDungeonRun`: the contract exists and is tested on our side; wiring it is that project's own TODO.
 

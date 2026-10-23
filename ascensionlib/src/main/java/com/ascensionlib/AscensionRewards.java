@@ -304,7 +304,18 @@ public final class AscensionRewards {
             if (answer.reduced() && answer.status() == EncounterRewards.Status.GRANTED) tellReduced(player, budget);
         });
         BalanceLog.settlement(rewardKind, encounterId, outcome, result);
+        logPaid(rewardKind, encounterId, result, payouts);
         return result;
+    }
+
+    /** One line in the server log per chest actually paid now, so an admin can see a completion pay without the telemetry files. */
+    private static void logPaid(String rewardKind, UUID encounterId, Map<UUID, String> result, Map<UUID, Map<String, Long>> payouts) {
+        var server = AscensionApi.server();
+        result.forEach((player, status) -> {
+            if (!status.equals("GRANTED")) return;
+            var online = server == null ? null : server.getPlayerList().getPlayer(player);
+            LOG.info("{} {} paid {}: {}", rewardKind, encounterId, online == null ? player : online.getGameProfile().getName(), payouts.get(player));
+        });
     }
 
     /** The store-side settlement for a caller's per-player material ids; an unknown id or outcome is the caller's mistake and throws. */

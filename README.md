@@ -23,7 +23,7 @@ The full player guide is in the game (`/ascend guide`, or the Guide tab of the A
 |---|---|
 | Server | Minecraft 1.21.1, Fabric Loader 0.17.2 or later, Fabric API, **Cobblemon 1.8.1 or 1.8.2**, Java 21 |
 | Clients | The **WebGUI** mod and **Rinku** (every screen is a web page WebGUI shows). No client mod of ours. |
-| Optional | **CobbleRaids** (makes the modifiers act in battle), **CobbleTowers** and **ascensionDungeons** (earning), **Polymer** (hosts the resource pack for you) |
+| Optional | **CobbleRaids** (required for the modifiers to act in battle; without it they do nothing in a fight), **CobbleTowers** and **ascensionDungeons** (earning), **Polymer** (hosts the resource pack for you) |
 
 ## Install
 

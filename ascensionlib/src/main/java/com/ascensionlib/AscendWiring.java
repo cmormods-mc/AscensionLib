@@ -173,7 +173,7 @@ final class AscendWiring {
                     boolean revealed = item.rollRarity() && com.ascensionlib.scout.CaptureRevealNet.send(player, item.pokemon(), service, profile);
                     player.sendSystemMessage(Component.literal(revealed
                             ? "[Ascend] " + title(profile) + " ascension assigned. /ascend inspect"
-                            : "[Ascend] " + title(profile) + " ascension assigned. /ascend inspect — battle effects need CobbleRaids installed (untested live)."));
+                            : "[Ascend] " + title(profile) + " ascension assigned. /ascend inspect — modifiers act in battle only with CobbleRaids installed."));
                 }
             } catch (RuntimeException exception) {
                 LOG.error("Acquisition failed for Pokemon {}; existing data preserved", item.pokemon().getUuid(), exception);
@@ -290,7 +290,7 @@ final class AscendWiring {
         }
         source.sendSuccess(() -> Component.literal("CobbleAscend: canonical progression store active (authority "
                 + status.authority() + "). Capture/hatch rarity, level milestones and inspection work. "
-                + "Battle effects need CobbleRaids installed and are untested live; crafting screens and Trials are not implemented."), false);
+                + "Modifiers act in battle only with CobbleRaids installed; everything else works without it."), false);
         if (!service.quarantined().isEmpty())
             source.sendFailure(Component.literal(service.quarantined().size()
                     + " Pokemon are quarantined (data preserved untouched); see the server log."));

@@ -7,7 +7,7 @@ For a server owner. The player-facing explanation of the mechanics is in the gam
 - A Fabric server on **Minecraft 1.21.1** with **Java 21**, Fabric Loader 0.17.2 or later and Fabric API.
 - **Cobblemon 1.8.1 or 1.8.2** (the mod declares `>=1.8.1 <1.9.0`).
 - On every **client**: the **WebGUI** mod (2.0.0 or later) and **Rinku**. Every AscensionLib screen is a web page that WebGUI shows; the server tells a player when theirs is missing, and the key actions also exist as commands.
-- Optional: **CobbleRaids** (installs the battle module so modifiers act in fights), **CobbleTowers** and **ascensionDungeons** (they pay rewards through the library), **Polymer** (hosts the resource pack).
+- Optional: **CobbleRaids**, which modifiers need to act in a fight (without it everything else works and modifiers do nothing in battle), **CobbleTowers** and **ascensionDungeons** (they pay rewards through the library), **Polymer** (hosts the resource pack).
 
 ## First start
 
