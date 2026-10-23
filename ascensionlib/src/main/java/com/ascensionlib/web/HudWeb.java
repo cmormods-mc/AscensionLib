@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -34,23 +36,53 @@ public final class HudWeb {
     /** The Momentum stacks last pushed to each player, re-sent the same way. */
     private static final Map<UUID, List<Views.MomentumView>> MOMENTUM = new ConcurrentHashMap<>();
 
+    /**
+     * Players whose overlay work had to wait because a full-screen page was open (see {@link GuiPresence}): WebGUI's openHud destroys an open GUI
+     * page, and the overlay's own close would close it too. {@link #flush} picks the work up once the page is gone.
+     */
+    private static final Set<UUID> DEFERRED = ConcurrentHashMap.newKeySet();
+
     private HudWeb() {}
 
     public static void register() {
         WebUi.listen("ascension_hud_ready", (player, o) -> {
             OPEN.add(player.getUUID());
             OPENING.remove(player.getUUID());
-            var queued = QUEUED.remove(player.getUUID());
-            if (queued != null) queued.forEach(reveal -> { WebSprites.feed(player, List.of(reveal.speciesId())); WebUi.emit(player, "hudReveal", reveal); });
-            var bleeds = BLEEDS.get(player.getUUID());
-            if (bleeds != null && !bleeds.isEmpty()) WebUi.emit(player, "hudBleed", bleeds);
-            var momentum = MOMENTUM.get(player.getUUID());
-            if (momentum != null && !momentum.isEmpty()) WebUi.emit(player, "hudEffects", new Views.EffectsView(momentum, List.of()));
-            var state = com.ascensionlib.scout.ScoutEncounters.stateFor(player.getUUID());
-            WebUi.emit(player, "hudScout", Views.state(state));
-            if (!state.entries().isEmpty()) sendTeam(player);
+            resync(player);
         });
         WebUi.listen("ascension_hud_closed", (player, o) -> { OPEN.remove(player.getUUID()); OPENING.remove(player.getUUID()); });
+        // The overlay asks before it closes itself; the answer is no while a full-screen page is up, because the client's close would close that page.
+        WebUi.listen("ascension_hud_idle", (player, o) -> {
+            if (GuiPresence.isOpen(player.getUUID())) DEFERRED.add(player.getUUID());
+            else WebUi.emit(player, "hudClose", Map.of());
+        });
+        GuiPresence.register();
+        ServerTickEvents.END_SERVER_TICK.register(HudWeb::flush);
+    }
+
+    /** Sends the overlay everything held for this player: waiting reveals, the bleed and Momentum strips, the scouting panel and the team. */
+    private static void resync(ServerPlayer player) {
+        var queued = QUEUED.remove(player.getUUID());
+        if (queued != null) queued.forEach(reveal -> { WebSprites.feed(player, List.of(reveal.speciesId())); WebUi.emit(player, "hudReveal", reveal); });
+        var bleeds = BLEEDS.get(player.getUUID());
+        if (bleeds != null && !bleeds.isEmpty()) WebUi.emit(player, "hudBleed", bleeds);
+        var momentum = MOMENTUM.get(player.getUUID());
+        if (momentum != null && !momentum.isEmpty()) WebUi.emit(player, "hudEffects", new Views.EffectsView(momentum, List.of()));
+        var state = com.ascensionlib.scout.ScoutEncounters.stateFor(player.getUUID());
+        WebUi.emit(player, "hudScout", Views.state(state));
+        if (!state.entries().isEmpty()) sendTeam(player);
+    }
+
+    /** Twice a second: gives the overlay back to players whose full-screen page has closed, by opening it or re-sending what it missed. */
+    private static void flush(MinecraftServer server) {
+        if (DEFERRED.isEmpty() || server.getTickCount() % 10 != 0) return;
+        for (UUID id : DEFERRED) {
+            var player = server.getPlayerList().getPlayer(id);
+            if (player == null) { DEFERRED.remove(id); continue; }
+            if (GuiPresence.isOpen(id)) continue;
+            DEFERRED.remove(id);
+            if (OPEN.contains(id)) resync(player); else ensureOpen(player);
+        }
     }
 
     /** Forgets what is held for a player who left. */
@@ -58,6 +90,8 @@ public final class HudWeb {
         OPEN.remove(player);
         OPENING.remove(player);
         QUEUED.remove(player);
+        DEFERRED.remove(player);
+        GuiPresence.forget(player);
         BLEEDS.remove(player);
         MOMENTUM.remove(player);
         com.ascensionlib.battle.BleedWatch.forget(player);
@@ -65,20 +99,21 @@ public final class HudWeb {
     }
 
     private static void ensureOpen(ServerPlayer player) {
+        if (GuiPresence.isOpen(player.getUUID())) { DEFERRED.add(player.getUUID()); return; }
         if (!OPEN.contains(player.getUUID()) && !OPENING.contains(player.getUUID()) && WebUi.openHud(player, "hud.html")) OPENING.add(player.getUUID());
     }
 
     /** Shows a capture card. False when the player's client cannot show web pages (the chat line stays the only notice). */
     public static boolean reveal(ServerPlayer player, CaptureRevealPayload payload) {
         if (!WebUi.canShow(player)) return false;
-        if (OPEN.contains(player.getUUID())) {
+        if (OPEN.contains(player.getUUID()) && !GuiPresence.isOpen(player.getUUID())) {
             WebSprites.feed(player, List.of(payload.speciesId()));
             WebUi.emit(player, "hudReveal", payload);
             return true;
         }
         var queue = QUEUED.computeIfAbsent(player.getUUID(), id -> new ArrayDeque<>());
         if (queue.size() < MAX_QUEUE) queue.add(payload);
-        ensureOpen(player);
+        if (OPEN.contains(player.getUUID())) DEFERRED.add(player.getUUID()); else ensureOpen(player);
         return true;
     }
 
@@ -88,7 +123,7 @@ public final class HudWeb {
         if (!WebUi.canShow(player)) return;
         if (state.entries().isEmpty() && !OPEN.contains(player.getUUID())) return;
         if (!state.entries().isEmpty()) ensureOpen(player);
-        if (OPEN.contains(player.getUUID())) {
+        if (live(player)) {
             WebUi.emit(player, "hudScout", Views.state(state));
             if (!state.entries().isEmpty()) sendTeam(player);
         }
@@ -100,7 +135,7 @@ public final class HudWeb {
         if (!WebUi.canShow(player)) return;
         if (bleeds.isEmpty() && !OPEN.contains(player.getUUID())) return;
         if (!bleeds.isEmpty()) ensureOpen(player);
-        if (OPEN.contains(player.getUUID())) WebUi.emit(player, "hudBleed", bleeds);
+        if (live(player)) WebUi.emit(player, "hudBleed", bleeds);
     }
 
     /**
@@ -113,7 +148,15 @@ public final class HudWeb {
         boolean any = !effects.momentum().isEmpty() || !effects.procs().isEmpty();
         if (!any && !OPEN.contains(player.getUUID())) return;
         if (any) ensureOpen(player);
-        if (OPEN.contains(player.getUUID())) WebUi.emit(player, "hudEffects", effects);
+        if (live(player)) WebUi.emit(player, "hudEffects", effects);
+    }
+
+    /** Whether the overlay is loaded and in front, so an event sent now reaches it (a full-screen page in front would receive it instead). */
+    private static boolean live(ServerPlayer player) {
+        if (!OPEN.contains(player.getUUID())) return false;
+        if (!GuiPresence.isOpen(player.getUUID())) return true;
+        DEFERRED.add(player.getUUID());   // re-sent by flush() once the page closes
+        return false;
     }
 
     private static void sendTeam(ServerPlayer player) {

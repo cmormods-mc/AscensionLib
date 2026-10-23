@@ -60,6 +60,7 @@ public final class WebUi {
             return false;
         }
         WebSprites.reset(player.getUUID());
+        GuiPresence.touch(player.getUUID());
         land.webgui.api.WebviewApi.openGui(player, "webgui://ascensionlib/" + page);
         return true;
     }

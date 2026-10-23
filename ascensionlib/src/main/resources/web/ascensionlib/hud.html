@@ -14,9 +14,9 @@
   .card .sprbox { width: 96px; height: 64px; background: var(--row); border: 2px solid var(--edge); display: flex; align-items: center; justify-content: center; flex: none; }
   .card .nm { font-weight: 700; } .card .g { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; color: #fff; }
   .card ul { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; } .card li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .afx-s { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
-  #panel { transform: scale(var(--ui-scale, 1)); transform-origin: top right; position: fixed; right: 12px; top: 90px; width: 270px; background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 1px #fff, 0 0 0 3px #1b120d; display: none; font-size: 13px; }
+  #panel { transform: scale(var(--ui-scale, 1)); transform-origin: top right; position: fixed; right: 12px; top: 90px; width: 270px; user-select: none; background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 1px #fff, 0 0 0 3px #1b120d; display: none; font-size: 13px; }
   #panel.on { display: block; }
-  #panel .h { display: flex; justify-content: space-between; align-items: center; background: var(--head); padding: 5px 10px; font-weight: 600; cursor: pointer; }
+  #panel .h { display: flex; justify-content: space-between; align-items: center; background: var(--head); padding: 5px 10px; font-weight: 600; cursor: move; }
   #panel .sec { padding: 6px 10px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   #panel .r { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-bottom: 1px solid var(--line); background: var(--row); }
   #panel .r .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
@@ -116,6 +116,7 @@
       n.addEventListener('click', function () { A.send('ascension_inspect_open', { kind: 'owned', id: m.id }); });
       row.appendChild(n); row.appendChild(rarityTag(m.rarityId)); tm.appendChild(row);
     });
+    if (window.place) window.place();
   }
 
   function busy() { return shownToasts > 0 || scout.entries.length > 0 || bleeds.length > 0 || momentum.length > 0 || flashes > 0; }
@@ -126,9 +127,13 @@
     if (busy()) return;
     idleTimer = setTimeout(function () {
       if (busy()) return;
-      A.send('ascension_hud_closed'); A.send('close');
+      A.send('ascension_hud_idle');   // the server answers hudClose, unless a full-screen page is open (the client's close would close that page)
     }, 2500);
   }
+  A.on('hudClose', function () {
+    if (busy()) return;
+    A.send('ascension_hud_closed'); A.send('close');
+  });
 
   /** A badge per bleeding Pokemon: a drop, the name, the stacks and the turns left. Your side is red, the foe's orange. */
   function drawBleeds() {
@@ -173,10 +178,56 @@
   A.on('hudReveal', function (r) { toast(r); });
   A.on('hudScout', function (s) { scout = s; drawPanel(); });
   A.on('hudTeam', function (t) { team = t; drawPanel(); });
+  /**
+   * The panel sits on the right, midway between the battle log (bottom) and the opponent's HP bar (top) until the player drags it by
+   * its title. A drag is remembered (as fractions of the window, so it survives a resize); double-click the title to put it back.
+   * A click without movement still folds the panel.
+   */
+  var POS_KEY = 'ascensionlib.hud.panel', saved = null, drag = null;
+  try { saved = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (e) { saved = null; }
+  window.place = place;
+  function place() {
+    var p = $('panel'), w = window.innerWidth, h = window.innerHeight;
+    var scale = parseFloat(getComputedStyle(p).getPropertyValue('--ui-scale')) || 1;
+    var ph = p.offsetHeight * scale, pw = p.offsetWidth * scale;
+    var right, top;
+    if (saved && isFinite(saved.r) && isFinite(saved.t)) { right = saved.r * w; top = saved.t * h; }
+    else { right = 12; top = h * 0.46 - ph / 2; }
+    right = Math.max(0, Math.min(right, w - pw)); top = Math.max(0, Math.min(top, h - ph));
+    p.style.right = right + 'px'; p.style.top = top + 'px';
+  }
+  function remember() {
+    var p = $('panel');
+    saved = { r: parseFloat(p.style.right) / window.innerWidth, t: parseFloat(p.style.top) / window.innerHeight };
+    try { localStorage.setItem(POS_KEY, JSON.stringify(saved)); } catch (e) { /* not kept this time */ }
+  }
+  $('ph').addEventListener('mousedown', function (ev) {
+    var p = $('panel');
+    drag = { x: ev.clientX, y: ev.clientY, r: parseFloat(p.style.right) || 12, t: parseFloat(p.style.top) || 90, moved: false };
+  });
+  document.addEventListener('mousemove', function (ev) {
+    if (!drag) return;
+    var dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+    drag.moved = true;
+    var p = $('panel');
+    p.style.right = (drag.r - dx) + 'px'; p.style.top = (drag.t + dy) + 'px';
+    saved = { r: parseFloat(p.style.right) / window.innerWidth, t: parseFloat(p.style.top) / window.innerHeight };
+    place();
+  });
+  document.addEventListener('mouseup', function () { if (drag && drag.moved) remember(); });
   $('ph').addEventListener('click', function () {
+    var moved = drag && drag.moved; drag = null;
+    if (moved) return;
     var p = $('panel'); p.className = p.className.indexOf('min') >= 0 ? p.className.replace(' min', '') : p.className + ' min';
     A.text($('pcaret'), p.className.indexOf('min') >= 0 ? '▸' : '▾');
+    if (!saved) place();
   });
+  $('ph').addEventListener('dblclick', function () {
+    saved = null; try { localStorage.removeItem(POS_KEY); } catch (e) { /* nothing to clear */ }
+    place();
+  });
+  window.addEventListener('resize', place);
   if (A.g) A.send('ascension_hud_ready'); else A.text($('ptitle'), 'WebGUI missing');
   maybeIdle();
 })();

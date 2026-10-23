@@ -78,6 +78,11 @@
     if (channel === 'close') A.perf.flush();
     var o = body || {}; o.channel = channel; g.postToGame(o);
   };
+  /** A full-screen page tells the server it is open: the overlay must not open over it or close it (see GuiPresence.java). The overlay itself does not beat. */
+  if (g && perfPage !== 'hud') {
+    A.send('ascension_gui_beat');
+    setInterval(function () { A.send('ascension_gui_beat'); }, 2000);
+  }
   var firstData = false;
   A.on = function (event, fn) {
     if (!g) return;
