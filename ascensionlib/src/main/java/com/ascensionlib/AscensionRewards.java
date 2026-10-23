@@ -56,7 +56,7 @@ public final class AscensionRewards {
     /**
      * Pays a cleared tower cycle's F10 champion: the hour-long completion chest from {@code TowerCompletionBands} (a guaranteed pile, a quality tier
      * earned by difficulty and cleanness, and a crown of one to three rolls), flat per player apart from seeded rolls. Gives each paid player's party
-     * +3 attunement, shows each newly paid player the reveal page (chat lines without WebGUI) and announces a Core, a Catalyst or a Mythic tier to the
+     * the tier's attunement (12 Bronze to 22 Mythic; with the F5 boss's 3 a tower pays 15 to 25), shows each newly paid player the reveal page (chat lines without WebGUI) and announces a Core, a Catalyst or a Mythic tier to the
      * party. Same exactly-once rules and statuses as {@link #settle}; reward kind {@code tower_completion}. Amounts are seeded by (encounter, player),
      * so a retry pays the same chest. The F5 boss stays on {@link #settleTowerBoss} (a mini chest). Armor pieces and CobbleCards tickets that the crown
      * rolls are CobbleTowers' own items: read them with {@link #towerCompletionExtras}.
@@ -87,10 +87,11 @@ public final class AscensionRewards {
                 "flawless", flawless, "players", players.size()));
         var result = settleBudgeted(encounterId, outcome, "tower_completion", payouts);
         var paid = paidPlayers(result);
-        awardAttunement("tower_completion:" + encounterId, paid);
+        int attunement = bands.tierFor(TowerCompletionBands.score(challengeCards, cycle, flawless)).attunement();
+        awardAttunement("tower_completion:" + encounterId, paid, attunement);
         var fresh = new java.util.ArrayList<UUID>();
         result.forEach((player, status) -> { if (status.equals("GRANTED")) fresh.add(player); });
-        reveal(fresh, completions, cycle, challengeCards, flawless, players);
+        reveal(fresh, completions, cycle, challengeCards, flawless, attunement, players);
         return result;
     }
 
@@ -111,7 +112,7 @@ public final class AscensionRewards {
     /**
      * What a completion chest can pay, for a mod that wants to show it (CobbleTowers' chest preview) instead of copying numbers that drift when the
      * balance is tuned. Pure and read-only: it pays nothing and reads the live tunables. One entry per tier, in order (BRONZE, SILVER, GOLD, MYTHIC),
-     * each a map of {@code minScore} (int), {@code pilePercent} (int), {@code crownSlots} (int), {@code pile} (material id to amount, guaranteed) and
+     * each a map of {@code minScore} (int), {@code pilePercent} (int), {@code crownSlots} (int), {@code attunement} (int, party attunement the completion pays on top of the F5 boss's flat share), {@code pile} (material id to amount, guaranteed) and
      * {@code crown} (crown item, lower case, to its percent chance on each slot, one decimal). {@code armor} and {@code ticket} are CobbleTowers' own items.
      */
     public static Map<String, Map<String, Object>> towerCompletionPreview() {
@@ -131,6 +132,7 @@ public final class AscensionRewards {
             tier.put("minScore", spec.minScore());
             tier.put("pilePercent", spec.multiplierPercent());
             tier.put("crownSlots", spec.crownSlots());
+            tier.put("attunement", spec.attunement());
             tier.put("pile", pile);
             tier.put("crown", crown);
             preview.put(spec.tier().name(), tier);
@@ -146,14 +148,14 @@ public final class AscensionRewards {
     }
 
     private static void reveal(java.util.Collection<UUID> fresh, Map<UUID, TowerCompletionBands.Completion> completions, int cycle, int cards,
-                               boolean flawless, java.util.Collection<UUID> party) {
+                               boolean flawless, int attunement, java.util.Collection<UUID> party) {
         var server = AscensionApi.server();
         if (server == null) return;
         try {
             for (var player : fresh) {
                 var online = server.getPlayerList().getPlayer(player);
                 if (online == null) continue;
-                var view = com.ascensionlib.reward.CompletionReveal.view(completions.get(player), cycle, cards, flawless, com.cobbleascend.domain.v1.Tunables.current().attunementPerVictory(), false);
+                var view = com.ascensionlib.reward.CompletionReveal.view(completions.get(player), cycle, cards, flawless, attunement, false);
                 com.ascensionlib.reward.CompletionReveal.show(online, view);
                 String line = com.ascensionlib.reward.CompletionReveal.announcement(online.getGameProfile().getName(), view);
                 if (line.isEmpty()) continue;
@@ -286,6 +288,11 @@ public final class AscensionRewards {
 
     /** Credits each player's party, once per key; players who are offline miss it. Returns the players handled. */
     private static int awardAttunement(String key, java.util.Collection<UUID> players) {
+        return awardAttunement(key, players, com.cobbleascend.domain.v1.Tunables.current().attunementPerVictory());
+    }
+
+    private static int awardAttunement(String key, java.util.Collection<UUID> players, int points) {
+        if (points < 1) return 0;
         var service = AscensionApi.service().orElse(null);
         var server = AscensionApi.server();
         if (service == null || server == null) return 0;
@@ -293,7 +300,7 @@ public final class AscensionRewards {
         for (var player : players) {
             var online = server.getPlayerList().getPlayer(player);
             if (online == null) continue;
-            service.awardPartyAttunement(online, key, com.cobbleascend.domain.v1.Tunables.current().attunementPerVictory());
+            service.awardPartyAttunement(online, key, points);
             handled++;
         }
         return handled;

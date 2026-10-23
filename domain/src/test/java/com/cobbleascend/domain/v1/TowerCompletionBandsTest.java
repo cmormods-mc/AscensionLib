@@ -133,7 +133,7 @@ class TowerCompletionBandsTest {
     }
 
     @Test void malformedBandsAreRefused() {
-        assertThrows(IllegalArgumentException.class, () -> new TowerCompletionBands.TierSpec(Tier.GOLD, 5, 100, 1, new int[] {1, 2}));
+        assertThrows(IllegalArgumentException.class, () -> new TowerCompletionBands.TierSpec(Tier.GOLD, 5, 100, 1, 18, new int[] {1, 2}));
         assertThrows(IllegalArgumentException.class, () -> new TowerCompletionBands(1, 1, 1, 1, 1, 0, 0, 0, BANDS.tiers()));
     }
 }

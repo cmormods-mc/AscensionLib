@@ -197,7 +197,7 @@ window.GUIDE = {
     },
     {
      "type": "p",
-     "text": "Attunement is earned only by Pokémon that fought: {attunement.perVictory} for each victory in a Tower boss, a trial, a dungeon or a raid. A Pokémon with no profile earns nothing and you are told so; an Ascension Sigil gives it one."
+     "text": "Attunement is earned only by Pokémon that fought: {attunement.perVictory} for each victory over a Tower's floor 5 boss, a trial, a dungeon or a raid. Clearing a Tower's champion pays 12 to 22 more, rising with the run's difficulty, so a whole Tower is worth 15 to 25. A Pokémon with no profile earns nothing and you are told so; an Ascension Sigil gives it one."
     },
     {
      "type": "warn",

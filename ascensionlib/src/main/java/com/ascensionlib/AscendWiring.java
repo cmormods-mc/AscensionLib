@@ -581,7 +581,8 @@ final class AscendWiring {
             return 1;
         }
         var completion = com.cobbleascend.domain.v1.Tunables.current().towerCompletion().payout(encounter.toString(), player.getUUID(), cards, 0, false);
-        com.ascensionlib.reward.CompletionReveal.show(player, com.ascensionlib.reward.CompletionReveal.view(completion, 0, cards, false, 3, true));
+        com.ascensionlib.reward.CompletionReveal.show(player, com.ascensionlib.reward.CompletionReveal.view(completion, 0, cards, false,
+                com.cobbleascend.domain.v1.Tunables.current().towerCompletion().tierFor(cards).attunement(), true));
         return 1;
     }
 

@@ -57,7 +57,7 @@ Open Craft from the inspector (Upgrade button). Nothing is spent until you press
 | Epic to Legendary | 200 dust, 10 facets, 2 cores | 50 |
 | Legendary to Mythic | 400 dust, 20 facets, 5 cores | 90 |
 
-Attunement is earned only by Pokémon that fought: 3 for each victory in a Tower boss, a trial, a dungeon or a raid. A Pokémon with no profile earns nothing and you are told so; an Ascension Sigil gives it one.
+Attunement is earned only by Pokémon that fought: 3 for each victory over a Tower's floor 5 boss, a trial, a dungeon or a raid. Clearing a Tower's champion pays 12 to 22 more, rising with the run's difficulty, so a whole Tower is worth 15 to 25. A Pokémon with no profile earns nothing and you are told so; an Ascension Sigil gives it one.
 
 > **Important:** Overreach is a point of no return. A Pokémon with an Overreached slot can never use an Hourglass of Undoing.
 

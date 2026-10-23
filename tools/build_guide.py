@@ -49,9 +49,9 @@ def tower_bands():
     head = re.search(r'new TowerCompletionBands\((\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+), List\.of\(', text)
     dust, facets, fragments, scouters, marks, gold_bonus, mythic_bonus, bundle = (int(x) for x in head.groups())
     tiers = []
-    for m in re.finditer(r'new TierSpec\(Tier\.(\w+), (\d+), (\d+), (\d+), new int\[\] \{([^}]*)\}\)', text):
-        name, min_score, percent, slots, weights = m.groups()
-        tiers.append(dict(name=name, min=int(min_score), percent=int(percent), slots=int(slots), weights=[int(w) for w in weights.split(',')]))
+    for m in re.finditer(r'new TierSpec\(Tier\.(\w+), (\d+), (\d+), (\d+), (\d+), new int\[\] \{([^}]*)\}\)', text):
+        name, min_score, percent, slots, attunement, weights = m.groups()
+        tiers.append(dict(name=name, min=int(min_score), percent=int(percent), slots=int(slots), attunement=int(attunement), weights=[int(w) for w in weights.split(',')]))
     return dict(dust=dust, facets=facets, fragments=fragments, scouters=scouters, marks=marks, gold_bonus=gold_bonus, mythic_bonus=mythic_bonus, bundle=bundle, tiers=tiers)
 
 

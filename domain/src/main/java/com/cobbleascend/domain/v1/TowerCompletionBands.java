@@ -21,9 +21,13 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
 
     public enum Tier { BRONZE, SILVER, GOLD, MYTHIC }
 
-    /** @param minScore the lowest score in this tier; @param multiplierPercent percent of the pile; @param weights per {@link Crown}, in enum order */
-    public record TierSpec(Tier tier, int minScore, int multiplierPercent, int crownSlots, int[] weights) {
+    /**
+     * @param minScore the lowest score in this tier; @param multiplierPercent percent of the pile; @param attunement party attunement the completion pays
+     * (the F5 boss adds its own flat share, so a whole tower pays this plus {@link Tunables#attunementPerVictory}); @param weights per {@link Crown}, in enum order
+     */
+    public record TierSpec(Tier tier, int minScore, int multiplierPercent, int crownSlots, int attunement, int[] weights) {
         public TierSpec {
+            if (attunement < 0 || attunement > 100) throw new IllegalArgumentException("Tier attunement is 0-100");
             if (weights.length != Crown.values().length) throw new IllegalArgumentException("One weight per crown item");
             int total = 0;
             for (int weight : weights) { if (weight < 0) throw new IllegalArgumentException("Negative weight"); total += weight; }
@@ -42,10 +46,11 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
     public static final TowerCompletionBands DEFAULTS = new TowerCompletionBands(800, 6, 3, 4, 3, 1, 1, 12, List.of(
             // Weights are the approved crown table times ten, with the two respec items added (docs/RESPEC-DESIGN.md): the Hourglass of Undoing about every
             // 10.6 completions and the Unbinding Prism about every 34.3.
-            new TierSpec(Tier.BRONZE, 0, 70, 1, new int[] {300, 400, 100, 0, 140, 60, 0, 0}),
-            new TierSpec(Tier.SILVER, 2, 100, 1, new int[] {360, 300, 120, 20, 140, 60, 60, 0}),
-            new TierSpec(Tier.GOLD, 5, 150, 2, new int[] {360, 220, 140, 40, 160, 80, 80, 30}),
-            new TierSpec(Tier.MYTHIC, 8, 225, 3, new int[] {360, 140, 140, 80, 180, 100, 100, 50})));
+            // Attunement is 12/15/18/22 here plus the F5 boss's 3, so a whole tower pays 15/18/21/25 by difficulty (owner, 2026-10-23).
+            new TierSpec(Tier.BRONZE, 0, 70, 1, 12, new int[] {300, 400, 100, 0, 140, 60, 0, 0}),
+            new TierSpec(Tier.SILVER, 2, 100, 1, 15, new int[] {360, 300, 120, 20, 140, 60, 60, 0}),
+            new TierSpec(Tier.GOLD, 5, 150, 2, 18, new int[] {360, 220, 140, 40, 160, 80, 80, 30}),
+            new TierSpec(Tier.MYTHIC, 8, 225, 3, 22, new int[] {360, 140, 140, 80, 180, 100, 100, 50})));
 
     /** The expected number of a crown entry per completion for a given mix of tiers (probabilities by tier ordinal): slots times the entry's share of the tier's weight. */
     public double expectedPerCompletion(Crown crown, double[] tierMix) {
@@ -75,6 +80,7 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
             t.addProperty("minScore", spec.minScore());
             t.addProperty("pilePercent", spec.multiplierPercent());
             t.addProperty("crownSlots", spec.crownSlots());
+            t.addProperty("attunement", spec.attunement());
             var weights = new com.google.gson.JsonObject();
             for (var crown : Crown.values()) weights.addProperty(crown.name().toLowerCase(java.util.Locale.ROOT), spec.weights()[crown.ordinal()]);
             t.add("crownWeights", weights);
@@ -102,7 +108,7 @@ public record TowerCompletionBands(int dust, int facets, int fragments, int scou
             var w = Tunables.obj(t, "crownWeights");
             if (w != null) for (var crown : Crown.values()) weights[crown.ordinal()] = Tunables.intOf(w, crown.name().toLowerCase(java.util.Locale.ROOT), weights[crown.ordinal()]);
             specs.add(new TierSpec(old.tier(), Tunables.intOf(t, "minScore", old.minScore()), Tunables.intOf(t, "pilePercent", old.multiplierPercent()),
-                    Tunables.intOf(t, "crownSlots", old.crownSlots()), weights));
+                    Tunables.intOf(t, "crownSlots", old.crownSlots()), Tunables.intOf(t, "attunement", old.attunement()), weights));
         }
         return new TowerCompletionBands(d, f, fr, sc, m, gb, mb, bundle, specs);
     }
