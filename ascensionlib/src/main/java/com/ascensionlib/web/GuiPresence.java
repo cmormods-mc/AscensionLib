@@ -33,5 +33,16 @@ public final class GuiPresence {
         return false;
     }
 
-    public static void forget(UUID player) { LAST_BEAT.remove(player); }
+    private static final Map<UUID, Long> LAST_LOG = new ConcurrentHashMap<>();
+
+    /** Says (at most every 10 s per player) that the overlay is waiting on a full-screen page, so a panel that never shows can be explained. */
+    public static void logHeld(UUID player) {
+        long now = System.currentTimeMillis();
+        Long last = LAST_LOG.get(player);
+        if (last != null && now - last < 10_000) return;
+        LAST_LOG.put(player, now);
+        org.slf4j.LoggerFactory.getLogger("AscensionLib").info("Overlay held back for {}: a full-screen page is reporting open", player);
+    }
+
+    public static void forget(UUID player) { LAST_BEAT.remove(player); LAST_LOG.remove(player); }
 }

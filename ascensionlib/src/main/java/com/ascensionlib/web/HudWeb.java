@@ -99,7 +99,7 @@ public final class HudWeb {
     }
 
     private static void ensureOpen(ServerPlayer player) {
-        if (GuiPresence.isOpen(player.getUUID())) { DEFERRED.add(player.getUUID()); return; }
+        if (GuiPresence.isOpen(player.getUUID())) { DEFERRED.add(player.getUUID()); GuiPresence.logHeld(player.getUUID()); return; }
         if (!OPEN.contains(player.getUUID()) && !OPENING.contains(player.getUUID()) && WebUi.openHud(player, "hud.html")) OPENING.add(player.getUUID());
     }
 
