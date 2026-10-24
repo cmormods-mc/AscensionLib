@@ -48,6 +48,7 @@
     <button class="on" id="tabParty">Party</button>
     <button id="tabWallet">Wallet</button>
     <button id="tabGuide">Guide</button>
+    <button id="tabFuse" disabled>Fuse</button>
   </div>
   <div class="foot">
     <div class="msg muted" id="info"></div>
@@ -106,6 +107,8 @@
     $('inspect').disabled = !(s && s.id);
     $('upgrade').disabled = !(s && s.id && s.rarityId && !s.locked);
     $('upgrade').title = s && s.locked ? 'This Pokemon is on loan and cannot be upgraded.' : s && s.id && !s.rarityId ? 'It has no ascension profile yet: inspect it to use an Ascension Sigil.' : '';
+    $('tabFuse').disabled = !(s && s.id);
+    $('tabFuse').title = s && s.id ? 'Fuse: open the fusion screen with ' + s.name + ' as the host (a Mythic with a Unique can be one; you can change it there).' : 'Pick a Pokemon first.';
     partyInfo = s && s.id ? s.name + (s.rarityId ? '' : ' has no ascension profile') : 'Pick a Pokemon';
     if (tab === 'party') A.text($('info'), partyInfo);
   }
@@ -135,6 +138,8 @@
   $('tabParty').addEventListener('click', function () { showTab('party'); });
   $('tabWallet').addEventListener('click', function () { showTab('wallet'); });
   $('tabGuide').addEventListener('click', function () { showTab('guide'); });
+  // Fuse is not a tab: it opens the fusion screen (the craft screen's Fuse button sends the same message) with the chosen Pokemon as the host.
+  $('tabFuse').addEventListener('click', function () { var s = view && view.slots[sel]; if (s && s.id && !$('tabFuse').disabled) A.send('ascension_fusion_open', { hostId: s.id }); });
   $('depositAll').addEventListener('click', function () { if (wallet) wallet.depositAll(); });
   $('inspect').addEventListener('click', inspect);
   $('upgrade').addEventListener('click', function () { var s = view && view.slots[sel]; if (s && s.id && !$('upgrade').disabled) A.send('ascension_craft_open', { pokemonId: s.id }); });

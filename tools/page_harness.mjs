@@ -92,7 +92,7 @@ async function open(page, file, w = 1100, h = 700) {
   return p;
 }
 // every page also asks for the player's page size on load; the page tests below are about their own messages
-const sent = p => p.evaluate(() => window.__sent.filter(m => m.channel !== 'ascension_ui_get'));
+const sent = p => p.evaluate(() => window.__sent.filter(m => m.channel !== 'ascension_ui_get' && m.channel !== 'ascension_gui_beat'));
 const sentAll = p => p.evaluate(() => window.__sent);
 const emit = (p, e, d, s) => p.evaluate(([e, d, s]) => window.__emit(e, d, s), [e, d, s]);
 // shots are taken over a game-like green so a transparent page shows what the game would show through it
@@ -591,6 +591,9 @@ await check('party: six slots, rarity, health and pending upgrades; pick, inspec
   await p.locator('.card').nth(0).click();
   await p.click('#upgrade');
   eq((await sent(p)).find(x => x.channel === 'ascension_craft_open').pokemonId, 'a1', 'Upgrade opens craft for the pick');
+  eq(await p.isDisabled('#tabFuse'), false, 'Fuse is available with a Pokemon picked');
+  await p.click('#tabFuse');
+  eq((await sent(p)).find(x => x.channel === 'ascension_fusion_open').hostId, 'a1', 'Fuse opens the fusion screen with the pick as the host');
   await p.locator('.card').nth(3).click();
   eq(await p.locator('.card.sel').count() <= 1, true, 'an empty slot cannot be picked in');
   await p.locator('.card').nth(2).dblclick();
@@ -601,7 +604,7 @@ await check('party: six slots, rarity, health and pending upgrades; pick, inspec
 
 await check('party: a Wallet tab at the bottom shows the wallet (fee preview, Take, Deposit) and switches back to the party', async () => {
   const p = await open(null, 'party.html', 1920, 1080);
-  eq(await p.locator('#tabbar button').count(), 3, 'three tabs');
+  eq(await p.locator('#tabbar button').count(), 4, 'three tabs and the Fuse button');
   eq(await p.isVisible('#paneWallet'), false, 'the wallet is hidden at first');
   eq(await p.isVisible('#footParty'), true, 'the party buttons show');
   const box = async sel => p.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return { t: b.top, b: b.bottom }; }, sel);
@@ -686,7 +689,7 @@ await check('guide: the numbers a server owner can tune come live from the serve
 
 await check('party: the Guide tab shows the same guide inside the AscensionDex', async () => {
   const p = await open(null, 'party.html', 1920, 1080);
-  eq(await p.locator('#tabbar button').count(), 3, 'three tabs now');
+  eq(await p.locator('#tabbar button').count(), 4, 'three tabs and the Fuse button');
   await p.click('#tabGuide');
   eq(await p.isVisible('#paneGuide'), true, 'the guide pane shows');
   eq(await p.isVisible('#paneParty'), false, 'and the party hides');
