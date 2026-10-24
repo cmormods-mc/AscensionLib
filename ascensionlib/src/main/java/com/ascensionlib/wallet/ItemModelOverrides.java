@@ -67,8 +67,22 @@ public final class ItemModelOverrides {
             }
             if (!present) overrides.add(wanted);
         }
-        model.add("overrides", overrides);
+        model.add("overrides", sortedByNumber(overrides));
         return (model + "\n").getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * The game treats a {@code custom_model_data} predicate as "this number or higher" and lets the LAST matching entry win, so the entries
+     * must run from the lowest number to the highest. Appending ours after another pack's larger numbers (a crate's 7286001) would make our
+     * 8107 match and beat them. The sort is stable, so entries with equal numbers (a pack listing one twice) keep their order.
+     */
+    private static JsonArray sortedByNumber(JsonArray overrides) {
+        var entries = new java.util.ArrayList<com.google.gson.JsonElement>();
+        overrides.forEach(entries::add);
+        entries.sort(java.util.Comparator.comparingInt(e -> number(e.getAsJsonObject())));
+        var sorted = new JsonArray();
+        entries.forEach(sorted::add);
+        return sorted;
     }
 
     private static JsonObject defaultModel(String base) {

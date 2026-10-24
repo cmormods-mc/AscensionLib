@@ -63,6 +63,20 @@ class ItemModelOverridesTest {
         assertEquals("moresparkles:item/shiny_charm", overrides.get(0).getAsJsonObject().get("model").getAsString());
     }
 
+    /** Regression: SnobbleCrates' 7286001.. on nautilus_shell and SnobbleHolograms' 740005.. on knowledge_book were shadowed by our 8107/8110. */
+    @Test void anotherPacksHigherNumbersComeAfterOursSoTheyWin() {
+        var theirs = ("{\"overrides\":[{\"predicate\":{\"custom_model_data\":7286001},\"model\":\"snobblecrates:crate/root\"}]}").getBytes(StandardCharsets.UTF_8);
+        var overrides = parse(ItemModelOverrides.merge("nautilus_shell", theirs, ItemModelOverrides.required().get("nautilus_shell"))).getAsJsonArray("overrides");
+        var last = overrides.get(overrides.size() - 1).getAsJsonObject();
+        assertEquals("snobblecrates:crate/root", last.get("model").getAsString());
+        int previous = Integer.MIN_VALUE;
+        for (var e : overrides) {
+            int n = e.getAsJsonObject().getAsJsonObject("predicate").get("custom_model_data").getAsInt();
+            assertTrue(n >= previous, "overrides must ascend by number");
+            previous = n;
+        }
+    }
+
     @Test void mergingTwiceChangesNothing() {
         var ours = ItemModelOverrides.required().get("knowledge_book");
         var once = ItemModelOverrides.merge("knowledge_book", null, ours);

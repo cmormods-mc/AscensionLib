@@ -41,7 +41,9 @@ def main(argv):
             return 1
         merged = dict(other_model or base_model)
         have = {(json.dumps(o, sort_keys=True)) for o in other_list}
-        merged['overrides'] = list(other_list) + [o for o in ours_list if json.dumps(o, sort_keys=True) not in have]
+        combined = list(other_list) + [o for o in ours_list if json.dumps(o, sort_keys=True) not in have]
+        # custom_model_data matches "this number or higher" and the last match wins: keep the numbers ascending (stable sort)
+        merged['overrides'] = sorted(combined, key=lambda o: o.get('predicate', {}).get('custom_model_data', -1))
         files[name] = merged
         print(f'{name.split("/")[-1]:28} {len(other_list):4} existing + {len(merged["overrides"]) - len(other_list):2} ours')
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
