@@ -62,25 +62,38 @@ final class AscendWiring {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> {
             BalanceLog.joined(handler.getPlayer());
             enqueueSweep(handler.getPlayer());
+            seedKnown(handler.getPlayer());
             safely("voucher delivery", () -> com.ascensionlib.wallet.WalletItems.deliverPending(handler.getPlayer()));
         }));
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.wallet.WalletItems::tick);
         com.ascensionlib.dex.DexItem.install();
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.battle.BleedWatch::tick);
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.battle.Participation::tick);
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID())));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, left) -> {
+            sweepQueue.removeIf(job -> job.player().equals(handler.getPlayer().getUUID()));
+            known.remove(handler.getPlayer().getUUID());
+        });
         CobblemonEvents.POKEMON_CAPTURED.subscribe((Consumer<PokemonCapturedEvent>) event -> {
             // Every wild capture rolls a profile at its dimension's tier (1, the ordinary table, unless the configuration or a mod says otherwise); the
             // ball is thrown from the dimension the wild Pokemon is in. A dimension set to tier 0 gives none: the Pokemon stays unprofiled until a Sigil.
             int tier = ProfileZones.tierOf(event.getPlayer().level().dimension().location());
             if (tier < 1) return;
             var s = event.getPlayer().getServer();
-            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, tier, s));
+            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("wild_capture"), true, tier, s, true));
+        });
+        // Anything else that lands in a player's party or PC (a starter, a shop, a crate, a command, a reward) is profiled at GIFT_TIER. The event
+        // also fires on every PC/party move and for captures and hatches, so finishAcquisitions waits a few ticks for the capture/hatch hook to
+        // override this entry and skips a Pokemon that already has a profile. Cobblemon emits it once per player OBSERVING the store, so a new
+        // player's first party or an unwatched PC emits nothing (the starter was missed this way): scanReceived below is the path that always works.
+        ServerTickEvents.END_SERVER_TICK.register(this::scanReceived);
+        CobblemonEvents.POKEMON_GAINED.subscribe((Consumer<com.cobblemon.mod.common.api.events.pokemon.PokemonGainedEvent>) event -> {
+            var s = server;
+            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayerId(), Origin.of("external_grant"), true, GIFT_TIER, s, false));
         });
         // A hatched egg is profiled too, at the ordinary table whatever dimension it hatches in (the Pokemon, not the place, earns the profile).
         CobblemonEvents.HATCH_EGG_POST.subscribe((Consumer<com.cobblemon.mod.common.api.events.pokemon.HatchEggEvent.Post>) event -> {
             var s = event.getPlayer().getServer();
-            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("hatch"), true, 1, s));
+            if (s != null) s.execute(() -> queue(event.getPokemon(), event.getPlayer().getUUID(), Origin.of("hatch"), true, 1, s, true));
         });
         CobblemonEvents.LEVEL_UP_EVENT.subscribe((Consumer<LevelUpEvent>) event -> {
             // The event can fire before the new level is applied; read the authoritative level on the next task.
@@ -108,6 +121,7 @@ final class AscendWiring {
 
     private void stop(MinecraftServer stopping) {
         sweepQueue.clear();
+        known.clear();
         pending.entrySet().removeIf(e -> e.getValue().server() == stopping);
         server = null;
     }
@@ -130,6 +144,49 @@ final class AscendWiring {
         for (var pokemon : storage.getPC(player)) if (sweepQueue.size() < SWEEP_QUEUE_LIMIT) sweepQueue.add(new SweepJob(id, pokemon));
     }
 
+    // --- received-Pokemon scan -------------------------------------------------------------------------
+
+    /** Per online player: the Pokemon UUIDs seen in their party and PC at the last scan (seeded at login, so what they already owned is never profiled). */
+    private final Map<UUID, Set<UUID>> known = new HashMap<>();
+    private static final int SCAN_INTERVAL_TICKS = 20;
+
+    private Set<UUID> currentPokemon(net.minecraft.server.level.ServerPlayer player) {
+        var storage = Cobblemon.INSTANCE.getStorage();
+        Set<UUID> now = new HashSet<>();
+        for (var pokemon : storage.getParty(player)) now.add(pokemon.getUuid());
+        for (var pokemon : storage.getPC(player)) now.add(pokemon.getUuid());
+        return now;
+    }
+
+    private void seedKnown(net.minecraft.server.level.ServerPlayer player) {
+        if (service() == null) return;
+        safely("received-pokemon seed", () -> known.put(player.getUUID(), currentPokemon(player)));
+    }
+
+    /**
+     * Once a second, any Pokemon that is in an online player's party or PC now and was not at the last scan was received (a starter, a shop, a
+     * crate, a command): queue it as a gift. Capture and hatch hooks override that entry; a Pokemon that already has a profile is skipped later.
+     */
+    private void scanReceived(MinecraftServer s) {
+        if (s.getTickCount() % SCAN_INTERVAL_TICKS != 0 || known.isEmpty() || service() == null) return;
+        for (var player : s.getPlayerList().getPlayers()) {
+            var before = known.get(player.getUUID());
+            if (before == null) continue;
+            safely("received-pokemon scan", () -> {
+                var storage = Cobblemon.INSTANCE.getStorage();
+                Set<UUID> now = new HashSet<>();
+                for (var pokemon : storage.getParty(player)) scanOne(s, player, pokemon, before, now);
+                for (var pokemon : storage.getPC(player)) scanOne(s, player, pokemon, before, now);
+                known.put(player.getUUID(), now);
+            });
+        }
+    }
+
+    private void scanOne(MinecraftServer s, net.minecraft.server.level.ServerPlayer player, Pokemon pokemon, Set<UUID> before, Set<UUID> now) {
+        now.add(pokemon.getUuid());
+        if (!before.contains(pokemon.getUuid())) queue(pokemon, player.getUUID(), Origin.of("external_grant"), true, GIFT_TIER, s, false);
+    }
+
     /** Reconciles a bounded number of queued Pokemon each tick; reconcile is idempotent, so a Pokemon that moved meanwhile is harmless. */
     private void sweepSome(MinecraftServer s) {
         var service = service();
@@ -142,7 +199,12 @@ final class AscendWiring {
 
     // --- acquisition -----------------------------------------------------------------------------------
 
-    private void queue(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity, int tier, MinecraftServer s) {
+    /** Rarity tier for Pokemon received other than by capture or hatch (starters, shops, crates, commands). */
+    private static final int GIFT_TIER = 2;
+    private static final int GIFT_GRACE_TICKS = 5;
+
+    /** {@code overrides}: a capture or hatch replaces a waiting gift entry for the same Pokemon; a gift never replaces anything. */
+    private void queue(Pokemon pokemon, UUID owner, Origin origin, boolean rollRarity, int tier, MinecraftServer s, boolean overrides) {
         if (service() == null) {
             LOG.error("Progression is disabled; no profile created for {}", pokemon.getUuid());
             return;
@@ -151,7 +213,8 @@ final class AscendWiring {
             LOG.error("Acquisition queue full; profile not created for {}", pokemon.getUuid());
             return;
         }
-        pending.putIfAbsent(pokemon.getUuid(), new PendingAcquisition(pokemon, owner, origin, rollRarity, tier, s, s.getTickCount()));
+        var entry = new PendingAcquisition(pokemon, owner, origin, rollRarity, tier, s, s.getTickCount());
+        if (overrides) pending.put(pokemon.getUuid(), entry); else pending.putIfAbsent(pokemon.getUuid(), entry);
     }
 
     private void finishAcquisitions(MinecraftServer s) {
@@ -159,6 +222,9 @@ final class AscendWiring {
         while (iterator.hasNext()) {
             var item = iterator.next().getValue();
             if (item.server() != s) continue;
+            boolean gift = item.origin().kind().equals("external_grant");
+            if (gift && s.getTickCount() - item.queuedTick() < GIFT_GRACE_TICKS) continue;
+            if (gift && (service() == null || service().reconcile(item.pokemon()).isPresent())) { iterator.remove(); continue; }
             if (!item.owner().equals(item.pokemon().getOwnerUUID())) {
                 // Await explicit ownership; a timeout never treats an unsuccessful capture as owned.
                 if (s.getTickCount() - item.queuedTick() >= 200) {

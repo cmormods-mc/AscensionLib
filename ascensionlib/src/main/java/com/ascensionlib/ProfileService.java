@@ -116,7 +116,7 @@ public final class ProfileService {
     public ProfileV1 acquire(Pokemon pokemon, Origin origin, boolean rollRarity, int tier) {
         return register(pokemon, (id, level, types) -> {
             // Wild captures use the rating fixed for that Pokemon, so a Scouter preview equals the result.
-            if (rollRarity && origin.kind().equals("wild_capture"))
+            if (rollRarity && (origin.kind().equals("wild_capture") || origin.kind().equals("external_grant")))
                 return progression.createWild(store.wildSecret(), id, runtime.authority(), origin, level, types, Math.max(1, tier));
             Rarity rarity = rollRarity ? rules.base().rollRarity(random) : Rarity.COMMON;
             return progression.create(id, runtime.authority(), rarity, origin, level, types, random);
