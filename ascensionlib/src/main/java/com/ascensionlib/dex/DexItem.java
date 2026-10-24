@@ -37,8 +37,28 @@ public final class DexItem {
             var stack = player.getItemInHand(hand);
             if (!isDex(stack)) return InteractionResultHolder.pass(stack);
             // Handled on both sides so the client plays no vanilla use of the book; only the server opens the page.
-            if (player instanceof ServerPlayer server && RateLimit.allow(server.getUUID(), "dex.use", 3, 1)) PartyWeb.open(server);
+            if (player instanceof ServerPlayer server) {
+                if (RateLimit.allow(server.getUUID(), "dex.use", 3, 1)) PartyWeb.open(server);
+                keep(server, hand, stack.copy());
+            }
             return InteractionResultHolder.sidedSuccess(stack, world.isClientSide());
+        });
+    }
+
+    /**
+     * The base item is a knowledge book, and vanilla spends one when it is used by a player who is not in creative mode (it shrinks the stack before it
+     * looks for recipes). The Dex must be reusable, so one tick after every use: if the held stack was spent the book is put back in that hand, and the
+     * inventory is sent to the client again, which undoes a spend the client predicted. A player who drops the book in that very tick gets a second one,
+     * which costs nothing: the Dex is free and the command hands out another.
+     */
+    private static void keep(ServerPlayer player, net.minecraft.world.InteractionHand hand, ItemStack before) {
+        var server = player.getServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (player.hasDisconnected()) return;
+            if (player.getItemInHand(hand).isEmpty() && !carries(player)) player.setItemInHand(hand, before);
+            player.inventoryMenu.sendAllDataToRemote();
+            player.containerMenu.sendAllDataToRemote();
         });
     }
 
