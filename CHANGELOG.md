@@ -7,6 +7,9 @@ The first full release (Fabric build). Server-side Fabric mod for Minecraft 1.21
 ### Commands
 - Players need only `/ascend dex` (the AscensionDex reaches every page), `/ascend guide`, `/ascend status` and `/ascend scout`. `inspect`, `craft`, `fuse`, `sigil` and `wallet withdraw|deposit` are operator-only under `/ascend admin`; `help`, `party`, `ui` and `wallet gui` are gone (the Dex tabs and the page headers cover them).
 
+### Item art
+- With Polymer installed, the mod adds its item models and textures to the server resource pack by itself and merges its item model files with other packs' (no manual zip, no lost sprites when another pack uses the same base item). Polymer stays optional.
+
 ### Progression
 - Every captured or hatched Pokémon gets a rarity (Common to Mythic) and modifiers; 34 modifiers with ranks I to V.
 - Upgrade, Refine, Reforge, Perfect (a raised floor), Overreach (a one-shot gamble that seals the slot) and Promote.

@@ -41,6 +41,16 @@ Clients then download it automatically; nothing is installed. **A server sends o
 (the base-item model files in `assets/minecraft/models/item/` are the only files that can collide: keep every `overrides` entry from both). The icon art is placeholder pixel art,
 drawn in the script; replace the PNGs in `resourcepack/assets/ascensionlib/textures/item/` (and re-copy to the icons folder) when real art exists.
 
+### With Polymer (no manual step)
+
+When Polymer's `polymer-resource-pack` module is installed, `PolymerPack` adds the art to the pack Polymer builds: the models and textures ride in the jar under `ascensionlib-pack/`
+(copied from `resourcepack/assets/ascensionlib/` at build time), and the base-item model files are merged at write time (`ItemModelOverrides`), so it does not matter which other pack
+also ships `glowstone_dust.json`, `knowledge_book.json` and so on: Polymer keeps one pack's file whole, and ours is merged into whatever it kept. The custom model numbers are unchanged
+(items already in inventories keep their art). A number another pack already maps to a different model is logged as an error and that base item keeps its vanilla look; the build
+never fails. Remove any hand-added `AscensionLib Resource Pack.zip` from `include_zips`; it is no longer needed (leaving it in is harmless). The same entries are what
+`tools/merge_item_overrides.py` writes for a server without the mod's Polymer hook, and a test (`ItemModelOverridesTest`) keeps the runtime entries equal to `resourcepack/`.
+The mod compiles against two Polymer jars (`ascensionlib/libs/README.md`) but does not require Polymer to run.
+
 ## Loot form
 
 Other mods and datapacks reference `ascensionlib:currency/<material>` as a loot table entry (`{"type":"minecraft:loot_table","value":"ascensionlib:currency/resonance_dust"}`) and add

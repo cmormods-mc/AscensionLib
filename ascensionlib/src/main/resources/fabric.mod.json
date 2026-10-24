@@ -32,6 +32,7 @@
   },
   "suggests": {
     "cobbleraids": "*",
-    "webgui": ">=2.0.0"
+    "webgui": ">=2.0.0",
+    "polymer-resource-pack": "*"
   }
 }

@@ -32,6 +32,8 @@ public final class AscensionLib implements ModInitializer {
             LOG.error("SQLite driver is NOT usable; progression will stay disabled", exception);
         }
         com.ascensionlib.scout.ScoutNet.register();
+        // Optional: with Polymer installed, the item art joins its server resource pack (the class is not loaded otherwise).
+        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("polymer-resource-pack")) com.ascensionlib.wallet.PolymerPack.register();
         ServerLifecycleEvents.SERVER_STARTING.register(this::start);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
         // A player who leaves keeps neither their request throttles nor an "armed" battle: the encounter owner re-arms at the next battle.

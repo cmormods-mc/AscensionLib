@@ -115,7 +115,8 @@ def main():
     out = ROOT / 'build' / 'AscensionLib-resourcepack.zip'
     out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(p for p in PACK.rglob('*') if p.is_file()):
+        # only pack files: a stray archive or scratch file left in the folder must not ship in the pack
+        for path in sorted(p for p in PACK.rglob('*') if p.is_file() and p.suffix.lower() not in ('.rar', '.zip', '.7z')):
             info = zipfile.ZipInfo(path.relative_to(PACK).as_posix(), (1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(info, path.read_bytes())

@@ -43,6 +43,14 @@ jobs:
           gh release download v2.0.0 -R mc-webgui/webgui -p 'webgui-fabric-2.0.0+mc1.21.1.jar' -D ascensionlib/libs
           python3 tools/prepare_webgui_dev_jar.py
 
+      # The mod also compiles against Polymer's resource-pack API (not committed): two small jars from the Nucleoid Maven.
+      - name: Fetch Polymer
+        run: |
+          base=https://maven.nucleoid.xyz/eu/pb4
+          for artifact in polymer-resource-pack polymer-common; do
+            curl -fsSL -o "ascensionlib/libs/$artifact-0.9.19+1.21.1.jar" "$base/$artifact/0.9.19%2B1.21.1/$artifact-0.9.19%2B1.21.1.jar"
+          done
+
       # domain and store are plain Java; ascensionlib is the Fabric mod, built against Cobblemon from the Modrinth Maven.
       - name: Compile and test
         run: ./gradlew --no-daemon :domain:test :store:test :ascensionlib:build --stacktrace --warning-mode all

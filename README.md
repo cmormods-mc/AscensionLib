@@ -29,7 +29,7 @@ The full player guide is in the game (`/ascend guide`, or the Guide tab of the A
 
 1. Put `AscensionLib-<version>.jar` in the server's `mods/` folder, with Cobblemon and Fabric API. Players install WebGUI and Rinku.
 2. Start the server once. It creates `<world>/cobbleascend/progression.db`, backs it up at every start and then daily, and publishes its pages to WebGUI.
-3. Give the items their art: host `AscensionLib-resourcepack.zip` and set `resource-pack` and `resource-pack-sha1` in `server.properties`, or, with Polymer, add the zip to `include_zips` in `config/polymer/resource-pack.json` and turn on auto-host. Without the pack the items still work as plainly named vanilla items.
+3. Give the items their art. **With Polymer installed there is nothing to do:** the mod adds its models and textures to Polymer's pack itself and merges its item model files with any other pack's (restart the server so Polymer rebuilds the pack; players rejoin to download it). Without Polymer, host `AscensionLib-resourcepack.zip` and set `resource-pack` and `resource-pack-sha1` in `server.properties`. Without any pack the items still work as plainly named vanilla items.
 4. In game, `/ascend dex` gives an AscensionDex and `/ascend guide` opens the guide.
 
 More detail, backups and updating are in [`docs/INSTALL.md`](docs/INSTALL.md).

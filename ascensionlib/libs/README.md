@@ -4,3 +4,7 @@ Download `webgui-fabric-2.0.0+mc1.21.1.jar` from https://github.com/mc-webgui/we
 
 Then run `python -I tools/prepare_webgui_dev_jar.py`. It writes `webgui-dev.jar` (what Gradle uses), a local copy without the
 `Fabric-Loom-Version` manifest line, because WebGUI is built with a newer Loom than this project can remap.
+
+Polymer (https://github.com/Patbox/polymer, LGPLv3) is compiled against only, to add the item art to the server resource pack when Polymer is
+installed. Put `polymer-resource-pack-0.9.19+1.21.1.jar` and `polymer-common-0.9.19+1.21.1.jar` in this folder: download them from
+`https://maven.nucleoid.xyz/eu/pb4/<artifact>/0.9.19%2B1.21.1/` or unzip them from `META-INF/jars/` inside `polymer-bundled-0.9.19+1.21.1.jar`.
