@@ -69,3 +69,11 @@ button.primary:disabled { background: #2a1a22; color: #7c5560; border-color: #3a
 .stage::before { content: ""; position: absolute; bottom: 14%; width: 56%; height: 10px; background: rgba(74,216,246,.16); box-shadow: 0 0 0 4px rgba(74,216,246,.07); }
 .stage > * { position: relative; }
 .seg { display: grid; grid-template-columns: repeat(14, 1fr); gap: 2px; } .seg i { height: 8px; background: var(--well); } .seg i.on { background: var(--acc); box-shadow: var(--glow); }
+
+/* ---- calm effects (the player's choice, set by ui.js on <html>): no animation, fade, flash, glow or flare, for people who are sensitive to them ---- */
+html.calm { --glow: none; }
+html.calm *, html.calm *::before, html.calm *::after { animation: none !important; transition: none !important; text-shadow: none !important; scroll-behavior: auto !important; }
+html.calm .frame::after { background: none; }                               /* the scanline and vignette overlay */
+html.calm .card.sel, html.calm .cr.big { box-shadow: 0 0 0 2px var(--outline) !important; }   /* the soft gold glow */
+html.calm .stage::before { box-shadow: none; }
+.calmbtn.on { background: var(--acc); color: #04222c; }

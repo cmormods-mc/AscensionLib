@@ -43,6 +43,15 @@ public final class AscensionApi {
     }
 
     /** The canonical store (wallets, profiles, operations), or empty as for {@link #service()}. */
+    /**
+     * Whether this player asked for calm effects (no animation, flash or flare). Other mods that draw their own effects must honour it: it exists for players
+     * who are sensitive to them, such as photosensitive epilepsy. False when the player is unknown or the world is not running.
+     */
+    public static boolean calmEffects(UUID player) {
+        var running = server;
+        return running != null && player != null && com.ascensionlib.web.UiPrefsWeb.calmOf(running).get(player);
+    }
+
     public static Optional<ProgressionStore> store() { return service().map(ProfileService::store); }
 
     /** Scouter rules over the canonical wallet; one instance per world so reveals are shared by every caller. */

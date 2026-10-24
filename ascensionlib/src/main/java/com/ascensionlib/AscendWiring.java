@@ -62,6 +62,7 @@ final class AscendWiring {
         ServerTickEvents.END_SERVER_TICK.register(BalanceLog::tickEnd);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, joined) -> joined.execute(() -> {
             BalanceLog.joined(handler.getPlayer());
+            safely("overlay open", () -> com.ascensionlib.web.HudWeb.joined(handler.getPlayer()));
             enqueueSweep(handler.getPlayer());
             seedKnown(handler.getPlayer());
             safely("voucher delivery", () -> com.ascensionlib.wallet.WalletItems.deliverPending(handler.getPlayer()));
@@ -268,6 +269,11 @@ final class AscendWiring {
                 // /ascend guide: the in-game guide, the same text as the wiki.
                 .then(Commands.literal("guide").executes(ctx -> openGuide(ctx.getSource())))
                 .then(Commands.literal("dex").executes(ctx -> dex(ctx.getSource())))
+                // /ascend calm [on|off]: no animation, flash or flare on the pages, for players who are sensitive to them. Also a button in every page's header.
+                .then(Commands.literal("calm")
+                        .executes(ctx -> calm(ctx.getSource(), null))
+                        .then(Commands.literal("on").executes(ctx -> calm(ctx.getSource(), true)))
+                        .then(Commands.literal("off").executes(ctx -> calm(ctx.getSource(), false))))
                 .then(Commands.literal("scout")
                         .executes(ctx -> scoutList(ctx.getSource()))
                         .then(Commands.literal("look").executes(ctx -> scoutLook(ctx.getSource())))
@@ -610,6 +616,18 @@ final class AscendWiring {
 
     private int openGuide(CommandSourceStack source) throws CommandSyntaxException {
         return com.ascensionlib.web.WebUi.open(source.getPlayerOrException(), "guide.html") ? 1 : 0;
+    }
+
+    private int calm(CommandSourceStack source, Boolean on) throws CommandSyntaxException {
+        var player = source.getPlayerOrException();
+        if (on != null) {
+            com.ascensionlib.web.UiPrefsWeb.calmOf(player.getServer()).set(player.getUUID(), on);
+            com.ascensionlib.web.UiPrefsWeb.send(player);   // an open page switches at once
+        }
+        boolean now = com.ascensionlib.web.UiPrefsWeb.calmOf(player);
+        source.sendSuccess(() -> Component.literal("[Ascend] Calm effects are " + (now ? "ON: no animation, flash or flare on the pages." : "OFF.")
+                + " Use /ascend calm " + (now ? "off" : "on") + " to change it."), false);
+        return 1;
     }
 
     private int dex(CommandSourceStack source) throws CommandSyntaxException {

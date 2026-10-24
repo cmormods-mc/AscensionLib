@@ -59,6 +59,7 @@
     requestAnimationFrame(function () { fitQueued = false; A.fit(); });   // at most one forced layout per frame while the window is dragged
   });
   sizeControl();
+  calmControl();
   /** A header control to make the page bigger or smaller: the server keeps the choice and answers with the clamped value. */
   function sizeControl() {
     var head = document.querySelector('.frame .head');
@@ -73,6 +74,20 @@
     var close = head.querySelector('.x:last-child'); head.insertBefore(box, close || null);
     label.textContent = A.pref + '%';
   }
+  /** A header button for calm effects (no animation, flash or flare); the server keeps the choice and answers with it. */
+  function calmControl() {
+    var head = document.querySelector('.frame .head');
+    if (!head || head.querySelector('.calmbtn')) return;
+    var b = document.createElement('button'); b.className = 'x calmbtn'; b.textContent = 'Calm'; b.id = 'calmbtn';
+    b.title = 'Calm effects: turn off animation, flashes and glow';
+    b.addEventListener('click', function () { A.send('ascension_ui_set', { calm: !A.calm }); });
+    var box = head.querySelector('.uisize'), close = head.querySelector('.x:last-child');
+    head.insertBefore(b, box || close || null);
+  }
+  A.calm = false;
+  // Every page starts calm and gets its effects only when the server answers that this player has not asked for calm, so a sensitive player never
+  // sees an animated frame before their choice has arrived.
+  document.documentElement.classList.add('calm');
   A.send = function (channel, body) {
     if (!g) return;
     if (channel === 'close') A.perf.flush();
@@ -185,6 +200,9 @@
   // The player's saved size: asked for once the page loads and again whenever it changes (the header buttons).
   A.on('uiScale', function (s) {
     A.pref = s.percent; A.prefRange = [s.min, s.max];
+    A.calm = !!s.calm;
+    document.documentElement.classList.toggle('calm', A.calm);
+    var cb = document.getElementById('calmbtn'); if (cb) cb.classList.toggle('on', A.calm);
     var label = document.getElementById('uipct'); if (label) label.textContent = s.percent + '%';
     A.fit();
   });

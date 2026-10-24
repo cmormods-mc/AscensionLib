@@ -11,7 +11,7 @@ import net.minecraft.world.level.storage.LevelResource;
  * its header control ({@code ascension_ui_set}); both are answered with {@code uiScale}. The server clamps and stores; the page only draws.
  */
 public final class UiPrefsWeb {
-    public record Scale(int percent, int min, int max) {}
+    public record Scale(int percent, int min, int max, boolean calm) {}
 
     private static UiPrefs prefs;
     private static Path prefsFile;
@@ -25,9 +25,10 @@ public final class UiPrefsWeb {
         WebUi.listen("ascension_ui_set", (player, o) -> {
             if (!RateLimit.allow(player.getUUID(), "ui.set", 8, 4)) return;
             long value = WebUi.num(o, "percent");
-            if (value < 0) return;
-            of(player.getServer()).set(player.getUUID(), value);
-            send(player);
+            boolean changed = false;
+            if (value >= 0) { of(player.getServer()).set(player.getUUID(), value); changed = true; }
+            if (o.has("calm")) { calmOf(player.getServer()).set(player.getUUID(), WebUi.bool(o, "calm")); changed = true; }
+            if (changed) send(player);
         });
     }
 
@@ -41,9 +42,24 @@ public final class UiPrefsWeb {
         return prefs;
     }
 
+    private static CalmPrefs calm;
+    private static Path calmFile;
+
+    /** The calm-effects choices of this server's world (see {@link CalmPrefs}), loaded once and again if the world changed. */
+    public static synchronized CalmPrefs calmOf(MinecraftServer server) {
+        Path file = server == null ? null : server.getWorldPath(LevelResource.ROOT).resolve("ascensionlib-calm.json");
+        if (calm == null || (file != null && !file.equals(calmFile))) {
+            calm = new CalmPrefs(file);
+            calmFile = file;
+        }
+        return calm;
+    }
+
+    public static boolean calmOf(ServerPlayer player) { return calmOf(player.getServer()).get(player.getUUID()); }
+
     public static int percentOf(ServerPlayer player) { return of(player.getServer()).get(player.getUUID()); }
 
     public static void send(ServerPlayer player) {
-        WebUi.emit(player, "uiScale", new Scale(percentOf(player), UiPrefs.MIN_PERCENT, UiPrefs.MAX_PERCENT));
+        WebUi.emit(player, "uiScale", new Scale(percentOf(player), UiPrefs.MIN_PERCENT, UiPrefs.MAX_PERCENT, calmOf(player)));
     }
 }

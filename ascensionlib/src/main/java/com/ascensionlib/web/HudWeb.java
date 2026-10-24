@@ -50,14 +50,45 @@ public final class HudWeb {
             OPENING.remove(player.getUUID());
             resync(player);
         });
-        WebUi.listen("ascension_hud_closed", (player, o) -> { OPEN.remove(player.getUUID()); OPENING.remove(player.getUUID()); });
-        // The overlay asks before it closes itself; the answer is no while a full-screen page is up, because the client's close would close that page.
-        WebUi.listen("ascension_hud_idle", (player, o) -> {
-            if (GuiPresence.isOpen(player.getUUID())) DEFERRED.add(player.getUUID());
-            else WebUi.emit(player, "hudClose", Map.of());
+        WebUi.listen("ascension_hud_closed", (player, o) -> {
+            OPEN.remove(player.getUUID());
+            OPENING.remove(player.getUUID());
+            // Closed by something outside us: bring it back now, not at the next capture. Only a few times a session, so an overlay that keeps
+            // closing can never open, flash and close in a loop.
+            if (REOPENS.merge(player.getUUID(), 1, Integer::sum) <= MAX_REOPENS) reopenAt.put(player.getUUID(), tickNow + REOPEN_TICKS);
         });
+        // The overlay never closes itself any more. Opening it is what flashes grey on the client (a new browser view paints before the page is
+        // transparent), and that must never happen at a capture, so it is opened once after login and kept. The page's idle message is ignored.
+        WebUi.listen("ascension_hud_idle", (player, o) -> { });
         GuiPresence.register();
         ServerTickEvents.END_SERVER_TICK.register(HudWeb::flush);
+        ServerTickEvents.END_SERVER_TICK.register(HudWeb::openDue);
+    }
+
+    /** Ticks after login before the overlay is opened (the client needs a moment to finish joining), and after an unexpected close before it is reopened. */
+    private static final int OPEN_AFTER_JOIN_TICKS = 100;
+    private static final int REOPEN_TICKS = 100;
+    /** Players whose overlay is to be opened, and the server tick it is due at. */
+    private static final Map<UUID, Integer> reopenAt = new ConcurrentHashMap<>();
+    private static final int MAX_REOPENS = 3;
+    private static final Map<UUID, Integer> REOPENS = new ConcurrentHashMap<>();
+    private static int tickNow;
+
+    /** A player has joined: the overlay opens a few seconds later, while nothing is happening, rather than at their first capture. */
+    public static void joined(ServerPlayer player) {
+        reopenAt.put(player.getUUID(), tickNow + OPEN_AFTER_JOIN_TICKS);
+    }
+
+    private static void openDue(MinecraftServer server) {
+        tickNow = server.getTickCount();
+        if (reopenAt.isEmpty() || tickNow % 10 != 0) return;
+        for (var entry : reopenAt.entrySet()) {
+            if (entry.getValue() > tickNow) continue;
+            var player = server.getPlayerList().getPlayer(entry.getKey());
+            reopenAt.remove(entry.getKey());
+            if (player == null || !WebUi.canShow(player)) continue;
+            ensureOpen(player);
+        }
     }
 
     /** Sends the overlay everything held for this player: waiting reveals, the bleed and Momentum strips, the scouting panel and the team. */
@@ -90,6 +121,8 @@ public final class HudWeb {
         OPEN.remove(player);
         OPENING.remove(player);
         QUEUED.remove(player);
+        reopenAt.remove(player);
+        REOPENS.remove(player);
         DEFERRED.remove(player);
         GuiPresence.forget(player);
         BLEEDS.remove(player);
