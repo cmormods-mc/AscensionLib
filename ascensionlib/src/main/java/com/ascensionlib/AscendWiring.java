@@ -56,6 +56,7 @@ final class AscendWiring {
         ServerLifecycleEvents.SERVER_STARTING.register(started -> server = started);
         ServerLifecycleEvents.SERVER_STARTED.register(com.ascensionlib.BackupJob::started);
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.BackupJob::tick);
+        com.ascensionlib.auction.AuctionGuard.install();
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
         ServerTickEvents.START_SERVER_TICK.register(BalanceLog::tickStart);
         ServerTickEvents.END_SERVER_TICK.register(BalanceLog::tickEnd);
