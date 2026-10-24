@@ -92,7 +92,17 @@ final class AscendWiring {
         });
         ServerTickEvents.END_SERVER_TICK.register(this::finishAcquisitions);
         ServerTickEvents.END_SERVER_TICK.register(this::sweepSome);
-        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(buildCommand()));
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
+            dispatcher.register(buildCommand());
+            var tradeTest = TradeTestCommand.node();
+            if (tradeTest != null) {
+                dispatcher.register(tradeTest);
+                dispatcher.register(TradeTestCommand.craftNode());
+                dispatcher.register(TradeTestCommand.craftAsNode());
+                dispatcher.register(TradeTestCommand.lockNode());
+                dispatcher.register(TradeTestCommand.escrowNode());
+            }
+        });
         LOG.info("Capture and hatch rarity, wild and trainer ratings, level milestones and ascension inspection enabled. Battle effects act only when CobbleRaids is installed (they are untested in a live battle).");
     }
 

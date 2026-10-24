@@ -222,6 +222,20 @@ public final class CraftNet {
         return String.join(" + ", parts);
     }
 
+    /**
+     * Test seam for /ascendtestcraft (only registered under -Dascensionlib.testTrade=true): sends the same confirm the page would, with
+     * the Pokemon's current profile and wallet revisions, and returns nothing; the result is in the server log and the player's wallet.
+     */
+    public static void testConfirm(ServerPlayer player, String pokemonId, String kind, String slotId) {
+        var service = AscensionApi.service().orElse(null);
+        if (service == null) return;
+        long profileRevision = 0;
+        var found = findOwned(player, pokemonId);
+        if (found.isPresent()) profileRevision = service.canonical(found.get()).map(p -> p.revision()).orElse(0L);
+        long walletRevision = service.store().wallet(player.getUUID()).revision();
+        confirm(player, new CraftPayloads.Confirm(UUID.randomUUID().toString(), pokemonId, kind, slotId, profileRevision, walletRevision));
+    }
+
     private static void confirm(ServerPlayer player, CraftPayloads.Confirm request) {
         // Every distinct operation id is a store transaction (an fsync): bound how fast one player can submit them.
         if (!RateLimit.allow(player.getUUID(), "craft.confirm", 4, 2)) {
