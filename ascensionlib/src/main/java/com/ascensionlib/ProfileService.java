@@ -165,6 +165,46 @@ public final class ProfileService {
         }
     }
 
+    /** The Haunting id this Pokemon holds, if any (docs/HALLOWEEN-EVENT-DESIGN.md). */
+    public Optional<String> hauntingOf(UUID pokemonId) {
+        return store.haunting(pokemonId).map(com.cobbleascend.store.HauntingRecord::hauntingId);
+    }
+
+    /** What the next Haunting roll on this Pokemon costs in Spooky Essence: 1, then 3, 5 and 8. */
+    public long nextHauntingCost(UUID pokemonId) {
+        return Hauntings.cost(store.haunting(pokemonId).map(com.cobbleascend.store.HauntingRecord::rolls).orElse(0));
+    }
+
+    /**
+     * Spends Spooky Essence to give a Pokemon of the player's a random Haunting, or to re-roll the one it has. The price, the draw and the profile
+     * revision are one store transaction, so a refusal costs nothing. Refused: not the player's own, on loan, in a battle, no profile, or too little
+     * Spooky Essence.
+     */
+    public Hauntings.Haunting haunt(ServerPlayer player, Pokemon pokemon) {
+        if (pokemon.isBattleClone() || !player.getUUID().equals(pokemon.getOwnerUUID()) || !owns(player, pokemon))
+            throw new IllegalArgumentException("That Pokemon is not yours");
+        if (CraftLocks.locked(pokemon)) throw new IllegalStateException(CraftLocks.REASON);
+        if (com.cobblemon.mod.common.battles.BattleRegistry.INSTANCE.getBattleByParticipatingPlayer(player) != null)
+            throw new IllegalStateException("Not during a battle");
+        if (reconcile(pokemon).isEmpty()) throw new IllegalStateException("That Pokemon has no ascension profile");
+        UUID id = pokemon.getUuid();
+        long price = nextHauntingCost(id);
+        try {
+            var outcome = store.haunt(UUID.randomUUID(), player.getUUID(), id, store.wallet(player.getUUID()).revision());
+            try {
+                project(pokemon, outcome.profile());
+            } catch (RuntimeException exception) {
+                LOG.error("Haunting committed but {} could not be projected now; the next reconcile does it", id, exception);
+            }
+        } catch (CraftException exception) {
+            if (exception.reason() == CraftException.Reason.INSUFFICIENT_FUNDS)
+                throw new IllegalStateException("You need " + price + " Spooky Essence for this roll");
+            throw exception;
+        }
+        return store.haunting(id).flatMap(record -> Hauntings.byId(record.hauntingId()))
+                .orElseThrow(() -> new IllegalStateException("The Haunting was recorded but could not be read"));
+    }
+
     private interface ProfileFactory { ProfileV1 create(UUID pokemonId, int level, List<String> types); }
 
     private ProfileV1 register(Pokemon pokemon, ProfileFactory factory) {

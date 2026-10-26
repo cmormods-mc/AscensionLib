@@ -1,0 +1,35 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:phantom_membrane",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_data": {
+                  "ascensionlib": {
+                    "material": "spooky_essence"
+                  }
+                },
+                "minecraft:custom_model_data": 8113,
+                "minecraft:custom_name": "{\"text\":\"Spooky Essence\",\"color\":\"#ff9a3c\",\"italic\":false}",
+                "minecraft:lore": [
+                  "[\"\",{\"text\":\"EPIC\",\"color\":\"#af69ff\",\"bold\":true,\"italic\":false},{\"text\":\" \\u00b7 Event\",\"color\":\"dark_gray\",\"bold\":false,\"italic\":false}]",
+                  "{\"text\":\"Halloween 2026. Spent with /ascend haunt\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"to give a Pokemon a random Haunting.\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"Earned from the World Boss; trade it\",\"color\":\"gray\",\"italic\":false}",
+                  "{\"text\":\"freely. It works after the event ends.\",\"color\":\"gray\",\"italic\":false}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

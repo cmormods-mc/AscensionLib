@@ -29,7 +29,7 @@ import java.util.random.RandomGenerator;
  * <p>All access is serialized through this instance. Use one instance per world.
  */
 public final class ProgressionStore implements AutoCloseable {
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
     /** The most one withdrawal may mint: 36 stacks of 64. */
     public static final long MAX_MINT = 2304;
 
@@ -225,11 +225,12 @@ public final class ProgressionStore implements AutoCloseable {
                 putMeta("authority_id", authorityId.toString());
                 putMeta("catalog_version", Integer.toString(rules.catalogVersion()));
             } else {
-                if (version.equals("1") || version.equals("2") || version.equals("3")) {
-                    // Schema 2 added the fusions table, 3 the vouchers table and 4 the daily reward budget: existing rows are untouched.
+                if (version.equals("1") || version.equals("2") || version.equals("3") || version.equals("4")) {
+                    // Schema 2 added the fusions table, 3 the vouchers table, 4 the daily reward budget and 5 the hauntings: existing rows are untouched.
                     createFusionsTable();
                     createVouchersTable();
                     createBudgetTable();
+                    createHauntingsTable();
                     try (var update = db.prepareStatement("UPDATE meta SET value = ? WHERE key = 'schema_version'")) {
                         update.setString(1, Integer.toString(SCHEMA_VERSION));
                         update.executeUpdate();
@@ -295,10 +296,23 @@ public final class ProgressionStore implements AutoCloseable {
         }
     }
 
+    private void createHauntingsTable() throws SQLException {
+        try (var statement = db.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS hauntings(
+                        pokemon_id TEXT PRIMARY KEY,
+                        haunting_id TEXT NOT NULL,
+                        rolls INTEGER NOT NULL CHECK(rolls >= 1),
+                        operation_id TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL) STRICT""");
+        }
+    }
+
     private void createSchema() throws SQLException {
         createFusionsTable();
         createVouchersTable();
         createBudgetTable();
+        createHauntingsTable();
         try (var statement = db.createStatement()) {
             statement.execute("""
                     CREATE TABLE profiles(
@@ -624,6 +638,71 @@ public final class ProgressionStore implements AutoCloseable {
             options.faults().at(Faults.Point.AFTER_VALIDATION);
             saveWallet(playerId, before, after);
             return new Fresh(Kind.EXCHANGE, playerId, null, null, after, pay, 0).moved(pay, receive, reason);
+        });
+    }
+
+    // ---- hauntings: the Halloween 2026 event power, one per Pokemon ----------------------------------------------------
+
+    /** The Haunting this Pokemon holds, if any. */
+    public synchronized Optional<HauntingRecord> haunting(UUID pokemonId) {
+        return read(() -> loadHaunting(pokemonId));
+    }
+
+    /** Every Pokemon that holds a Haunting, for the battle payload and the guide; one small query. */
+    public synchronized Map<UUID, String> hauntedPokemon() {
+        return read(() -> {
+            var out = new HashMap<UUID, String>();
+            try (var statement = db.createStatement(); var rows = statement.executeQuery("SELECT pokemon_id, haunting_id FROM hauntings")) {
+                while (rows.next()) out.put(UUID.fromString(rows.getString(1)), rows.getString(2));
+            }
+            return out;
+        });
+    }
+
+    private Optional<HauntingRecord> loadHaunting(UUID pokemonId) throws SQLException {
+        try (var statement = db.prepareStatement("SELECT pokemon_id, haunting_id, rolls, operation_id, updated_at FROM hauntings WHERE pokemon_id = ?")) {
+            statement.setString(1, pokemonId.toString());
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) return Optional.empty();
+                return Optional.of(new HauntingRecord(UUID.fromString(rows.getString(1)), rows.getString(2), rows.getInt(3),
+                        UUID.fromString(rows.getString(4)), rows.getLong(5)));
+            }
+        }
+    }
+
+    /**
+     * Gives a Pokemon a random Haunting for Spooky Essence, or re-rolls the one it has (the new one replaces the old). In one transaction: the Pokemon
+     * must have a profile, the wallet revision the caller saw must still hold, the price for this roll is debited, the Haunting is drawn from a seed
+     * made of the operation ID and the Pokemon (so a retry lands on the same one) and recorded, and the profile revision advances so every cache of it
+     * refreshes. The operation ID makes a retry a replay; read the result with {@link #haunting}.
+     */
+    public synchronized Outcome haunt(UUID operationId, UUID playerId, UUID pokemonId, long expectedWalletRevision) {
+        Objects.requireNonNull(playerId);
+        Objects.requireNonNull(pokemonId);
+        return run(operationId, "HAUNT|" + playerId + "|" + pokemonId + "|" + expectedWalletRevision, () -> {
+            var profile = loadProfile(pokemonId).orElseThrow(() -> new StoreException(Code.UNKNOWN_PROFILE, "No profile for the Pokemon"));
+            var before = loadWallet(playerId);
+            if (expectedWalletRevision != CraftRequest.ANY_REVISION && before.revision() != expectedWalletRevision)
+                throw new StoreException(Code.STALE_WALLET, "Wallet changed since it was shown");
+            int rolls = loadHaunting(pokemonId).map(HauntingRecord::rolls).orElse(0);
+            var cost = Map.of(MaterialId.SPOOKY_ESSENCE, Hauntings.cost(rolls));
+            var after = before.debit(cost);
+            options.faults().at(Faults.Point.AFTER_VALIDATION);
+            var drawn = Hauntings.roll(Hauntings.seed(operationId, pokemonId));
+            try (var statement = db.prepareStatement("INSERT INTO hauntings(pokemon_id, haunting_id, rolls, operation_id, updated_at) VALUES(?, ?, ?, ?, ?)"
+                    + " ON CONFLICT(pokemon_id) DO UPDATE SET haunting_id = excluded.haunting_id, rolls = excluded.rolls,"
+                    + " operation_id = excluded.operation_id, updated_at = excluded.updated_at")) {
+                statement.setString(1, pokemonId.toString());
+                statement.setString(2, drawn.id());
+                statement.setInt(3, rolls + 1);
+                statement.setString(4, operationId.toString());
+                statement.setLong(5, options.clock().millis());
+                statement.executeUpdate();
+            }
+            var next = profile.bumped();
+            updateProfile(next, profile.revision());
+            saveWallet(playerId, before, after);
+            return new Fresh(Kind.HAUNT, playerId, pokemonId, next, after, cost, 0).moved(cost, Map.of(), drawn.id());
         });
     }
 

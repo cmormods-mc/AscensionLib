@@ -25,7 +25,7 @@
 //   * Every hook is wrapped in try/catch and falls back to the native value.
 
 const MAX_MONS = 32;
-const MAX_EFFECTS = 8;
+const MAX_EFFECTS = 10;   // 6 slots, a Unique and a Haunting, with room for a Transcendent's rider
 const HP_HIGH = 0.8;
 const HP_LOW = 0.35;
 const DEFAULT_CAPS = {out: 100, inc: 50, heal: 50, res: 100};
@@ -45,6 +45,7 @@ const OUTGOING = {
   kindred_force: (fx, user, target, move) => user.hasType(move.type),
   executioner: (fx, user, target) => hpFraction(target) <= 0.5,
   opening_strike: (fx, user, target, move, hit, ctx) => ctx.firstMove,
+  midnight_howl: (fx, user, target, move, hit, ctx) => ctx.firstMove,   // a Haunting: the holder's first attack of the battle
   super_effective_force: (fx, user, target, move, hit) => hit.typeMod > 0,
   transcend_offense: (fx, user, target, move) => move.type === fx.t,
 };
@@ -57,6 +58,7 @@ const INCOMING = {
   steadfast_guard: (fx, holder) => hpFraction(holder) <= HP_LOW,
   status_guard: (fx, holder) => !!holder.status,
   opening_guard: (fx, holder, attacker, move, hit, state) => !state.hitTaken,
+  spectral_veil: (fx, holder, attacker, move) => move.type === 'Normal' || move.type === 'Fighting',   // a Haunting
   iron_resolve: () => true,
   resilient_hide: (fx, holder, attacker, move, hit) => hit.typeMod > 0,
   physical_bulwark: (fx, holder, attacker, move) => move.category === 'Physical',
@@ -110,8 +112,17 @@ const MOMENTUM_STACKS = 3;      // each KO adds the rolled percent to outgoing d
 const SWIFT = 'swift_strike';   // the holder's Speed stat is raised by the rolled percent
 const MECHANICS = new Set([...PROCS, MOMENTUM, SWIFT]);
 
+// Hauntings (docs/HALLOWEEN-EVENT-DESIGN.md): one event-only power per Pokemon, in its own slot. Midnight Howl and Spectral Veil are
+// ordinary channel effects (tables above); the other eight are small mechanics handled by applyHauntings. All fixed and bounded.
+const HAUNT_MECHANICS = new Set(['wisp', 'hex', 'pumpkin_lantern', 'trick_or_treat', 'cobweb', 'graveyard_chill', 'headless_rider', 'reapers_toll']);
+const WISP_FLINCH_CAP = 50;   // percent chance a hit flinches the target, however high it is sent
+const HEX_DIVISOR = 16;       // a hexed foe loses 1/16 of its max HP at the end of each turn
+const LANTERN_FRACTION = 8;   // Pumpkin Lantern and Trick or Treat restore 1/8 of max HP
+const CHILL_DIVISOR = 16;     // Graveyard Chill: a foe that makes contact loses 1/16 of its max HP
+const REAPER_FRACTION = 3;    // Reaper's Toll restores 1/3 of max HP after a KO
+
 const HANDLED = new Set([...Object.keys(OUTGOING), ...Object.keys(INCOMING), ...Object.keys(HEALING),
-  ...Object.keys(POTENCY), RENDING, ...Object.keys(UNIQUES), ...MECHANICS]);
+  ...Object.keys(POTENCY), RENDING, ...Object.keys(UNIQUES), ...MECHANICS, ...HAUNT_MECHANICS]);
 for (const id of INTERNAL) HANDLED.delete(id);   // only a validated transcendent may create these
 
 function clamp(value, low, high, fallback) {
@@ -365,6 +376,7 @@ function apply(battle, payload) {
   }
   applyStatusDamage(battle, byUuid, caps, of, has, scale, shared);
   applyMechanics(battle, byUuid, of, has, momentum);
+  applyHauntings(battle, byUuid, of, has);
   transcend = applyTranscendents({battle, byUuid, weatherNow, rawHeal, shared});
   return byUuid.size;
 }
@@ -709,6 +721,193 @@ function applyMechanics(battle, byUuid, of, has, momentum) {
         return rawClear.apply(this, arguments);
       };
     }
+  }
+}
+
+/**
+ * The Hauntings that are mechanics rather than channel effects: Wisp, Hex, Pumpkin Lantern, Trick or Treat, Cobweb, Graveyard Chill,
+ * Headless Rider and Reaper's Toll. Every hook is installed only on a Pokemon that holds the Haunting, wraps the engine's own method, fails
+ * open to the native result, and does its damage and healing through plain log lines (a `[from]` the client does not know is misread).
+ */
+function applyHauntings(battle, byUuid, of, has) {
+  const holds = ids => [...byUuid.values()].some(list => list.some(fx => ids.includes(fx.i)));
+  if (!holds([...HAUNT_MECHANICS])) return;
+  const chance = fx => battle.randomChance(Math.min(fx.p, WISP_FLINCH_CAP), 100);
+  const effectOf = (id, name) => ({id, name, fullname: name, effectType: 'Status'});
+  const holders = [];
+  for (const side of battle.sides) {
+    if (!side) continue;
+    for (const holder of side.pokemon) if (byUuid.has(holder.uuid)) holders.push(holder);
+  }
+  const foesOf = mon => battle.sides.filter(side => side && side !== mon.side).flatMap(side => side.active).filter(foe => foe && foe.hp > 0);
+  const isFoeMove = (source, target, effect) => !!source && source !== target && source.side !== target.side &&
+    !!effect && typeof effect === 'object' && effect.effectType === 'Move';
+  /** Chip damage from a Haunting: runs the engine's Damage event (Magic Guard and friends) and logs a plain -damage line. */
+  const chip = (victim, amount, source, effect) => {
+    try {
+      if (!victim || !(victim.hp > 0)) return 0;
+      const allowed = battle.runEvent('Damage', victim, source, effect, amount, true);
+      if (!allowed && allowed !== 0) return 0;
+      const dealt = victim.damage(Math.max(1, Math.trunc(allowed)), source, effect);
+      if (dealt) battle.add('-damage', victim, victim.getHealth);
+      return dealt || 0;
+    } catch (err) { return 0; }
+  };
+  const restore = (mon, amount) => {
+    try {
+      if (mon.hp > 0 && mon.hp < mon.maxhp && mon.heal(Math.max(1, amount))) battle.add('-heal', mon, mon.getHealth);
+    } catch (err) { /* fail open */ }
+  };
+
+  // ---- wisp: a damaging move that hit may make the target flinch (it only matters if the target has not moved yet) ----
+  if (holds(['wisp']) && typeof battle.spreadDamage === 'function') {
+    const rawSpread = battle.spreadDamage;
+    const rolled = new Set();
+    battle.spreadDamage = function (damage, targetArray, source, effect) {
+      const result = rawSpread.apply(this, arguments);
+      try {
+        if (source && effect && typeof effect === 'object' && effect.effectType === 'Move' && Array.isArray(targetArray)) {
+          const rolls = of(source, {wisp: 1});
+          for (const [i, target] of targetArray.entries()) {
+            if (!rolls.length || !target || target === source || target.side === source.side || !(target.hp > 0)) continue;
+            if (!(typeof result[i] === 'number' && result[i] > 0)) continue;
+            const key = `${this.turn}:${source.uuid}:${source.activeMoveActions}:${target.uuid}`;
+            if (rolled.has(key)) continue;
+            rolled.add(key);
+            if (target.hasAbility('innerfocus') || target.hasAbility('shielddust')) continue;
+            if (rolls.some(chance)) target.addVolatile('flinch', source, effectOf('ascensionwisp', 'Wisp'));
+          }
+        }
+      } catch (err) { /* fail open: the hit already happened */ }
+      return result;
+    };
+  }
+
+  // ---- hex: at the end of each turn, foes of the holder with a status or a lowered stat lose 1/16 of their max HP ----
+  if (holds(['hex']) && typeof battle.residualEvent === 'function') {
+    const rawResidual = battle.residualEvent;
+    battle.residualEvent = function (eventid) {
+      const result = rawResidual.apply(this, arguments);
+      if (eventid !== 'Residual') return result;
+      for (const holder of holders) {
+        try {
+          if (!has(holder, 'hex') || !(holder.hp > 0) || !holder.isActive) continue;
+          for (const foe of foesOf(holder)) {
+            const lowered = Object.values(foe.boosts || {}).some(stage => stage < 0);
+            if (!foe.status && !lowered) continue;
+            chip(foe, Math.floor(foe.baseMaxhp / HEX_DIVISOR), holder, effectOf('ascensionhex', 'Hex'));
+          }
+        } catch (err) { /* fail open */ }
+      }
+      return result;
+    };
+  }
+
+  // ---- pumpkin lantern and cobweb: on entering the field (the leads entered before this module installed) ----
+  if (holds(['pumpkin_lantern', 'cobweb'])) {
+    const enter = pokemon => {
+      try {
+        if (!pokemon || !(pokemon.hp > 0)) return;
+        if (has(pokemon, 'pumpkin_lantern')) restore(pokemon, Math.floor(pokemon.maxhp / LANTERN_FRACTION));
+        if (has(pokemon, 'cobweb')) {
+          for (const foe of foesOf(pokemon)) battle.boost({spe: -1}, foe, pokemon, effectOf('ascensioncobweb', 'Cobweb'), true);
+        }
+      } catch (err) { /* fail open */ }
+    };
+    const actions = battle.actions;
+    if (actions && typeof actions.runSwitch === 'function') {
+      const rawRunSwitch = actions.runSwitch;
+      actions.runSwitch = function (pokemon) {
+        const result = rawRunSwitch.apply(this, arguments);
+        enter(pokemon);
+        return result;
+      };
+    }
+    for (const side of battle.sides) {
+      if (!side) continue;
+      for (const lead of side.active) if (lead && lead.isActive && battle.turn <= 1) enter(lead);
+    }
+  }
+
+  // ---- damage-taking hooks: trick or treat, graveyard chill, headless rider ----
+  // The engine logs a move's -damage line AFTER target.damage() returns, so a heal or chip done inside the hook would be logged before the
+  // hit it answers (the client would see HP rise and then fall). The reactions are therefore queued and run as soon as spreadDamage has
+  // logged its damage.
+  const reactions = [];
+  const flush = () => {
+    while (reactions.length) {
+      const reaction = reactions.shift();
+      try { reaction(); } catch (err) { /* fail open */ }
+    }
+  };
+  let reactive = false;
+  for (const holder of holders) {
+    const wantsHit = has(holder, 'trick_or_treat') || has(holder, 'graveyard_chill') || has(holder, 'headless_rider');
+    if (!wantsHit) continue;
+    reactive = true;
+    const state = {treated: false, ridden: false};
+    const rawDamage = holder.damage;
+    holder.damage = function (d, source, effect) {
+      let amount = d;
+      let rode = false;
+      try {
+        // Headless Rider: once per battle a lethal foe move leaves the holder at 1 HP.
+        if (has(this, 'headless_rider') && !state.ridden && this.hp > 0 && typeof d === 'number' && d >= this.hp &&
+            isFoeMove(source, this, effect)) {
+          state.ridden = true;
+          rode = true;
+          amount = this.hp - 1;
+          note(battle, `${this.name} rides on, headless!`);
+        }
+      } catch (err) { amount = d; rode = false; }
+      const dealt = rawDamage.call(this, amount, source, effect);
+      try {
+        if (dealt > 0 && this.hp > 0 && isFoeMove(source, this, effect)) {
+          const holderNow = this;
+          if (rode) reactions.push(() => battle.boost({atk: 1, spa: 1}, holderNow, holderNow, effectOf('ascensionheadless', 'Headless Rider'), true));
+          if (has(this, 'trick_or_treat') && !state.treated) {
+            state.treated = true;
+            reactions.push(() => restore(holderNow, Math.floor(holderNow.maxhp / LANTERN_FRACTION)));
+          }
+          if (has(this, 'graveyard_chill') && effect.flags && effect.flags.contact && source.hp > 0) {
+            reactions.push(() => chip(source, Math.floor(source.baseMaxhp / CHILL_DIVISOR), holderNow, effectOf('ascensionchill', 'Graveyard Chill')));
+          }
+        }
+      } catch (err) { /* fail open: the hit already happened */ }
+      return dealt;
+    };
+  }
+  if (reactive && typeof battle.spreadDamage === 'function') {
+    const rawSpread = battle.spreadDamage;
+    battle.spreadDamage = function () {
+      const result = rawSpread.apply(this, arguments);
+      flush();
+      return result;
+    };
+  }
+
+  // ---- reaper's toll: a direct move of the holder fainted a foe -> heal 1/3 and raise the better attacking stat ----
+  if (holds(['reapers_toll']) && typeof battle.faintMessages === 'function') {
+    const rawFaint = battle.faintMessages;
+    battle.faintMessages = function () {
+      const reapers = [];
+      try {
+        for (const entry of this.faintQueue) {
+          if (entry && entry.source && entry.effect && entry.effect.effectType === 'Move' && entry.source !== entry.target &&
+              has(entry.source, 'reapers_toll')) reapers.push(entry.source);
+        }
+      } catch (err) { /* fail open */ }
+      const result = rawFaint.apply(this, arguments);
+      for (const holder of reapers) {
+        try {
+          if (!(holder.hp > 0) || holder.fainted) continue;
+          restore(holder, Math.floor(holder.maxhp / REAPER_FRACTION));
+          const stat = holder.storedStats && holder.storedStats.spa > holder.storedStats.atk ? 'spa' : 'atk';
+          battle.boost({[stat]: 1}, holder, holder, effectOf('ascensionreaper', "Reaper's Toll"), true);
+        } catch (err) { /* fail open */ }
+      }
+      return result;
+    };
   }
 }
 

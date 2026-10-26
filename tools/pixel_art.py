@@ -454,6 +454,38 @@ def unique_respec():
     return c
 
 
+PUMPKIN = ramp('5a2408', '9a4310', 'd8701c', 'ff9a3c', 'ffd08a')
+WISP = ramp('3a1f6b', '6a3fb0', '9b6bd9', 'c9a2ff', 'f3eaff')
+LEAF = ramp('1f3d12', '2f5a1c', '4a8a2c')
+
+
+def spooky_essence():
+    c = Canvas()
+    # Spooky Essence: a small carved pumpkin lantern with a ghost-violet flame curling up out of its stem.
+    c.sphere(16, 20, 10.5, PUMPKIN, ry=8.8)
+    for x in (9, 12, 16, 20, 23):                                   # the ribs: darker vertical bands
+        for y in range(14, 27):
+            if c.get(x, y) is not None: c.set(x, y, PUMPKIN[1] if x < 16 else PUMPKIN[0])
+    # the carved face: two triangle eyes and a jagged smile, glowing from within
+    for (x, y) in [(11, 17), (10, 18), (11, 18), (12, 18), (20, 17), (19, 18), (20, 18), (21, 18)]:
+        c.set(x, y, PUMPKIN[0])
+    for (x, y) in [(11, 19), (20, 19)]: c.set(x, y, PUMPKIN[4])
+    for (x, y) in [(11, 22), (12, 23), (13, 22), (14, 23), (15, 22), (16, 23), (17, 22), (18, 23), (19, 22), (20, 22)]:
+        c.set(x, y, PUMPKIN[0]); c.set(x, y + 1, PUMPKIN[4]) if y == 23 else None
+    # the stem
+    for y in range(10, 13):
+        for x in (15, 16, 17): c.set(x, y, LEAF[1] if x == 16 else LEAF[0])
+    c.set(15, 10, LEAF[2]); c.set(17, 11, LEAF[0])
+    # the ghost flame: a wavering violet ribbon rising from the stem, fading to white at the tip
+    for (x, y, t) in [(16, 9, 1), (17, 8, 2), (17, 7, 2), (16, 6, 3), (16, 5, 3), (17, 4, 4), (18, 3, 4), (17, 3, 3), (16, 4, 2)]:
+        c.set(x, y, WISP[t])
+    c.set(15, 8, WISP[0]); c.set(18, 6, WISP[1])
+    c.sparkle(24, 8, WISP[3], arm=2, core=WISP[4])
+    c.set(7, 10, WISP[4]); c.set(26, 14, WISP[3])
+    c.outline()
+    return c
+
+
 PAPER = ramp('8f8668', 'c4bb9b', 'e8e1c9', 'f6f1df', 'ffffff')
 WAX = ramp('5e1018', '8a1f2b', 'b72e3d', 'd23a46', 'ff9aa0')
 
@@ -496,6 +528,7 @@ ICONS = {
     'ascension_dex': ascension_dex,
     'rank_respec': rank_respec,
     'unique_respec': unique_respec,
+    'spooky_essence': spooky_essence,
 }
 
 

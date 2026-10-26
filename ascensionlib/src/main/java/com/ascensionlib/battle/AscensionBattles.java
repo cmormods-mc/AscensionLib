@@ -71,7 +71,8 @@ public final class AscensionBattles {
             boolean raid = "raid".equals(battle.getFormat().getBattleType().getName());
             var rules = service.get().rules();
             // PvP is native for both sides until there is data to balance it (the planner returns nothing for it).
-            var plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, profileZone, ScoutEncounters.armedEnemies(playerIds),
+            var armed = ScoutEncounters.armedEnemies(playerIds);
+            Map<String, List<BattleFx.Effect>> plan = BattleFxPlanner.plan(actors, battle.isPvP(), raid, profileZone, armed,
                     pokemonId -> service.get().snapshot(pokemonId),
                     pokemonId -> Optional.ofNullable(wildByUuid.get(pokemonId)).map(wild -> {
                         var rating = service.get().previewWild(wild, tierForWild);
@@ -79,6 +80,10 @@ public final class AscensionBattles {
                                 rules.catalogVersion(), rating.slots(), null);
                     }));
 
+            // A Haunting acts wherever the ranked effects act: never in PvP, and only in a raid, an armed encounter or a profile zone.
+            if (!battle.isPvP() && (raid || profileZone || armed != null)) {
+                plan = BattleFxPlanner.withHauntings(plan, actors, pokemonId -> service.get().hauntingOf(pokemonId));
+            }
             String payload = BattleFx.payload(plan, rules.base());
             if (payload == null) return Map.of();
             LOG.debug("Battle {}: ascension effects for {} Pokemon", battleId, plan.size());

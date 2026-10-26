@@ -135,6 +135,20 @@
         "Swaps a Pokemon's Unique for another,",
         "with no Catalyst and no Tower Mark."
       ]
+    },
+    "spooky_essence": {
+      "base": "minecraft:phantom_membrane",
+      "model": 8113,
+      "name": "Spooky Essence",
+      "color": "#ff9a3c",
+      "rarity": "epic",
+      "kind": "Event",
+      "lore": [
+        "Halloween 2026. Spent with /ascend haunt",
+        "to give a Pokemon a random Haunting.",
+        "Earned from the World Boss; trade it",
+        "freely. It works after the event ends."
+      ]
     }
   },
   "rarities": {

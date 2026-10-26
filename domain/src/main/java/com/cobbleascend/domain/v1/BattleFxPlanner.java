@@ -79,6 +79,32 @@ public final class BattleFxPlanner {
         return result;
     }
 
+    /**
+     * A plan with each player's Pokemon's Haunting added (docs/HALLOWEEN-EVENT-DESIGN.md). Call it only when profiles act in this battle (not PvP, and a raid,
+     * an armed encounter or a profile zone): a Haunting follows the same rule as every other effect. The Haunting goes first in the Pokemon's list so
+     * the payload's effect limit can never cut it off, and a Pokemon whose only effect is a Haunting still appears. An id this build does not know
+     * (a newer world) is skipped.
+     *
+     * @param hauntingOf a player's Pokemon's Haunting id by its original uuid, empty when it has none
+     */
+    public static Map<String, List<BattleFx.Effect>> withHauntings(Map<String, List<BattleFx.Effect>> plan, List<Actor> actors,
+                                                                  Function<UUID, Optional<String>> hauntingOf) {
+        var result = new LinkedHashMap<String, List<BattleFx.Effect>>();
+        plan.forEach((id, effects) -> result.put(id, List.copyOf(effects)));
+        for (var actor : actors) {
+            if (actor.kind() != Kind.PLAYER) continue;
+            for (var combatant : actor.pokemon()) {
+                var haunting = hauntingOf.apply(combatant.originalId()).flatMap(Hauntings::byId);
+                if (haunting.isEmpty()) continue;
+                var effects = new ArrayList<BattleFx.Effect>();
+                effects.add(new BattleFx.Effect(haunting.get().id(), Hauntings.effectPercent(haunting.get().id()), null));
+                effects.addAll(result.getOrDefault(combatant.effectedId(), List.of()));
+                result.put(combatant.effectedId(), effects);
+            }
+        }
+        return result;
+    }
+
     private static void put(Map<String, List<BattleFx.Effect>> result, Combatant combatant, CombatSnapshot snapshot) {
         var effects = BattleFx.effectsOf(snapshot);
         if (!effects.isEmpty()) result.put(combatant.effectedId(), effects);

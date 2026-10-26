@@ -1148,6 +1148,115 @@ test('63. matrix: every signature with every motif twist runs, applies and stays
   }
 });
 
+// ---- Hauntings (docs/HALLOWEEN-EVENT-DESIGN.md): ten event-only powers, one per Pokemon ----
+const HOLDER = (moves, health = '') => pack('Blastoise', U1, 'torrent', moves, 50, health);
+const SNORLAX = (moves = ['splash'], health = '') => pack('Snorlax', U2, 'immunity', moves, 50, health);
+const hauntFx = (id, pct = 1) => withPct(U1, id, pct);
+
+test('H1. haunting wisp: a hit may make a slower target flinch, at the rolled chance and never above the cap', async () => {
+  const make = fxPayload => () => ({teams: [HOLDER(['hydropump']), SNORLAX(['tackle'])], moves: ['move 1', 'move 1'], fx: fxPayload});
+  const flinched = await across(make(hauntFx('wisp', 50)), '|cant|p2a: ' + U2 + '|flinch');
+  assert.ok(flinched >= 4 && flinched < SEEDS.length, `flinched in ${flinched} of ${SEEDS.length} seeds`);
+  assert.strictEqual(await across(make(undefined), '|cant|p2a: ' + U2 + '|flinch'), 0, 'native hydropump never flinches');
+  const capped = await across(make(hauntFx('wisp', 100)), '|cant|p2a: ' + U2 + '|flinch');
+  assert.ok(capped < SEEDS.length, 'a chance sent above the cap is held to 50%');
+});
+
+test('H2. haunting hex: a foe with a status loses 1/16 of its max HP at the end of the turn, and a healthy foe does not', async () => {
+  const run = (fxPayload, foeMoves) => battle({teams: [HOLDER(['spore', 'splash']), SNORLAX(foeMoves)], moves: ['move 1', 'move 1'], turns: 1, fx: fxPayload});
+  const plain = await run(undefined, ['splash']);
+  const hexed = await run(hauntFx('hex'), ['splash']);
+  assert.strictEqual(mon(plain, 1).status, 'slp', 'the sleep landed');
+  assert.strictEqual(lost(hexed, 1) - lost(plain, 1), Math.floor(mon(hexed, 1).baseMaxhp / 16), 'exactly 1/16 more');
+  const healthy = await battle({teams: [HOLDER(['splash']), SNORLAX()], moves: ['move 1', 'move 1'], turns: 1, fx: hauntFx('hex')});
+  assert.strictEqual(lost(healthy, 1), 0, 'a healthy, un-dropped foe takes nothing');
+});
+
+test('H3. haunting spectral_veil: Normal and Fighting moves hurt the holder 10% less, other types are untouched', async () => {
+  const hit = (move, fxPayload) => battle({teams: [HOLDER(['splash']), pack('Charizard', U2, 'blaze', [move], 50)], moves: ['move 1', 'move 1'], turns: 1, fx: fxPayload});
+  for (const move of ['return', 'closecombat']) {
+    const base = await hit(move, undefined);
+    const veiled = await hit(move, hauntFx('spectral_veil', 10));
+    near(lost(veiled, 0) / lost(base, 0), 0.9, 0.03, move + ' is reduced by about 10%');
+  }
+  const fire = await hit('flamethrower', undefined);
+  assert.strictEqual(lost(await hit('flamethrower', hauntFx('spectral_veil', 10)), 0), lost(fire, 0), 'a Fire move is untouched');
+});
+
+test('H4. haunting midnight_howl: only the first attack of the battle is 15% stronger', async () => {
+  const run = (fxPayload, turns) => battle({teams: [HOLDER(['surf', 'splash']), SNORLAX(['splash'])], moves: ['move 1', 'move 1'], turns, fx: fxPayload});
+  near(lost(await run(hauntFx('midnight_howl', 15), 1), 1) / lost(await run(undefined, 1), 1), 1.15, 0.03, 'first attack');
+  const two = await run(hauntFx('midnight_howl', 15), 2);
+  const twoPlain = await run(undefined, 2);
+  const second = lost(two, 1) - lost(await run(hauntFx('midnight_howl', 15), 1), 1);
+  const secondPlain = lost(twoPlain, 1) - lost(await run(undefined, 1), 1);
+  near(second / secondPlain, 1.0, 0.04, 'the second attack is native');
+});
+
+test('H5. haunting pumpkin_lantern: entering the field restores 1/8 of max HP', async () => {
+  const team = [CHARIZARD_U(U3), HOLDER(['splash'], '20')].join(']');
+  const b = await battle({teams: [team, SNORLAX()], moves: ['switch 2', 'move 1'], turns: 1, fx: hauntFx('pumpkin_lantern')});
+  assert.strictEqual(mon(b, 0).hp, 20 + Math.floor(mon(b, 0).maxhp / 8));
+  const plain = await battle({teams: [team, SNORLAX()], moves: ['switch 2', 'move 1'], turns: 1});
+  assert.strictEqual(mon(plain, 0).hp, 20, 'no Haunting, no heal');
+});
+
+test('H6. haunting trick_or_treat: the first hit each battle restores 1/8 of max HP, the second does not', async () => {
+  const hits = (turns, fxPayload) => battle({teams: [HOLDER(['splash']), pack('Snorlax', U2, 'immunity', ['tackle'], 50)], moves: ['move 1', 'move 1'], turns, fx: fxPayload});
+  const once = count(await hits(1, hauntFx('trick_or_treat')), '|-heal|p1a: ' + U1);
+  assert.ok(once > 0, 'the first hit healed');
+  assert.strictEqual(count(await hits(2, hauntFx('trick_or_treat')), '|-heal|p1a: ' + U1), once, 'the second hit did not');
+  const lines = (await hits(1, hauntFx('trick_or_treat'))).lines.filter(l => /^\|-(heal|damage)\|p1a/.test(l));
+  assert.ok(lines[0].startsWith('|-damage'), 'the heal is logged after the hit it answers: ' + lines.slice(0, 2).join(' // '));
+  assert.strictEqual(count(await battle({teams: [HOLDER(['splash']), pack('Snorlax', U2, 'immunity', ['tackle'], 50)], moves: ['move 1', 'move 1'], turns: 2}), '|-heal|p1a: ' + U1), 0);
+});
+
+test('H7. haunting cobweb: entering the field lowers each foe\'s Speed one stage', async () => {
+  const b = await battle({teams: [HOLDER(['splash']), SNORLAX()], moves: ['move 1', 'move 1'], turns: 1, fx: hauntFx('cobweb')});
+  assert.ok(count(b, '|-unboost|p2a: ' + U2 + '|spe|1') >= 1, 'the foe was slowed on entry');
+  const none = await battle({teams: [HOLDER(['splash']), SNORLAX()], moves: ['move 1', 'move 1'], turns: 1});
+  assert.strictEqual(count(none, '|-unboost|'), 0);
+});
+
+test('H8. haunting graveyard_chill: a foe that makes contact loses 1/16 of its max HP, a non-contact move costs it nothing', async () => {
+  const hit = (move, fxPayload) => battle({teams: [HOLDER(['splash']), pack('Charizard', U2, 'blaze', [move], 50)], moves: ['move 1', 'move 1'], turns: 1, fx: fxPayload});
+  const contact = await hit('dragonclaw', hauntFx('graveyard_chill'));
+  assert.strictEqual(lost(contact, 1), Math.floor(mon(contact, 1).baseMaxhp / 16));
+  assert.strictEqual(lost(await hit('flamethrower', hauntFx('graveyard_chill')), 1), 0, 'flamethrower is not a contact move');
+  assert.strictEqual(lost(await hit('dragonclaw', undefined), 1), 0);
+});
+
+test('H9. haunting headless_rider: a lethal foe move leaves 1 HP and raises Attack and Sp. Atk, once per battle', async () => {
+  const frail = [pack('Blastoise', U1, 'torrent', ['splash'], 50, '10'), INFLICTOR(['flamethrower', 'splash'])];
+  const first = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1, fx: hauntFx('headless_rider')});
+  assert.strictEqual(mon(first, 0).hp, 1, 'survived at 1 HP');
+  assert.ok(count(first, '|-boost|p1a: ' + U1 + '|atk|1') >= 1 && count(first, '|-boost|p1a: ' + U1 + '|spa|1') >= 1, 'both stats rose');
+  const second = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 2, fx: hauntFx('headless_rider')});
+  assert.strictEqual(mon(second, 0).hp, 0, 'the second lethal hit is not stopped');
+  const plain = await battle({teams: frail, moves: ['move 1', 'move 1'], turns: 1});
+  assert.strictEqual(mon(plain, 0).hp, 0, 'without it the first hit is lethal');
+});
+
+test('H10. haunting reapers_toll: a KO heals 1/3 of max HP and raises the higher attacking stat', async () => {
+  const teams = [pack('Blastoise', U1, 'torrent', ['hydropump', 'splash'], 50, '100'), [pack('Magikarp', U2, 'swiftswim', ['splash'], 50, '1'), pack('Magikarp', U3, 'swiftswim', ['splash'], 50)].join(']')];
+  const b = await battle({teams, moves: ['move 1', 'move 1'], turns: 1, fx: hauntFx('reapers_toll')});
+  const holder = mon(b, 0);
+  const stat = holder.storedStats.spa > holder.storedStats.atk ? 'spa' : 'atk';
+  assert.ok(count(b, '|faint|p2a') >= 1, 'the foe fainted');
+  assert.strictEqual(holder.hp, 100 + Math.floor(holder.maxhp / 3), 'healed a third');
+  assert.ok(count(b, '|-boost|p1a: ' + U1 + '|' + stat + '|1') >= 1, 'the better attacking stat rose');
+  const plain = await battle({teams, moves: ['move 1', 'move 1'], turns: 1});
+  assert.strictEqual(mon(plain, 0).hp, 100, 'no Haunting, no heal');
+});
+
+test('H11. hauntings: an unknown or malformed haunting is ignored and a payload may hold a Haunting beside a full set of affixes', async () => {
+  const same = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: {v: 1, mons: {[U1]: [{i: 'not_a_haunting', p: 5}]}}});
+  assert.strictEqual(lost(same, 1), lost(baseline, 1));
+  const ids = ['overwhelming_force', 'physical_force', 'special_force', 'healthy_force', 'last_stand', 'defiant_force', 'kindred_force', 'executioner', 'midnight_howl'];
+  const b = await battle({teams: TEAMS(), moves: ['move 3', 'move 1'], fx: {v: 1, mons: {[U1]: ids.map(id => ({i: id, p: 5}))}}});
+  assert.ok(lost(b, 1) > lost(baseline, 1), 'the ninth and tenth effects are no longer cut off');
+});
+
 (async () => {
   baseline = await battle({teams: TEAMS(), moves: ['move 3', 'move 1']});          // before the module is installed
   fx.install({Battle});

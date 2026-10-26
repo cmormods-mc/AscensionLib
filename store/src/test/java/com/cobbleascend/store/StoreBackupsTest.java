@@ -51,7 +51,7 @@ class StoreBackupsTest {
             assertEquals(77, upgraded.wallet(player).balance(MaterialId.RESONANCE_DUST));
         }
         try (var files = Files.list(dir)) {
-            var backups = files.filter(p -> p.getFileName().toString().contains(".before-schema4-from3-")).toList();
+            var backups = files.filter(p -> p.getFileName().toString().contains(".before-schema5-from3-")).toList();
             assertEquals(1, backups.size(), "one copy, named for the schema it came from");
             try (var c = DriverManager.getConnection("jdbc:sqlite:" + backups.get(0).toAbsolutePath()); var s = c.createStatement();
                  var rows = s.executeQuery("SELECT value FROM meta WHERE key = 'schema_version'")) {

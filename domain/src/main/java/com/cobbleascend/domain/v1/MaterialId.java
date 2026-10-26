@@ -20,7 +20,12 @@ public enum MaterialId {
     /** The Hourglass of Undoing: resets one Pokemon's ranks and gives its upgrade credits back (docs/RESPEC-DESIGN.md). */
     RANK_RESPEC("rank_respec"),
     /** The Unbinding Prism: swaps a Pokemon's Unique for another without a Catalyst or a Mark. */
-    UNIQUE_RESPEC("unique_respec");
+    UNIQUE_RESPEC("unique_respec"),
+    /**
+     * Halloween 2026 event material, earned from the CobbleRaids World Boss. Spent on /ascend haunt to give a Pokemon a random Haunting
+     * (docs/HALLOWEEN-EVENT-DESIGN.md). Like every material it stays usable and tradable after the event; it just stops being earned.
+     */
+    SPOOKY_ESSENCE("spooky_essence");
 
     private final String id;
     MaterialId(String id) { this.id = id; }

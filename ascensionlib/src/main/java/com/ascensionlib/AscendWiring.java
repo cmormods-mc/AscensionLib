@@ -1,5 +1,6 @@
 package com.ascensionlib;
 
+import com.cobbleascend.domain.v1.Hauntings;
 import com.cobbleascend.domain.v1.MaterialId;
 import com.cobbleascend.domain.v1.Origin;
 import com.cobbleascend.domain.v1.ProfileV1;
@@ -55,6 +56,8 @@ final class AscendWiring {
     void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(started -> server = started);
         ServerLifecycleEvents.SERVER_STARTED.register(com.ascensionlib.BackupJob::started);
+        // Halloween 2026: pays Spooky Essence when CobbleRaids' World Boss falls (reflective, optional).
+        ServerLifecycleEvents.SERVER_STARTED.register(com.ascensionlib.event.WorldBossLink::register);
         ServerTickEvents.END_SERVER_TICK.register(com.ascensionlib.BackupJob::tick);
         com.ascensionlib.auction.AuctionGuard.install();
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stop);
@@ -268,6 +271,11 @@ final class AscendWiring {
                 // /ascend dex: get an AscensionDex (right-click it to review your party). Every page is reached from it.
                 // /ascend guide: the in-game guide, the same text as the wiki.
                 .then(Commands.literal("guide").executes(ctx -> openGuide(ctx.getSource())))
+                // /ascend haunt [slot]: Halloween 2026. Spend Spooky Essence to give a party Pokemon a random Haunting (or re-roll it).
+                .then(Commands.literal("haunt")
+                        .executes(ctx -> hauntInfo(ctx.getSource()))
+                        .then(Commands.argument("slot", IntegerArgumentType.integer(1, 6))
+                                .executes(ctx -> haunt(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot")))))
                 .then(Commands.literal("dex").executes(ctx -> dex(ctx.getSource())))
                 // /ascend calm [on|off]: no animation, flash or flare on the pages, for players who are sensitive to them. Also a button in every page's header.
                 .then(Commands.literal("calm")
@@ -419,6 +427,57 @@ final class AscendWiring {
             source.sendSuccess(() -> Component.literal(slotData.slotId() + " · " + affix.base().name() + " " + ROMAN[slotData.rank()]
                     + parameter + ": " + slotData.rolledValue() + "% [" + band.min() + "–" + band.max() + "%] · "
                     + affix.base().condition()), false);
+        }
+    }
+
+    private int hauntInfo(CommandSourceStack source) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var service = service();
+        var player = source.getPlayerOrException();
+        long essence = service.store().wallet(player.getUUID()).balance(MaterialId.SPOOKY_ESSENCE);
+        source.sendSuccess(() -> Component.literal("[Haunting] You have " + essence + " Spooky Essence. /ascend haunt <slot> rolls a random Haunting"
+                + " (1, then 3, 5 and 8 for each re-roll; a re-roll replaces the old one)."), false);
+        var party = Cobblemon.INSTANCE.getStorage().getParty(player);
+        for (int slot = 1; slot <= 6; slot++) {
+            var pokemon = party.get(slot - 1);
+            if (pokemon == null) continue;
+            var held = service.hauntingOf(pokemon.getUuid()).flatMap(Hauntings::byId);
+            String line = "  " + slot + ". " + pokemon.getDisplayName(false).getString() + ": "
+                    + held.map(h -> h.name() + (h.rare() ? " (Rare)" : "")).orElse("no Haunting")
+                    + " - next roll " + service.nextHauntingCost(pokemon.getUuid()) + " Spooky Essence";
+            source.sendSuccess(() -> Component.literal(line), false);
+        }
+        return 1;
+    }
+
+    private int haunt(CommandSourceStack source, int slot) throws CommandSyntaxException {
+        if (!ready(source)) return 0;
+        var service = service();
+        var player = source.getPlayerOrException();
+        var pokemon = Cobblemon.INSTANCE.getStorage().getParty(player).get(slot - 1);
+        if (pokemon == null) {
+            source.sendFailure(Component.literal("That party slot is empty."));
+            return 0;
+        }
+        try {
+            var haunting = service.haunt(player, pokemon);
+            String name = pokemon.getDisplayName(false).getString();
+            LOG.info("Player {} haunted Pokemon {} with {}", player.getUUID(), pokemon.getUuid(), haunting.id());
+            source.sendSuccess(() -> Component.literal("[Haunting] " + name + " is now haunted by " + haunting.name()
+                    + (haunting.rare() ? " (Rare!)" : "") + ": " + haunting.effect()), false);
+            if (haunting.rare()) {
+                var announcement = Component.literal("[Haunting] " + player.getGameProfile().getName() + "'s " + name + " awakened a Rare Haunting: "
+                        + haunting.name() + "!");
+                for (var online : source.getServer().getPlayerList().getPlayers()) online.sendSystemMessage(announcement);
+            }
+            return 1;
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            source.sendFailure(Component.literal("Not haunted: " + exception.getMessage()));
+            return 0;
+        } catch (RuntimeException exception) {
+            LOG.error("Haunting failed for {}", pokemon.getUuid(), exception);
+            source.sendFailure(Component.literal("The Haunting could not be rolled right now. You were not charged."));
+            return 0;
         }
     }
 
