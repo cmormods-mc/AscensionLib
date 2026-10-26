@@ -18,6 +18,15 @@ public final class ItemModelOverrides {
     public static final String NAMESPACE = "ascensionlib";
     public static final String MODEL_DIRECTORY = "assets/minecraft/models/item/";
 
+    /**
+     * The World Boss dome's glass panels, drawn by CobbleRaids as item displays of this vanilla item with these model numbers: three
+     * swirl variants, then the flash a panel shows when someone crosses the wall. CobbleRaids's {@code WorldBossDome} hard-codes the same
+     * numbers, so they are frozen like every other model number here.
+     */
+    public static final String DOME_BASE = "ender_eye";
+    public static final int DOME_FIRST_MODEL = 8201;
+    public static final int DOME_VARIANTS = 4;
+
     private ItemModelOverrides() {}
 
     /** The overrides AscensionLib needs, by base item name (without the namespace): every material, its voucher form when tradable, and the Dex. */
@@ -30,6 +39,8 @@ public final class ItemModelOverrides {
         }
         var dex = CurrencyItems.dex();
         byBase.computeIfAbsent(baseName(dex.baseItem()), k -> new JsonArray()).add(entry(dex.model(), "ascension_dex"));
+        var dome = byBase.computeIfAbsent(DOME_BASE, k -> new JsonArray());
+        for (int variant = 0; variant < DOME_VARIANTS; variant++) dome.add(entry(DOME_FIRST_MODEL + variant, "world_event_dome_" + variant));
         return byBase;
     }
 

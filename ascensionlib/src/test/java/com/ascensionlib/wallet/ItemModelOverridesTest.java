@@ -36,12 +36,12 @@ class ItemModelOverridesTest {
         return list;
     }
 
-    @Test void everyMaterialVoucherAndTheDexAreCovered() {
+    @Test void everyMaterialVoucherTheDexAndTheDomePanelsAreCovered() {
         var required = ItemModelOverrides.required();
         var numbers = new HashSet<Integer>();
         required.values().forEach(list -> list.forEach(e -> assertTrue(numbers.add(e.getAsJsonObject().getAsJsonObject("predicate").get("custom_model_data").getAsInt()),
                 "a custom model number is used twice")));
-        int expected = 1 + CurrencyItems.all().values().stream().mapToInt(spec -> spec.tradable() ? 2 : 1).sum();
+        int expected = 1 + ItemModelOverrides.DOME_VARIANTS + CurrencyItems.all().values().stream().mapToInt(spec -> spec.tradable() ? 2 : 1).sum();
         assertEquals(expected, numbers.size());
         assertTrue(numbers.contains(CurrencyItems.dex().model()));
         assertTrue(required.containsKey("glowstone_dust"), "Resonance Dust draws on glowstone dust");

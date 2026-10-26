@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:item/ender_eye"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 8201
+      },
+      "model": "ascensionlib:item/world_event_dome_0"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 8202
+      },
+      "model": "ascensionlib:item/world_event_dome_1"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 8203
+      },
+      "model": "ascensionlib:item/world_event_dome_2"
+    },
+    {
+      "predicate": {
+        "custom_model_data": 8204
+      },
+      "model": "ascensionlib:item/world_event_dome_3"
+    }
+  ]
+}

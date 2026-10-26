@@ -36,6 +36,16 @@ affix_art = importlib.util.module_from_spec(_spec_affix)
 _spec_affix.loader.exec_module(affix_art)
 
 
+_spec_dome = importlib.util.spec_from_file_location('dome_art', pathlib.Path(__file__).resolve().parent / 'dome_art.py')
+dome_art = importlib.util.module_from_spec(_spec_dome)
+_spec_dome.loader.exec_module(dome_art)
+_spec_bar = importlib.util.spec_from_file_location('bossbar_art', pathlib.Path(__file__).resolve().parent / 'bossbar_art.py')
+bossbar_art = importlib.util.module_from_spec(_spec_bar)
+_spec_bar.loader.exec_module(bossbar_art)
+DOME_BASE = 'ender_eye'      # keep in step with ItemModelOverrides.DOME_BASE
+DOME_FIRST_MODEL = 8201      # and ItemModelOverrides.DOME_FIRST_MODEL; variants 0 to 2 swirl, the last is the crossing flash
+
+
 def icon_png(name):
     return pixel_art.png_bytes(pixel_art.render(name))
 
@@ -105,6 +115,16 @@ def main():
     }
     write(LOOT.parent / 'ascension_dex.json', json.dumps({'type': 'minecraft:generic', 'pools': [{'rolls': 1, 'entries': [
         {'type': 'minecraft:item', 'name': dex['base'], 'functions': [{'function': 'minecraft:set_components', 'components': dex_components}]}]}]}, indent=2) + '\n')
+    # the World Boss dome's glass panels (CobbleRaids places them as display entities; the numbers are frozen, see WorldBossDome there)
+    for variant in range(dome_art.VARIANTS):
+        name = f'world_event_dome_{variant}'
+        write(PACK / f'assets/{NS}/textures/item/{name}.png', pixel_art.png_bytes(dome_art.strip(variant)))
+        write(PACK / f'assets/{NS}/textures/item/{name}.png.mcmeta', dome_art.mcmeta())
+        write(PACK / f'assets/{NS}/models/item/{name}.json', dome_art.model(f'{NS}:item/{name}'))
+        overrides.setdefault(DOME_BASE, []).append({'predicate': {'custom_model_data': DOME_FIRST_MODEL + variant}, 'model': f'{NS}:item/{name}'})
+    # the World Boss bar: replaces vanilla's PINK boss bar sprites and the 20-notch overlay (CobbleRaids shows the World Boss as PINK, NOTCHED_20)
+    for name, grid in bossbar_art.sprites().items():
+        write(PACK / 'assets/minecraft/textures/gui/sprites/boss_bar' / name, pixel_art.png_bytes(grid))
     # the mod's own icon (shown by mod menus and launchers): the Ascension Sigil at 128x128 on the dark tablet colour
     write(ICON, pixel_art.png_bytes(pixel_art.mod_icon()))
     # each base item's model gains the overrides; the base items are all plain generated items, so the override file is the whole model

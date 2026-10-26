@@ -64,7 +64,12 @@ processResources {
     // The item art (models and textures) rides in the jar so Polymer can add it to the server pack. It sits under its own folder, not
     // under assets/, so it is not also loaded as the mod's own client resources; stray archives in the folder are left out.
     from(rootProject.file('resourcepack/assets/ascensionlib')) {
-        include 'models/**', 'textures/**'
+        include 'models/**', 'textures/**', 'sounds.json', 'sounds/**'
         into 'ascensionlib-pack/assets/ascensionlib'
+    }
+    // The World Boss bar's sprites replace vanilla's, so they live in the minecraft namespace (see tools/bossbar_art.py).
+    from(rootProject.file('resourcepack/assets/minecraft/textures')) {
+        include 'gui/sprites/boss_bar/**'
+        into 'ascensionlib-pack/assets/minecraft/textures'
     }
 }

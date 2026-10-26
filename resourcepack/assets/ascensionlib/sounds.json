@@ -1,0 +1,12 @@
+{
+  "world_event.boss": {
+    "sounds": [
+      { "name": "ascensionlib:music/world_event_boss", "stream": true }
+    ]
+  },
+  "world_event.zone": {
+    "sounds": [
+      { "name": "ascensionlib:music/world_event_zone", "stream": true }
+    ]
+  }
+}
