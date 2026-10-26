@@ -225,7 +225,8 @@ public final class CraftNet {
         boolean show = HalloweenEvent.showHaunting(essence, held.isPresent(), HalloweenEvent.isOpen());
         String block = essence < cost ? "Needs " + cost + " Spooky Essence" : "";
         var all = new ArrayList<CraftPayloads.HauntOption>();
-        for (var h : Hauntings.all())
+        // Hidden rows carry no list, so the ten Hauntings do not reach a client before the event.
+        if (show) for (var h : Hauntings.all())
             all.add(new CraftPayloads.HauntOption(h.id(), h.name(), h.rare(), h.effect(),
                     h.rare() ? h.weight() / 10.0 : Math.round(h.weight() * (1000 - Hauntings.RARE_PERMILLE)) / 100.0 / 10.0));
         return new CraftPayloads.HauntView(show, essence, held.map(Hauntings.Haunting::id).orElse(""), held.map(Hauntings.Haunting::name).orElse(""),
