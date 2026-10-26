@@ -11,7 +11,7 @@ import net.minecraft.world.level.storage.LevelResource;
  * its header control ({@code ascension_ui_set}); both are answered with {@code uiScale}. The server clamps and stores; the page only draws.
  */
 public final class UiPrefsWeb {
-    public record Scale(int percent, int min, int max, boolean calm) {}
+    public record Scale(int percent, int min, int max, boolean calm, boolean halloween) {}
 
     private static UiPrefs prefs;
     private static Path prefsFile;
@@ -60,6 +60,7 @@ public final class UiPrefsWeb {
     public static int percentOf(ServerPlayer player) { return of(player.getServer()).get(player.getUUID()); }
 
     public static void send(ServerPlayer player) {
-        WebUi.emit(player, "uiScale", new Scale(percentOf(player), UiPrefs.MIN_PERCENT, UiPrefs.MAX_PERCENT, calmOf(player)));
+        WebUi.emit(player, "uiScale", new Scale(percentOf(player), UiPrefs.MIN_PERCENT, UiPrefs.MAX_PERCENT, calmOf(player),
+                com.ascensionlib.event.HalloweenEvent.isOpen()));
     }
 }

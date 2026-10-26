@@ -733,6 +733,43 @@ await check('perf: a page times its renders and reports them to the server in th
   noErrors(p);
 });
 
+await check('craft: the Haunting row (Halloween 2026): hidden when the server hides it, rolls from its own detail, theme follows the server flag', async () => {
+  const haunt = (extra = {}) => Object.assign({ show: true, essence: 4, id: '', name: '', rare: false, effect: '', rolls: 0, cost: 1, block: '',
+    all: [{ id: 'wisp', name: 'Wisp', rare: false, effect: '20% chance on hit that the target flinches.', chance: 17.3 },
+          { id: 'hex', name: 'Hex', rare: false, effect: 'Foes with a status lose 1/16.', chance: 15.4 },
+          { id: 'spectral_veil', name: 'Spectral Veil', rare: false, effect: 'x', chance: 15.4 }, { id: 'pumpkin_lantern', name: 'Pumpkin Lantern', rare: false, effect: 'x', chance: 13.4 },
+          { id: 'trick_or_treat', name: 'Trick or Treat', rare: false, effect: 'x', chance: 11.5 }, { id: 'cobweb', name: 'Cobweb', rare: false, effect: 'x', chance: 9.6 },
+          { id: 'graveyard_chill', name: 'Graveyard Chill', rare: false, effect: 'x', chance: 7.7 }, { id: 'midnight_howl', name: 'Midnight Howl', rare: false, effect: 'x', chance: 5.8 },
+          { id: 'headless_rider', name: 'Headless Rider', rare: true, effect: 'Survives a fatal hit once.', chance: 2.5 }, { id: 'reapers_toll', name: "Reaper's Toll", rare: true, effect: 'x', chance: 1.5 }] }, extra);
+  const p = await open(null, 'craft.html');
+  await emit(p, 'sprites', { mewtwo: PNG });
+  await emit(p, 'uiScale', { percent: 100, min: 60, max: 160, calm: false, halloween: true });
+  yes(await p.evaluate(() => document.documentElement.classList.contains('halloween')), 'the server flag turns the theme on');
+  await emit(p, 'craftView', Object.assign({}, craftView, { haunt: haunt({ show: false }) }));
+  eq(await p.locator('#list .row.haunt').count(), 0, 'no row while the server hides it');
+  await emit(p, 'craftView', Object.assign({}, craftView, { haunt: haunt() }));
+  eq(await p.locator('#list .row.haunt').count(), 1, 'the row shows');
+  eq(await p.locator('#wallet img.dot').count(), 10, 'Spooky Essence joins the wallet column');
+  await p.locator('#list .row.haunt').click();
+  yes((await p.textContent('#detail')).includes('Not haunted') && (await p.textContent('#detail')).includes('Headless Rider'), 'the detail shows the empty state and the odds');
+  await shot(p, 'craft-haunt-empty');
+  await p.locator('#detail button.primary').click();
+  yes((await p.textContent('#dTitle')) === 'Confirm haunting', 'the dialog names the action');
+  await p.click('#dOk');
+  const m = (await sent(p)).find(x => x.channel === 'ascension_craft_confirm');
+  eq([m.kind, m.slotId, m.pokemonId], ['haunt', '', craftView.pokemonId], 'confirm body');
+  await emit(p, 'craftDone', { operationId: m.operationId, ok: true, message: '', slotId: '', oldName: '', oldRank: 0, oldValue: 0, newName: 'Headless Rider', newRank: 1, newValue: 0, replayed: false }, true);
+  await emit(p, 'craftView', Object.assign({}, craftView, { haunt: haunt({ id: 'headless_rider', name: 'Headless Rider', rare: true, effect: 'Survives a fatal hit once.', rolls: 1, cost: 3, essence: 3 }) }));
+  yes((await p.textContent('.banner')).includes('Rare!'), 'the banner announces a Rare');
+  yes((await p.textContent('#detail')).includes('RARE'), 'the detail tags it Rare');
+  await shot(p, 'craft-haunt-rare');
+  await emit(p, 'craftView', Object.assign({}, craftView, { haunt: haunt({ block: 'Needs 3 Spooky Essence', essence: 0 }) }));
+  yes(await p.locator('#detail button.primary').isDisabled(), 'Review is disabled when the roll is blocked');
+  await emit(p, 'uiScale', { percent: 100, min: 60, max: 160, calm: false, halloween: false });
+  yes(!(await p.evaluate(() => document.documentElement.classList.contains('halloween'))), 'the theme turns off with the flag');
+  noErrors(p);
+});
+
 await check('pages degrade without WebGUI (no window.webgui): no crash', async () => {
   const ctx = await browser.newContext(); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', e => errors.push(e.message));

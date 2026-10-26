@@ -170,6 +170,11 @@ public final class ProfileService {
         return store.haunting(pokemonId).map(com.cobbleascend.store.HauntingRecord::hauntingId);
     }
 
+    /** How many Haunting rolls this Pokemon has had (0 before its first). */
+    public int hauntingRolls(UUID pokemonId) {
+        return store.haunting(pokemonId).map(com.cobbleascend.store.HauntingRecord::rolls).orElse(0);
+    }
+
     /** What the next Haunting roll on this Pokemon costs in Spooky Essence: 1, then 3, 5 and 8. */
     public long nextHauntingCost(UUID pokemonId) {
         return Hauntings.cost(store.haunting(pokemonId).map(com.cobbleascend.store.HauntingRecord::rolls).orElse(0));

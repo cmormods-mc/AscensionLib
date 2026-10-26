@@ -18,6 +18,8 @@ import com.cobbleascend.domain.v1.OrdinarySlot;
 import com.cobbleascend.domain.v1.ProfileV1;
 import com.cobbleascend.domain.v1.RankedProgression;
 import com.cobbleascend.domain.v1.RankedRules;
+import com.ascensionlib.event.HalloweenEvent;
+import com.cobbleascend.domain.v1.Hauntings;
 import com.cobbleascend.domain.v1.Tunables;
 import com.cobbleascend.store.CraftRequest;
 import com.cobbleascend.store.Kind;
@@ -211,7 +213,23 @@ public final class CraftNet {
                 profile.pendingCredits(), nextMilestone, profile.revision(), wallet.revision(), wallet.balance(MaterialId.RESONANCE_DUST),
                 wallet.balance(MaterialId.FACET), wallet.balance(MaterialId.ASCENSION_CORE), wallet.balance(MaterialId.SCOUTER), wallet.balance(MaterialId.TOWER_MARK),
                 new CraftPayloads.Price(refineCost.dust(), refineCost.facets(), refineCost.cores()),
-                new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, respec, slots, message, open);
+                new CraftPayloads.Price(reforgeCost.dust(), reforgeCost.facets(), reforgeCost.cores()), promotion, uniqueState, respec, slots, message, open, haunt(player, pokemon, service, wallet));
+    }
+
+    /** The Haunting row's data: what the Pokemon holds, what the next roll costs, and the ten Hauntings with their odds. */
+    static CraftPayloads.HauntView haunt(ServerPlayer player, Pokemon pokemon, ProfileService service, com.cobbleascend.domain.v1.MaterialWallet wallet) {
+        long essence = wallet.balance(MaterialId.SPOOKY_ESSENCE);
+        var held = service.hauntingOf(pokemon.getUuid()).flatMap(Hauntings::byId);
+        int rolls = service.hauntingRolls(pokemon.getUuid());
+        long cost = Hauntings.cost(rolls);
+        boolean show = HalloweenEvent.showHaunting(essence, held.isPresent(), HalloweenEvent.isOpen());
+        String block = essence < cost ? "Needs " + cost + " Spooky Essence" : "";
+        var all = new ArrayList<CraftPayloads.HauntOption>();
+        for (var h : Hauntings.all())
+            all.add(new CraftPayloads.HauntOption(h.id(), h.name(), h.rare(), h.effect(),
+                    h.rare() ? h.weight() / 10.0 : Math.round(h.weight() * (1000 - Hauntings.RARE_PERMILLE)) / 100.0 / 10.0));
+        return new CraftPayloads.HauntView(show, essence, held.map(Hauntings.Haunting::id).orElse(""), held.map(Hauntings.Haunting::name).orElse(""),
+                held.map(Hauntings.Haunting::rare).orElse(false), held.map(Hauntings.Haunting::effect).orElse(""), rolls, cost, block, all);
     }
 
     static String describe(Cost cost) {
@@ -256,6 +274,7 @@ public final class CraftNet {
         if (before.isEmpty()) { fail(player, request, "That Pokémon has no ascension profile."); return; }
         if (request.kind().equals("assemble")) { assemble(player, service, pokemon, request, operation); return; }
         if (request.kind().equals("buy_hourglass")) { buyHourglass(player, service, pokemon, request, operation); return; }
+        if (request.kind().equals("haunt")) { haunt(player, service, pokemon, request); return; }
         if ((request.kind().equals("unique") || request.kind().equals("respec_unique")) && service.isFused(pokemon.getUuid())) {
             fail(player, request, "A Transcendent's power cannot be replaced.");
             return;
@@ -342,6 +361,28 @@ public final class CraftNet {
             });
         } catch (RuntimeException exception) {
             LOG.error("Craft {} failed for {}", request.kind(), pokemon.getUuid(), exception);
+            fail(player, request, "Something went wrong; nothing was spent.");
+        }
+    }
+
+    /** A Haunting roll: the same store transaction as {@code /ascend haunt}; the page learns the result from {@code craftDone} (newName is the Haunting). */
+    private static void haunt(ServerPlayer player, ProfileService service, Pokemon pokemon, CraftPayloads.Confirm request) {
+        try {
+            var haunting = service.haunt(player, pokemon);
+            LOG.info("Player {} haunted Pokemon {} with {} from the upgrade screen", player.getUUID(), pokemon.getUuid(), haunting.id());
+            WebUi.emit(player, "craftDone", new CraftPayloads.Done(request.operationId(), true, "", "", "", 0, 0, haunting.name(), haunting.rare() ? 1 : 0, 0, false));
+            if (haunting.rare()) {
+                var announcement = Component.literal("[Haunting] " + player.getGameProfile().getName() + "'s " + pokemon.getDisplayName(false).getString()
+                        + " awakened a Rare Haunting: " + haunting.name() + "!");
+                for (var online : player.getServer().getPlayerList().getPlayers()) online.sendSystemMessage(announcement);
+            }
+            sendView(player, pokemon, false, "");
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            fail(player, request, exception.getMessage());
+        } catch (StoreException exception) {
+            fail(player, request, "The Haunting could not be rolled: " + exception.getMessage());
+        } catch (RuntimeException exception) {
+            LOG.error("Haunting failed for {}", pokemon.getUuid(), exception);
             fail(player, request, "Something went wrong; nothing was spent.");
         }
     }

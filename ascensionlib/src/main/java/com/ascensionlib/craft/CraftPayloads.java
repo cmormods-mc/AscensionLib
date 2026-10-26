@@ -12,7 +12,7 @@ import java.util.List;
 public final class CraftPayloads {
     private CraftPayloads() {}
 
-    /** Page to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge}, {@code promote} (no slot), {@code unique} (slotId is the Unique's id; installs or replaces), {@code assemble} (a Catalyst from Fragments), {@code respec_ranks} (an Hourglass of Undoing), {@code respec_unique} (an Unbinding Prism; slotId is the new Unique's id) or {@code buy_hourglass} (an Hourglass for Tower Marks). */
+    /** Page to server: do it. {@code kind} is {@code upgrade}, {@code refine}, {@code reforge}, {@code promote} (no slot), {@code unique} (slotId is the Unique's id; installs or replaces), {@code assemble} (a Catalyst from Fragments), {@code respec_ranks} (an Hourglass of Undoing), {@code respec_unique} (an Unbinding Prism; slotId is the new Unique's id) or {@code buy_hourglass} (an Hourglass for Tower Marks) or {@code haunt} (a Haunting roll for Spooky Essence; no slot). */
     public record Confirm(String operationId, String pokemonId, String kind, String slotId, long profileRevision, long walletRevision) {}
 
     /** One occupied ordinary slot as the upgrade screen shows it. Bands are -1 where there is no next rank; {@code sealed} marks a slot that has had its one Overreach attempt; {@code overreachMin/Max} bound the value a success would give and {@code overreachChance} is its percent chance. {@code floor} is the lowest value the slot can roll now (its raised floor, else its band minimum) and {@code perfectCost} the dust to raise it one point (0 when it cannot be done). */
@@ -54,7 +54,17 @@ public final class CraftPayloads {
      */
     public record View(String pokemonId, String name, String speciesId, List<String> aspects, int level, String rarityId, String uniqueName,
                        int pending, int nextMilestone, long profileRevision, long walletRevision, long dust, long facets, long cores, long scouters, long marks,
-                       Price refine, Price reforge, Promotion promotion, UniqueState unique, Respec respec, List<SlotView> slots, String message, boolean open) {}
+                       Price refine, Price reforge, Promotion promotion, UniqueState unique, Respec respec, List<SlotView> slots, String message, boolean open, HauntView haunt) {}
+
+    /** One Haunting a roll can land on: its text, whether it is a Rare, and its chance in percent. */
+    public record HauntOption(String id, String name, boolean rare, String effect, double chance) {}
+
+    /**
+     * The Haunting row (Halloween 2026): {@code show} is false when the screen should not draw it. {@code id} is empty while the Pokemon has none; {@code rolls}
+     * counts the rolls it has had, {@code cost} is the Spooky Essence the next one takes and {@code block} the reason it cannot be rolled now (empty when it can).
+     */
+    public record HauntView(boolean show, long essence, String id, String name, boolean rare, String effect, int rolls, long cost, String block,
+                            List<HauntOption> all) {}
 
     /** Server to page: how a confirmed craft ended. On success the slot before and after; on failure only the reason. */
     public record Done(String operationId, boolean ok, String message, String slotId, String oldName, int oldRank, int oldValue,

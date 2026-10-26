@@ -31,8 +31,18 @@
   .vbox.next { border-color: var(--acc); box-shadow: var(--glow); } .vbox .big { font-size: 20px; color: var(--acc); text-shadow: var(--glow); } .vbox .sm { font-size: 10px; color: var(--muted); }
   .cost { margin-top: auto; border-top: 2px solid var(--line); padding-top: 8px; display: flex; align-items: center; gap: 10px; }
   .cost .c { flex: 1; }
-  .wallet .coin { display: flex; align-items: center; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--line); }
+  .wallet { overflow-y: auto; }
+  .wallet .coin { display: flex; align-items: center; gap: 8px; padding: 3px 2px; border-bottom: 1px solid var(--line); }
   .wallet .dot { width: 24px; height: 24px; flex: none; }   /* a smooth downscale of the 32px art: 24 is not a whole fraction of 32 */
+  .row.haunt { border-color: var(--line); margin-top: 8px; } .row.haunt.sel { border-color: var(--acc); }
+  .row.haunt .t1 { color: #ff9a3c; text-shadow: 0 0 5px rgba(255, 154, 60, .45); } .row.haunt .t2 { color: #d08a45; }
+  .row.haunt .ic, .hname .ic { width: 24px; height: 24px; flex: none; image-rendering: pixelated; image-rendering: crisp-edges; border: 0; }
+  .hname { display: flex; align-items: center; gap: 10px; margin: 2px 0 4px; } .hname .ic { width: 40px; height: 40px; } .hname .nm { font-size: 16px; text-shadow: var(--glow); }
+  .tag { display: inline-block; padding: 0 6px; font-size: 10px; letter-spacing: .1em; border: 2px solid var(--outline); background: var(--epic-bg); color: var(--epic); margin-left: 6px; vertical-align: middle; }
+  .tag.rare { background: #5a2e08; color: var(--legendary); }
+  .odds { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 14px; margin: 6px 0; font-size: 10px; }
+  .odds div { display: flex; gap: 6px; padding: 0 3px; } .odds div.cur { background: var(--well); color: var(--acc); } .odds i { margin-left: auto; font-style: normal; color: var(--muted); } .odds .rr { color: var(--legendary); }
+  #detail { overflow-y: auto; }
   .meter { height: 10px; background: var(--well); border: 2px solid var(--line); } .meter i { display: block; height: 100%; background: var(--acc); box-shadow: var(--glow); }
 </style>
 </head>
@@ -76,6 +86,11 @@
   var view = null, mode = 'upgrade', slotId = '', uniqueId = '', phase = 'browse', pendingOp = '', banner = '', bannerOk = false, waitTimer = 0, action = '';   // action: what the open dialog confirms when it is not simply the tab's own: 'prism' or 'buy'
 
   function slot() { for (var i = 0; i < view.slots.length; i++) if (view.slots[i].slotId === slotId) return view.slots[i]; return null; }
+  var SLOT_MODES = ['upgrade', 'refine', 'reforge', 'perfect', 'overreach'];
+  function hauntShown() { return !!view && !!view.haunt && view.haunt.show && SLOT_MODES.indexOf(mode) >= 0; }
+  function isHaunt() { return slotId === 'haunt' && hauntShown(); }
+  function hauntIcon(id, cls) { var i = new Image(); i.alt = ''; i.className = cls || 'ic'; i.src = 'icons/haunting/' + id + '.png'; i.onerror = function () { i.style.visibility = 'hidden'; }; return i; }
+  function essenceIcon() { var i = new Image(); i.alt = ''; i.className = 'ic'; i.src = 'icons/spooky_essence.png'; return i; }
   function blockFor(s) {
     if (mode === 'promote') return view.promotion.block;
     if (mode === 'unique') return view.unique.block;
@@ -98,6 +113,7 @@
     return parts.length ? parts.join(' + ') : 'Free';
   }
   function costText() {
+    if (isHaunt()) return view.haunt.cost + ' Spooky Essence (you have ' + view.haunt.essence + ')';
     switch (mode) {
       case 'upgrade': return '1 pending upgrade (you have ' + view.pending + ')';
       case 'refine': return shortPrice(view.refine);
@@ -109,12 +125,13 @@
       default: return '1 Unique Catalyst + 1 Tower Mark (you have ' + view.unique.catalysts + ' / ' + view.marks + ')';
     }
   }
-  function shortCost() { var ps = slot(); return mode === 'upgrade' ? '1 upgrade' : mode === 'respec' ? '1 Hourglass' : mode === 'unique' ? '1 Catalyst + 1 Mark' : mode === 'perfect' ? (ps ? ps.perfectCost + ' Dust' : '—') : mode === 'overreach' ? (ps ? ps.overreachDust + ' Dust + ' + ps.overreachFacets + ' Facets + 1 Mark' : '—') : costText(); }
+  function shortCost() { if (isHaunt()) return view.haunt.cost + ' Spooky Essence'; var ps = slot(); return mode === 'upgrade' ? '1 upgrade' : mode === 'respec' ? '1 Hourglass' : mode === 'unique' ? '1 Catalyst + 1 Mark' : mode === 'perfect' ? (ps ? ps.perfectCost + ' Dust' : '—') : mode === 'overreach' ? (ps ? ps.overreachDust + ' Dust + ' + ps.overreachFacets + ' Facets + 1 Mark' : '—') : costText(); }
   function canReview() {
     var s = slot();
     if (mode === 'promote') return !view.promotion.block && !!view.promotion.toRarity;
     if (mode === 'unique') return uniqueReady();
     if (mode === 'respec') return !view.respec.hourglassBlock;
+    if (isHaunt()) return !view.haunt.block;
     return !!s && !blockFor(s);
   }
 
@@ -170,6 +187,15 @@
       r.addEventListener('click', function () { if (slotId === s.slotId) return; slotId = s.slotId; render('sel'); });
       box.appendChild(r);
     });
+    if (hauntShown()) {
+      var h = view.haunt, hr = A.el('div', 'row haunt' + (slotId === 'haunt' ? ' sel' : ''));
+      hr.dataset.k = 'haunt';
+      hr.appendChild(h.id ? hauntIcon(h.id) : essenceIcon());
+      var hc = A.el('div'); hc.appendChild(A.el('div', 't1', h.name || 'Haunting'));
+      hc.appendChild(A.el('div', 't2', h.id ? (h.rare ? 'Rare Haunting' : 'Haunting · event') : 'None yet · ' + h.cost + ' Spooky Essence')); hr.appendChild(hc);
+      hr.addEventListener('click', function () { if (slotId === 'haunt') return; slotId = 'haunt'; render('sel'); });
+      box.appendChild(hr);
+    }
   }
 
   function vbox(label, big, small, next) {
@@ -187,6 +213,26 @@
     var rb = A.el('button', 'primary', 'Review'); rb.disabled = !canReview();
     rb.addEventListener('click', function () { action = ''; phase = 'review'; render('phase'); });
     c.appendChild(rb); box.appendChild(c);
+  }
+
+  function drawHaunt(box) {
+    var h = view.haunt;
+    box.appendChild(A.el('div', 'label', 'Haunting · Halloween 2026'));
+    var nm = A.el('div', 'hname');
+    nm.appendChild(h.id ? hauntIcon(h.id) : essenceIcon());
+    var t = A.el('div'), line = A.el('div', 'nm', h.id ? h.name : 'Not haunted');
+    if (h.id) line.appendChild(A.el('span', 'tag' + (h.rare ? ' rare' : ''), h.rare ? 'RARE' : 'COMMON'));
+    t.appendChild(line); t.appendChild(A.el('div', 'muted', h.id ? h.effect : 'An event power in a slot of its own, apart from the affixes.')); nm.appendChild(t); box.appendChild(nm);
+    box.appendChild(A.el('div', 'muted', (h.id ? 'Re-roll: one of ' : 'Roll: one of ') + h.all.length + ' Hauntings · ' + h.rolls + (h.rolls === 1 ? ' roll so far' : ' rolls so far')));
+    var odds = A.el('div', 'odds');
+    h.all.forEach(function (o) {
+      var d = A.el('div', (o.id === h.id ? 'cur ' : '') + (o.rare ? 'rr' : ''), o.name); d.title = o.effect;
+      d.appendChild(A.el('i', '', (Math.round(o.chance * 10) / 10) + '%')); odds.appendChild(d);
+    });
+    box.appendChild(odds);
+    box.appendChild(A.el('div', 'muted', 'Stays with the Pokémon when traded, after the event too. A re-roll replaces it: 1, 3, 5, then 8 Spooky Essence.'));
+    box.appendChild(A.el('div', 'spacer'));
+    costRow(box, h.block);
   }
 
   function drawDetail() {
@@ -241,6 +287,7 @@
       }
       costRow(box, u.block || (o.current ? 'Already held' : '')); return;
     }
+    if (isHaunt()) { drawHaunt(box); return; }
     var s = slot();
     if (!s) { box.appendChild(A.el('div', 'muted', 'Choose an affix on the left.')); return; }
     var prefix = s.category === 'prefix';
@@ -281,7 +328,7 @@
     var box = $('wallet'); box.innerHTML = ''; box.appendChild(A.el('div', 'label', 'Wallet'));
     var u = view.unique;
     [['Resonance Dust', 'resonance_dust', view.dust], ['Facets', 'facet', view.facets], ['Ascension Cores', 'ascension_core', view.cores],
-     ['Scouters', 'scouter', view.scouters], ['Unique Fragments', 'unique_fragment', u.fragments], ['Unique Catalysts', 'unique_catalyst', u.catalysts], ['Tower Marks', 'tower_mark', view.marks], ['Hourglass', 'rank_respec', view.respec.hourglasses], ['Prism', 'unique_respec', view.respec.prisms]].forEach(function (c) {
+     ['Scouters', 'scouter', view.scouters], ['Unique Fragments', 'unique_fragment', u.fragments], ['Unique Catalysts', 'unique_catalyst', u.catalysts], ['Tower Marks', 'tower_mark', view.marks], ['Hourglass', 'rank_respec', view.respec.hourglasses], ['Prism', 'unique_respec', view.respec.prisms]].concat(view.haunt && (view.haunt.show || view.haunt.essence > 0) ? [['Spooky Essence', 'spooky_essence', view.haunt.essence]] : []).forEach(function (c) {
       var r = A.el('div', 'coin'); r.title = c[0];
       var d = new Image(); d.className = 'dot'; d.alt = ''; d.src = 'icons/' + c[1] + '.png'; r.appendChild(d);
       r.appendChild(A.el('div', c[2] > 0 ? '' : 'muted', A.num(c[2])));
@@ -295,9 +342,10 @@
     if (phase === 'browse') { scrim.className = 'scrim'; return; }
     scrim.className = 'scrim on';
     var s = slot(), body = $('dBody'); body.innerHTML = '';
-    $('dTitle').textContent = phase === 'waiting' ? 'Working…' : action === 'prism' ? 'Confirm unbinding' : action === 'buy' ? 'Confirm purchase' : mode === 'respec' ? 'Confirm respec' : 'Confirm ' + mode;
+    $('dTitle').textContent = phase === 'waiting' ? 'Working…' : isHaunt() ? (view.haunt.id ? 'Confirm re-roll' : 'Confirm haunting') : action === 'prism' ? 'Confirm unbinding' : action === 'buy' ? 'Confirm purchase' : mode === 'respec' ? 'Confirm respec' : 'Confirm ' + mode;
     var change = '';
-    if (mode === 'upgrade' && s) change = s.name + ' ' + A.roman[s.rank] + ' +' + s.value + '%  →  ' + A.roman[Math.min(5, s.rank + 1)] + ', rolls ' + s.nextMin + '–' + s.nextMax + '%';
+    if (isHaunt()) change = view.haunt.id ? 'Re-roll ' + view.haunt.name + ': it is replaced by a new random Haunting (it can land on the same one).' : 'Give ' + view.name + ' a random Haunting.';
+    else if (mode === 'upgrade' && s) change = s.name + ' ' + A.roman[s.rank] + ' +' + s.value + '%  →  ' + A.roman[Math.min(5, s.rank + 1)] + ', rolls ' + s.nextMin + '–' + s.nextMax + '%';
     else if (mode === 'refine' && s) change = s.name + ' +' + s.value + '%  →  a new value in ' + s.bandMin + '–' + s.bandMax + '%';
     else if (mode === 'overreach' && s) change = s.name + ' +' + s.value + '%  →  ' + s.overreachChance + '% chance of +' + s.overreachMin + '–' + s.overreachMax + '%; otherwise it falls to the lower half of the band. Either way the slot is sealed.';
     else if (mode === 'perfect' && s) change = s.name + ' floor +' + s.floor + '%  →  +' + (s.floor + 1) + '% (band top ' + s.bandMax + '%), value +' + s.value + '% → +' + Math.max(s.value, s.floor + 1) + '%';
@@ -308,8 +356,8 @@
     else if (mode === 'unique') { var o = uniqueOpt(); change = o ? (view.unique.currentId ? 'Replace with ' : 'Install ') + o.name + '. Drawback: ' + o.drawback : ''; }
     else if (s) change = s.name + ' +' + s.value + '%  →  another affix (' + s.reforgePool + ' eligible), rank ' + A.roman[s.rank];
     body.appendChild(A.el('p', '', change));
-    body.appendChild(A.el('p', 'gold', 'Cost: ' + (action === 'prism' ? '1 Unbinding Prism (no Catalyst, no Tower Mark)' : action === 'buy' ? view.respec.price + ' Tower Marks (you have ' + view.respec.marks + ')' : costText())));
-    body.appendChild(A.el('p', 'muted', action === 'prism' ? 'Uses one Unbinding Prism. The Unique you hold now is lost. It cannot be undone.'
+    body.appendChild(A.el('p', 'gold', 'Cost: ' + (isHaunt() ? costText() : action === 'prism' ? '1 Unbinding Prism (no Catalyst, no Tower Mark)' : action === 'buy' ? view.respec.price + ' Tower Marks (you have ' + view.respec.marks + ')' : costText())));
+    body.appendChild(A.el('p', 'muted', isHaunt() ? 'The roll is random and cannot be undone. A re-roll loses the Haunting it replaces for good.' : action === 'prism' ? 'Uses one Unbinding Prism. The Unique you hold now is lost. It cannot be undone.'
       : action === 'buy' ? 'The Marks are spent and the Hourglass joins your wallet.'
       : mode === 'respec' ? 'Uses one Hourglass of Undoing. Nothing is refunded and it cannot be undone. A Pokémon that has Overreached can never be respecced.'
       : mode === 'upgrade' ? 'No failure chance. This spends one pending upgrade.'
@@ -361,6 +409,7 @@
   function confirm() {
     if (phase !== 'review' || !(action === 'buy' ? view.respec.marks >= view.respec.price : action === 'prism' ? (!view.respec.prismBlock && !!uniqueId && uniqueId !== view.unique.currentId) : canReview())) return;
     var s = slot();
+    if (isHaunt()) { submit('haunt', ''); return; }
     if (action === 'buy') { submit('buy_hourglass', ''); return; }
     if (action === 'prism') { submit('respec_unique', uniqueId); return; }
     if (mode === 'respec') { submit('respec_ranks', ''); return; }
@@ -376,6 +425,7 @@
     if (first) { mode = v.pending > 0 ? 'upgrade' : 'refine'; if (v.slots.length) slotId = v.slots[0].slotId; }
     uniqueId = validUnique(uniqueId);
     var found = false; v.slots.forEach(function (s) { if (s.slotId === slotId) found = true; });
+    if (slotId === 'haunt' && v.haunt && v.haunt.show) found = true;
     if (!found) slotId = v.slots.length ? v.slots[0].slotId : '';
     if (v.message && !banner) { banner = v.message; bannerOk = false; }
     render();
@@ -384,7 +434,10 @@
     if (d.operationId !== pendingOp) return;
     clearTimeout(waitTimer); pendingOp = ''; phase = 'browse'; bannerOk = !!d.ok;
     var did = action; action = '';
-    if (d.ok) {
+    var wasHaunt = isHaunt();
+    if (d.ok && wasHaunt) {
+      banner = (d.newRank === 1 ? 'Rare! ' : 'Haunted: ') + d.newName; if (d.replayed) banner += ' (already done)';
+    } else if (d.ok) {
       var was = A.roman[Math.max(1, Math.min(5, d.oldRank))], now = A.roman[Math.max(1, Math.min(5, d.newRank))];
       banner = did === 'buy' ? 'Bought an Hourglass of Undoing for ' + view.respec.price + ' Tower Marks'
         : did === 'prism' ? 'Unique swapped: ' + d.newName
@@ -398,7 +451,7 @@
         : (d.newName === 'Unique Catalyst' ? 'Assembled a Unique Catalyst' : 'Unique set: ' + d.newName);
       if (d.replayed) banner += ' (already done)';
     } else banner = d.message;
-    if (mode === 'overreach' && d.ok) bannerOk = d.newValue > d.oldValue;
+    if (mode === 'overreach' && d.ok && !wasHaunt) bannerOk = d.newValue > d.oldValue;
     render();
   });
 

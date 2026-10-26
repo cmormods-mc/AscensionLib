@@ -202,6 +202,7 @@
     A.pref = s.percent; A.prefRange = [s.min, s.max];
     A.calm = !!s.calm;
     document.documentElement.classList.toggle('calm', A.calm);
+    document.documentElement.classList.toggle('halloween', !!s.halloween);   // the event theme: ascension.css, HalloweenEvent.java
     var cb = document.getElementById('calmbtn'); if (cb) cb.classList.toggle('on', A.calm);
     var label = document.getElementById('uipct'); if (label) label.textContent = s.percent + '%';
     A.fit();
