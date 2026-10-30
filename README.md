@@ -22,12 +22,12 @@ The full player guide is in the game (`/ascend guide`, or the Guide tab of the A
 | | |
 |---|---|
 | Server | Minecraft 1.21.1, Fabric Loader 0.17.2 or later, Fabric API, **Cobblemon 1.8.1 or 1.8.2**, Java 21 |
-| Clients | The **WebGUI** mod and **Rinku** (every screen is a web page WebGUI shows). No client mod of ours. |
+| Clients | The **WebGUI** mod (every screen is a web page WebGUI shows). No client mod of ours. |
 | Optional | **CobbleRaids** (required for the modifiers to act in battle; without it they do nothing in a fight), **CobbleTowers** and **ascensionDungeons** (earning), **Polymer** (hosts the resource pack for you) |
 
 ## Install
 
-1. Put `AscensionLib-<version>.jar` in the server's `mods/` folder, with Cobblemon and Fabric API. Players install WebGUI and Rinku.
+1. Put `AscensionLib-<version>.jar` in the server's `mods/` folder, with Cobblemon and Fabric API. Players install WebGUI.
 2. Start the server once. It creates `<world>/cobbleascend/progression.db`, backs it up at every start and then daily, and publishes its pages to WebGUI.
 3. Give the items their art. **With Polymer installed there is nothing to do:** the mod adds its models and textures to Polymer's pack itself and merges its item model files with any other pack's (restart the server so Polymer rebuilds the pack; players rejoin to download it). Without Polymer, host `AscensionLib-resourcepack.zip` and set `resource-pack` and `resource-pack-sha1` in `server.properties`. Without any pack the items still work as plainly named vanilla items.
 4. In game, `/ascend dex` gives an AscensionDex and `/ascend guide` opens the guide.

@@ -523,7 +523,7 @@ window.GUIDE = {
     {
      "type": "ul",
      "items": [
-      "A page will not open: every screen is a web page shown by the WebGUI mod, so your client needs WebGUI and Rinku installed. The server tells you when yours is missing.",
+      "A page will not open: every screen is a web page shown by the WebGUI mod, so your client needs WebGUI installed. The server tells you when yours is missing.",
       "Items look like plain vanilla items: the server's resource pack gives them their art. Accept it when you join; without it they still work.",
       "A Pokémon says \"No profile\": you had it before the mod, it was traded or given to you, or it was caught in a place where the server has profiles switched off. An Ascension Sigil gives it a profile with a rolled rarity (Inspect, then Use Ascension Sigil).",
       "A Pokémon is locked: Tower rental Pokémon are on loan and cannot be changed.",

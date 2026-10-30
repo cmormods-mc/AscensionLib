@@ -1,7 +1,7 @@
 # Screens as web pages (WebGUI)
 
 Owner goal (2026-10-14): our mods live only in the server mods folder. Every screen is a web page the server ships to players through
-[WebGUI](https://github.com/mc-webgui/webgui) (MIT; players install WebGUI and Rinku, nothing of ours). AscensionLib has no client code left.
+[WebGUI](https://github.com/mc-webgui/webgui) (MIT; players install WebGUI, nothing of ours). AscensionLib has no client code left.
 
 ## How it works
 
@@ -38,7 +38,7 @@ Shared: `ascension.css` (the dark-LCD Pokedex tablet look: Monocraft font from `
 ## Requirements and limits
 
 - Without WebGUI on the server the pages do not exist; commands fall back to text where they had text before.
-- A player without WebGUI/Rinku is told once what to install when they open a screen.
+- A player without WebGUI is told once what to install when they open a screen.
 - WebGUI's `autoHudOnJoin` shows its own HUD page; ours replaces it while open. Do not enable both.
 - Build: WebGUI is compile-only (`ascensionlib/libs/webgui-dev.jar`, made by `tools/prepare_webgui_dev_jar.py`; see `libs/README.md`).
 - Nothing here has been seen in a real WebGUI client yet. Page layout, the overlay's interaction key and sprite scaling need a live pass.

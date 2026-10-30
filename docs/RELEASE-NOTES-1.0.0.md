@@ -2,7 +2,7 @@
 
 The first full release of AscensionLib (Fabric): a progression overhaul for [Cobblemon](https://cobblemon.com). Every Pokémon you catch or hatch rolls a **rarity** and a set of **modifiers** that change how it fights, and you grow them over time instead of replacing them.
 
-**Requires** Minecraft 1.21.1, Fabric Loader 0.17.2 or later, Fabric API, Java 21 and **Cobblemon 1.8.1 or 1.8.2** on the server. Every player needs the **WebGUI** mod and **Rinku**, because every screen is a web page WebGUI shows. **CobbleRaids is required for modifiers to act in battle**: without it everything else works (rolling, crafting, the wallet, the screens) but modifiers do nothing in a fight. CobbleTowers and ascensionDungeons (earning) and Polymer (hosts the resource pack) are optional.
+**Requires** Minecraft 1.21.1, Fabric Loader 0.17.2 or later, Fabric API, Java 21 and **Cobblemon 1.8.1 or 1.8.2** on the server. Every player needs the **WebGUI** mod, because every screen is a web page WebGUI shows. **CobbleRaids is required for modifiers to act in battle**: without it everything else works (rolling, crafting, the wallet, the screens) but modifiers do nothing in a fight. CobbleTowers and ascensionDungeons (earning) and Polymer (hosts the resource pack) are optional.
 
 ## What is in it
 

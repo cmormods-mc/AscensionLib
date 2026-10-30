@@ -6,7 +6,7 @@ For a server owner. The player-facing explanation of the mechanics is in the gam
 
 - A Fabric server on **Minecraft 1.21.1** with **Java 21**, Fabric Loader 0.17.2 or later and Fabric API.
 - **Cobblemon 1.8.1 or 1.8.2** (the mod declares `>=1.8.1 <1.9.0`).
-- On every **client**: the **WebGUI** mod (2.0.0 or later) and **Rinku**. Every AscensionLib screen is a web page that WebGUI shows; the server tells a player when theirs is missing, and the key actions also exist as commands.
+- On every **client**: the **WebGUI** mod (2.0.0 or later). Every AscensionLib screen is a web page that WebGUI shows; the server tells a player when theirs is missing, and the key actions also exist as commands.
 - Optional: **CobbleRaids**, which modifiers need to act in a fight (without it everything else works and modifiers do nothing in battle), **CobbleTowers** and **ascensionDungeons** (they pay rewards through the library), **Polymer** (hosts the resource pack).
 
 ## First start
@@ -62,7 +62,7 @@ Everything else (the modifier catalog, rank bands, crafting costs, promotion cos
 
 | Symptom | Likely cause |
 |---|---|
-| A page does not open | The client lacks WebGUI or Rinku (the player is told). |
+| A page does not open | The client lacks WebGUI (the player is told). |
 | Items look like plain vanilla items | The resource pack is not hosted or not accepted. |
 | "Progression is disabled" in the log | The store could not be opened: the log names the reason (missing database with an existing marker, a different world's database, a failed upgrade backup). |
 | Modifiers do nothing in a fight | CobbleRaids is not installed, so the battle module is absent; or the battle is a fight between players (native by design), or the dimension's tier is 0 in `zones`. |

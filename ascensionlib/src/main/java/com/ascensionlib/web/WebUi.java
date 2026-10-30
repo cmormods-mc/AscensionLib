@@ -40,7 +40,7 @@ public final class WebUi {
         registered = true;
         if (!available()) {
             LOG.info("WebGUI is not installed: AscensionLib's screens (craft, fusion, inspect, capture card) are unavailable. "
-                    + "Install the WebGUI mod on the server and, with Rinku, on each client.");
+                    + "Install the WebGUI mod on the server and on each client.");
             return;
         }
         ServerLifecycleEvents.SERVER_STARTED.register(server -> publish());
@@ -56,7 +56,7 @@ public final class WebUi {
             return false;
         }
         if (land.webgui.WebviewNetworking.clientKind(player) != land.webgui.WebviewNetworking.ClientKind.CURRENT) {
-            player.sendSystemMessage(Component.literal("This screen is a web page: install the WebGUI mod (and Rinku) on your client."));
+            player.sendSystemMessage(Component.literal("This screen is a web page: install the WebGUI mod on your client."));
             return false;
         }
         WebSprites.reset(player.getUUID());

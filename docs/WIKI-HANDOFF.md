@@ -155,7 +155,7 @@ Two rare items undo an investment. They drop from Tower completion chests, and t
 
 ## Help and troubleshooting
 
-- A page will not open: every screen is a web page shown by the WebGUI mod, so your client needs WebGUI and Rinku installed. The server tells you when yours is missing.
+- A page will not open: every screen is a web page shown by the WebGUI mod, so your client needs WebGUI installed. The server tells you when yours is missing.
 - Items look like plain vanilla items: the server's resource pack gives them their art. Accept it when you join; without it they still work.
 - A Pokémon says "No profile": you had it before the mod, it was traded or given to you, or it was caught in a place where the server has profiles switched off. An Ascension Sigil gives it a profile with a rolled rarity (Inspect, then Use Ascension Sigil).
 - A Pokémon is locked: Tower rental Pokémon are on loan and cannot be changed.
@@ -164,7 +164,7 @@ Two rare items undo an investment. They drop from Tower completion chests, and t
 
 ## Server administration
 
-AscensionLib is a server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2. Clients need only the WebGUI mod and Rinku (no client mod of ours). CobbleRaids makes battle effects act in fights; CobbleTowers and ascensionDungeons pay rewards through the library's contract.
+AscensionLib is a server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2. Clients need only the WebGUI mod (no client mod of ours). CobbleRaids makes battle effects act in fights; CobbleTowers and ascensionDungeons pay rewards through the library's contract.
 
 - Data: each world keeps its progression in <world>/cobbleascend/progression.db (SQLite) with an authority.id marker; the world and the database belong together.
 - Backups: a snapshot is taken at server start, then daily, into <world>/cobbleascend/backups/ (the newest 14 are kept), and /ascend admin backup takes one now. Before a schema upgrade the mod copies the store beside itself as progression.db.before-schemaN-fromM-<time>.bak and refuses to upgrade if it cannot.

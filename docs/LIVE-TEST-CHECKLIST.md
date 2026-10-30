@@ -2,7 +2,7 @@
 
 For one guided session on a real server and client before a release, in order. Everything marked **seen** has already been run in a real client by the owner (2026-10-15); it stays on the list as a quick regression pass. The one item never run live is the floor-10 clear, and it comes first.
 
-Set up: the jar and its resource pack on the server (`docs/INSTALL.md`), a client with WebGUI and Rinku, an op account, `/ascend admin grant <you> <material> <amount>` for materials, and a world backup.
+Set up: the jar and its resource pack on the server (`docs/INSTALL.md`), a client with WebGUI, an op account, `/ascend admin grant <you> <material> <amount>` for materials, and a world backup.
 
 ## 1. The floor-10 champion clear (not yet run live)
 

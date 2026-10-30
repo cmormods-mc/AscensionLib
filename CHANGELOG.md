@@ -2,7 +2,7 @@
 
 ## 1.0.0+fabric
 
-The first full release (Fabric build). Server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2; clients need WebGUI and Rinku.
+The first full release (Fabric build). Server-side Fabric mod for Minecraft 1.21.1 with Cobblemon 1.8.1 or 1.8.2; clients need WebGUI.
 
 ### Commands
 - Players need only `/ascend dex` (the AscensionDex reaches every page), `/ascend guide`, `/ascend status` and `/ascend scout`. `inspect`, `craft`, `fuse`, `sigil` and `wallet withdraw|deposit` are operator-only under `/ascend admin`; `help`, `party`, `ui` and `wallet gui` are gone (the Dex tabs and the page headers cover them).
