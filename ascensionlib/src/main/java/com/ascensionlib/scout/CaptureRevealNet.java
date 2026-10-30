@@ -31,11 +31,20 @@ public final class CaptureRevealNet {
                 com.cobbleascend.domain.v1.Resonance.themeOf(slot.affixId()).map(com.cobbleascend.domain.v1.Resonance.Theme::display).orElse(""), slot.sealed());
     }
 
-    /** Shows the reveal for a committed profile as a card on the player's HUD. False when their client cannot show web pages. */
+    /** Shows a committed profile in the transparent capture GUI. False when the client cannot show web pages. */
     public static boolean send(ServerPlayer player, Pokemon pokemon, ProfileService service, ProfileV1 profile) {
+        return send(player, pokemon, service, profile, profile.profileId().toString());
+    }
+
+    /** An operator explicitly asked to replay the card; normal acquisition callbacks keep the stable profile identity. */
+    public static boolean preview(ServerPlayer player, Pokemon pokemon, ProfileService service, ProfileV1 profile) {
+        return send(player, pokemon, service, profile, java.util.UUID.randomUUID().toString());
+    }
+
+    private static boolean send(ServerPlayer player, Pokemon pokemon, ProfileService service, ProfileV1 profile, String revealId) {
         if (!player.getUUID().equals(pokemon.getOwnerUUID())) return false;
         return com.ascensionlib.web.HudWeb.reveal(player, new CaptureRevealPayload(pokemon.getUuid().toString(),
                 pokemon.getDisplayName(false).getString(), pokemon.getSpecies().getResourceIdentifier().toString(),
-                new ArrayList<>(pokemon.getAspects()), detailOf(pokemon, service, profile)));
+                new ArrayList<>(pokemon.getAspects()), detailOf(pokemon, service, profile), revealId));
     }
 }

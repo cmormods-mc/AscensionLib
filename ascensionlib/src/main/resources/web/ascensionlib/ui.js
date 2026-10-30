@@ -155,7 +155,7 @@
     });
   });
   /** The species' card sprite (from CobblemonCards on the server), or its name when the server has none. */
-  A.sprite = function (speciesId, size) {
+  A.sprite = function (speciesId, size, onLoad) {
     var box = A.el('div', 'sprbox');
     var path = A.speciesPath(speciesId);
     var label = function () { box.innerHTML = ''; box.appendChild(A.el('div', 'sprfb', A.speciesName(speciesId))); };
@@ -165,7 +165,7 @@
       var img = new Image();
       img.className = 'spr'; img.alt = '';
       img.style.width = (48 * (size || 2)) + 'px'; img.style.height = (32 * (size || 2)) + 'px';
-      img.onload = function () { box.innerHTML = ''; box.appendChild(img); };
+      img.onload = function () { box.innerHTML = ''; box.appendChild(img); if (onLoad) onLoad(img); };
       img.src = url;
     };
     if (sprites[path]) fill(sprites[path]);

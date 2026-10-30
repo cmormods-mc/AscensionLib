@@ -250,11 +250,10 @@ final class AscendWiring {
                         profile.ordinarySlots().stream().map(x -> x.slotId() + "=" + x.affixId() + "@" + x.rolledValue()).toList());
                 var player = owner;
                 if (player != null) {
-                    // A wild capture gets the card reveal if the client has the channel; everyone else (and hatches) keep the chat line.
+                    // One notice: the capture card for WebGUI clients, a chat fallback otherwise.
                     boolean revealed = item.rollRarity() && com.ascensionlib.scout.CaptureRevealNet.send(player, item.pokemon(), service, profile);
-                    player.sendSystemMessage(Component.literal(revealed
-                            ? "[Ascend] " + title(profile) + " ascension assigned. Open your AscensionDex to inspect it."
-                            : "[Ascend] " + title(profile) + " ascension assigned. Open your AscensionDex to inspect it — modifiers act in battle only with CobbleRaids installed."));
+                    if (!revealed) player.sendSystemMessage(Component.literal("[Ascend] " + title(profile)
+                            + " ascension assigned. Open your AscensionDex to inspect it — modifiers act in battle only with CobbleRaids installed."));
                 }
             } catch (RuntimeException exception) {
                 LOG.error("Acquisition failed for Pokemon {}; existing data preserved", item.pokemon().getUuid(), exception);
@@ -282,6 +281,10 @@ final class AscendWiring {
                         .executes(ctx -> calm(ctx.getSource(), null))
                         .then(Commands.literal("on").executes(ctx -> calm(ctx.getSource(), true)))
                         .then(Commands.literal("off").executes(ctx -> calm(ctx.getSource(), false))))
+                .then(Commands.literal("reveals")
+                        .executes(ctx -> reveals(ctx.getSource(), null))
+                        .then(Commands.literal("on").executes(ctx -> reveals(ctx.getSource(), true)))
+                        .then(Commands.literal("off").executes(ctx -> reveals(ctx.getSource(), false))))
                 .then(Commands.literal("scout")
                         .executes(ctx -> scoutList(ctx.getSource()))
                         .then(Commands.literal("look").executes(ctx -> scoutLook(ctx.getSource())))
@@ -663,7 +666,7 @@ final class AscendWiring {
                 source.sendFailure(Component.literal("That Pokemon has no ascension profile; use /ascend admin acquire <slot> <rarity>."));
                 return 0;
             }
-            boolean sent = com.ascensionlib.scout.CaptureRevealNet.send(player, pokemon, service, profile.get());
+            boolean sent = com.ascensionlib.scout.CaptureRevealNet.preview(player, pokemon, service, profile.get());
             source.sendSuccess(() -> Component.literal(sent ? "Reveal sent for slot " + slot + " (" + title(profile.get()) + ")."
                     : "Your client does not have the capture reveal channel."), false);
             return sent ? 1 : 0;
@@ -675,6 +678,15 @@ final class AscendWiring {
 
     private int openGuide(CommandSourceStack source) throws CommandSyntaxException {
         return com.ascensionlib.web.WebUi.open(source.getPlayerOrException(), "guide.html") ? 1 : 0;
+    }
+
+    private int reveals(CommandSourceStack source, Boolean enabled) throws CommandSyntaxException {
+        var player = source.getPlayerOrException();
+        if (enabled != null) com.ascensionlib.web.CaptureWeb.setEnabled(player, enabled);
+        boolean now = com.ascensionlib.web.CaptureWeb.enabled(player);
+        source.sendSuccess(() -> Component.literal("[Ascend] Capture reveals are " + (now ? "ON." : "OFF.")
+                + " Use /ascend reveals " + (now ? "off" : "on") + " to change it."), false);
+        return 1;
     }
 
     private int calm(CommandSourceStack source, Boolean on) throws CommandSyntaxException {
