@@ -461,15 +461,231 @@ await check('inspect: enemy scouting with a hidden and a revealed enemy', async 
   noErrors(p);
 });
 
+// ---------------------------------------------------------------- capture reveal
+const capture = (id, rarity = 'common', extra = {}) => ({ pokemonId: id, revealId: 'capture-' + id, name: 'Pangoro', speciesId: 'cobblemon:pangoro', aspects: [],
+  detail: { level: 28, types: ['fighting', 'dark'], rarityId: rarity, uniqueName: '', slots: [{ category: 'prefix', name: 'Defiant Force', rank: 1, value: 8, condition: 'Hits harder when challenged.' }] }, ...extra });
+
+await check('capture: repeated notifications and repeated modifier rows never duplicate; two different catches queue', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  const first = capture('first'); first.detail.slots.push({ ...first.detail.slots[0] });
+  await emit(p, 'captureReveal', first);
+  await emit(p, 'captureReveal', first, true);
+  await emit(p, 'captureReveal', capture('second'));
+  await emit(p, 'captureReveal', capture('second'), true);
+  eq(await p.locator('.capture-card').count(), 1, 'a single card is visible');
+  eq(await p.locator('.capture-trait').count(), 1, 'a repeated modifier has a single row');
+  eq(await p.textContent('.capture-trait-name'), 'Defiant Force', 'one trait label');
+  await p.click('.capture-continue');
+  eq(await p.locator('.capture-card').count(), 1, 'the second catch replaces the first');
+  await p.click('.capture-continue');
+  eq(await p.locator('.capture-card').count(), 0, 'no duplicate was queued');
+  await emit(p, 'captureReveal', first);
+  eq(await p.locator('.capture-card').count(), 0, 'a dismissed capture cannot reappear');
+  await p.reload();
+  await emit(p, 'captureReveal', first);
+  eq(await p.locator('.capture-card').count(), 0, 'duplicate remains suppressed after the HUD reloads');
+  await emit(p, 'captureReveal', { ...first, revealId: 'explicit-admin-preview' });
+  eq(await p.locator('.capture-card').count(), 1, 'an explicit operator preview can replay the same Pokemon');
+  noErrors(p);
+});
+
+await check('capture: inspector uses the caught Pokemon and reveal identity without closing the native GUI first', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await emit(p, 'captureReveal', capture('inspect-me'));
+  await p.click('.capture-content .primary');
+  eq((await sent(p)).find(m => m.channel === 'ascension_capture_open')?.id, 'inspect-me', 'the caught ID is sent to the server');
+  eq((await sent(p)).find(m => m.channel === 'ascension_capture_open')?.revealId, 'capture-inspect-me', 'the server can reject a stale inspector click');
+  eq(await p.locator('.capture-card').count(), 0, 'no second card appears under the inspector');
+  yes(!(await sent(p)).some(m => m.channel === 'close'), 'inspector transition preserves native GUI input');
+  await p.reload();
+  await emit(p, 'captureReveal', capture('waiting'));
+  eq(await p.locator('.capture-card').count(), 1, 'the server can deliver the waiting catch after inspector return');
+  await p.click('.capture-continue');
+  await emit(p, 'captureReveal', capture('inspect-me'));
+  eq(await p.locator('.capture-card').count(), 0, 'the inspected catch is not replayed');
+  noErrors(p);
+});
+
+await check('capture: server advances the same GUI, then closes it exactly once to restore Minecraft input', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  eq(await p.evaluate(() => window.webgui.isHud), false, 'capture uses WebGUI native GUI selection mode');
+  yes((await sentAll(p)).some(m => m.channel === 'ascension_gui_beat'), 'capture participates in GUI presence');
+  await emit(p, 'captureReveal', capture('first-gui'));
+  await p.click('.capture-continue');
+  eq((await sent(p)).find(m => m.channel === 'ascension_capture_dismiss')?.revealId, 'capture-first-gui', 'dismiss acknowledges only the active reveal');
+  yes(!(await sent(p)).some(m => m.channel === 'close'), 'wait for the authoritative queue result');
+  await emit(p, 'captureReveal', capture('held'));
+  eq(await p.locator('.capture-card').count(), 1, 'the next reveal uses the same native GUI');
+  await p.click('.capture-continue');
+  eq(await p.locator('.capture-card').count(), 0, 'only the held capture was waiting');
+  await emit(p, 'captureClosed', true);
+  await emit(p, 'captureClosed', true);
+  eq((await sent(p)).filter(m => m.channel === 'close').length, 1, 'native close fires once; no second close can toggle off the restored HUD');
+  noErrors(p);
+});
+
+await check('capture: all rarities have matching sprite auras and prism masks, with no external assets', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await emit(p, 'sprites', { pangoro: PNG });
+  await emit(p, 'uiScale', { percent: 100, min: 60, max: 160, calm: false });
+  const rarities = ['common','uncommon','rare','epic','legendary','mythical'];
+  const colors = ['#c1c5cf','#1bd7e8','#38ccef','#af69ff','#ffd437','#ff3448'];
+  let previous = 0;
+  for (let i = 0; i < rarities.length; i++) {
+    await emit(p, 'captureReveal', capture('rarity-' + i, rarities[i]));
+    await p.locator('.capture-prism.ready').waitFor();
+    await p.waitForFunction(() => !document.querySelector('.capture-front').inert);
+    const css = await p.locator('.capture-card').evaluate(el => ({ color: el.style.getPropertyValue('--capture-rarity'), intensity: Number(el.style.getPropertyValue('--aura-strength')) }));
+    eq(css.color, colors[i], 'rarity color ' + rarities[i]);
+    yes(css.intensity > previous, 'aura grows with rarity ' + rarities[i]); previous = css.intensity;
+    yes((await p.locator('.capture-prism').evaluate(el => el.style.maskImage)).includes('data:image/png;base64'), 'prism uses the actual server sprite alpha');
+    if (i === 0 || i === 5) await shot(p, 'capture-' + rarities[i]);
+    await p.click('.capture-continue');
+  }
+  noErrors(p);
+});
+
+await check('capture: centered, transparent and fully on-screen even with all six modifiers and a Unique', async () => {
+  for (const [w,h] of [[1920,1080],[1280,720],[854,480],[320,568],[3840,2160]]) {
+    const p = await open(null, 'capture.html', w, h), payload = capture('fit-' + w, 'mythical');
+    payload.name = 'A very long custom Pokémon nickname';
+    payload.detail.uniqueName = 'A Unique Power';
+    payload.detail.slots = Array.from({length:6}, (_, i) => ({ category: i < 3 ? 'prefix' : 'suffix', name: ['Defiant Force','Physical Force','Keen Edge','Iron Resolve','Stubborn','Special Bulwark'][i], rank: 5, value: 32 }));
+    await emit(p, 'captureReveal', payload);
+    await emit(p, 'uiScale', { percent: 160, min: 60, max: 160, calm: false });
+    eq(await p.locator('.capture-trait').count(), 7, 'all six modifiers plus Unique, without truncation');
+    const rect = await p.locator('.capture-card').evaluate(el => { const b = el.getBoundingClientRect(); return {left:b.left,top:b.top,right:b.right,bottom:b.bottom,cx:(b.left+b.right)/2,cy:(b.top+b.bottom)/2}; });
+    yes(rect.left >= 0 && rect.top >= 0 && rect.right <= w + 1 && rect.bottom <= h + 1, 'fits ' + w + 'x' + h + ': ' + JSON.stringify(rect));
+    yes(Math.abs(rect.cx - w/2) < 1 && Math.abs(rect.cy - h/2) < 1, 'centered at ' + w + 'x' + h);
+    eq(await p.evaluate(() => [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor]), ['rgba(0, 0, 0, 0)','rgba(0, 0, 0, 0)'], 'the game remains visible around the card');
+    if (w === 1280) await shot(p, 'capture-six-slots');
+    noErrors(p);
+  }
+});
+
+await check('capture: compact card scrolls all modifiers with wheel and keyboard without moving its actions', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await emit(p, 'captureReveal', capture('compact-one'));
+  await p.evaluate(() => document.fonts.ready);
+  const shortHeight = await p.locator('.capture-card').evaluate(el => el.offsetHeight);
+  await p.click('.capture-continue');
+  const payload = capture('compact-seven', 'mythical');
+  payload.detail.uniqueName = 'A Unique Power';
+  payload.detail.slots = Array.from({length:6}, (_,i) => ({category:i < 3 ? 'prefix':'suffix', name:['Defiant Force','Physical Force','Keen Edge','Iron Resolve','Stubborn','Special Bulwark'][i], rank:5, value:32}));
+  await emit(p, 'captureReveal', payload);
+  const fullHeight = await p.locator('.capture-card').evaluate(el => el.offsetHeight);
+  yes(fullHeight <= 660 && fullHeight - shortHeight < 80, 'more modifiers stay in a compact, bounded card: ' + shortHeight + ' / ' + fullHeight);
+  const list = p.locator('.capture-traits');
+  yes(await list.evaluate(el => el.scrollHeight > el.clientHeight), 'the modifier region overflows and scrolls');
+  eq(await p.textContent('.capture-scroll-hint'), 'SCROLL ↓', 'scrolling is discoverable');
+  const actionY = (await p.locator('.capture-actions').boundingBox()).y;
+  await list.hover();
+  await p.mouse.wheel(0, 500);
+  await p.waitForFunction(() => document.querySelector('.capture-traits').scrollTop > 0);
+  await list.focus();
+  await list.press('Home');
+  await list.press('End');
+  await p.waitForFunction(() => { const el = document.querySelector('.capture-traits'); return el.scrollTop + el.clientHeight >= el.scrollHeight - 1; });
+  yes(await p.locator('.capture-trait').last().evaluate(el => el.getBoundingClientRect().bottom <= el.parentElement.getBoundingClientRect().bottom + 1), 'the last modifier is reachable');
+  eq((await p.locator('.capture-actions').boundingBox()).y, actionY, 'only modifiers scroll; actions stay in place');
+  eq(await p.locator('.capture-trait').count(), 7, 'all modifiers remain present exactly once');
+  await shot(p, 'capture-compact-scrolled');
+  noErrors(p);
+});
+
+await check('capture: calm and reduced motion, missing or late sprites, and server text are handled safely', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  const payload = capture('safe'); payload.name = '<img src=x onerror=alert(1)>';
+  await emit(p, 'captureReveal', payload);
+  eq(await p.textContent('.capture-name'), payload.name, 'nickname is plain text');
+  eq(await p.locator('.capture-name img').count(), 0, 'no server text becomes HTML');
+  eq(await p.locator('.capture-prism.ready').count(), 0, 'no rectangular sheen before the sprite loads');
+  await emit(p, 'sprites', { pangoro: PNG });
+  await p.locator('.capture-prism.ready').waitFor({ state: 'attached' });
+  await emit(p, 'uiScale', { percent: 100, min: 60, max: 160, calm: true });
+  eq(await p.locator('.capture-aura').evaluate(el => getComputedStyle(el).display), 'none', 'calm removes aura');
+  eq(await p.locator('.capture-prism').evaluate(el => getComputedStyle(el).display), 'none', 'calm removes prism');
+  eq(await p.locator('.capture-sprite .spr').evaluate(el => getComputedStyle(el).filter), 'none', 'calm removes sprite glow');
+  await emit(p, 'uiScale', { percent: 100, min: 60, max: 160, calm: false });
+  await p.emulateMedia({ reducedMotion: 'reduce' });
+  eq(await p.locator('.capture-prism').evaluate(el => getComputedStyle(el).animationName), 'none', 'reduced motion stops shimmer');
+  noErrors(p);
+});
+
+await check('capture: timeout advances once, manual dismissal cancels the old timer, reading pauses expiry', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await p.clock.install();
+  await emit(p, 'captureReveal', capture('timeout-first'));
+  await emit(p, 'captureReveal', capture('timeout-second'));
+  await p.clock.fastForward(12010);
+  eq(await p.locator('.capture-card').count(), 1, 'timeout advances to the second catch');
+  await p.locator('.capture-content .primary').focus();
+  await p.clock.fastForward(20000);
+  eq(await p.locator('.capture-card').count(), 1, 'keyboard reading pauses timeout');
+  await p.click('.capture-continue');
+  eq(await p.locator('.capture-card').count(), 0, 'manual dismissal removes it');
+  await emit(p, 'captureReveal', capture('timeout-third'));
+  await p.mouse.move(0, 0);
+  await p.clock.fastForward(6000);
+  eq(await p.locator('.capture-card').count(), 1, 'the previous card timer cannot remove a later catch');
+  await p.clock.fastForward(6010);
+  eq(await p.locator('.capture-card').count(), 0, 'the final card expires once');
+  noErrors(p);
+});
+
+await check('capture: Disable works during the flip, cancels effects and queues, closes once and blocks late reveals', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await emit(p, 'uiScale', { percent:100,min:60,max:160,calm:false });
+  await emit(p, 'captureReveal', capture('disable-now','mythical'));
+  await emit(p, 'captureReveal', capture('queued'));
+  yes(await p.locator('.capture-front').evaluate(el => el.inert), 'the flip is running');
+  eq(await p.textContent('.capture-disable'), 'Disable', 'small labeled control');
+  await p.click('.capture-disable');
+  eq(await p.locator('.capture-card').count(), 0, 'current and queued cards disappear');
+  eq((await sent(p)).filter(m => m.channel === 'ascension_capture_disable').length, 1, 'disable preference is sent once');
+  eq((await sent(p)).filter(m => m.channel === 'close').length, 1, 'native GUI closes immediately');
+  await emit(p, 'captureClosed', true);
+  await emit(p, 'captureReveal', capture('late'));
+  eq(await p.locator('.capture-card').count(), 0, 'a late notification cannot reopen a disabled card');
+  eq((await sent(p)).filter(m => m.channel === 'close').length, 1, 'server acknowledgment cannot close the restored HUD');
+  noErrors(p);
+});
+
+await check('capture: Prism Rupture flips once, counts reading time after the flip, and Calm cancels a running flip', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await emit(p, 'uiScale', { percent:100,min:60,max:160,calm:false });
+  await emit(p, 'captureReveal', capture('animated','epic'));
+  eq(await p.locator('.capture-back').count(), 1, 'one sealed back');
+  yes(await p.locator('.capture-front').evaluate(el => el.inert), 'front actions cannot be clicked through the back');
+  await p.waitForFunction(() => !document.querySelector('.capture-front').inert);
+  eq(await p.locator('.capture-back').count(), 0, 'animation back is removed after the flip');
+  eq(await p.locator('.capture-flip-fx').count(), 0, 'particles and light layers are cleaned up');
+  await p.click('.capture-continue');
+  await emit(p, 'captureReveal', capture('calm-mid-flip','legendary'));
+  await emit(p, 'uiScale', { percent:100,min:60,max:160,calm:true });
+  await p.waitForFunction(() => !document.querySelector('.capture-front').inert);
+  eq(await p.locator('.capture-back').count(), 0, 'Calm immediately ends the running flip');
+  eq(await p.locator('.capture-flip-fx').count(), 0, 'Calm clears the flare');
+  noErrors(p);
+});
+
+await check('capture: Escape/page unload releases the active reveal without dismissing a later server card', async () => {
+  const p = await open(null, 'capture.html', 1920, 1080);
+  await emit(p, 'captureReveal', capture('escape'));
+  await p.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  eq((await sent(p)).find(m => m.channel === 'ascension_capture_closed')?.revealId, 'capture-escape', 'native close reports the active reveal identity');
+  eq(await p.locator('.capture-card').count(), 0, 'unloading cancels timers and clears DOM');
+  noErrors(p);
+});
+
 // ---------------------------------------------------------------- hud
-await check('hud: capture card, scouting panel, buttons, closes itself when idle', async () => {
+await check('hud: scouting panel stays independent from the capture GUI', async () => {
   const p = await open(null, 'hud.html', 1000, 600);
   eq((await sent(p)).map(m => m.channel), ['ascension_hud_ready'], 'first message');
   await emit(p, 'sprites', { arcanine: PNG });
-  await emit(p, 'hudReveal', { pokemonId: 'a1', name: 'Arcanine', speciesId: 'cobblemon:arcanine', aspects: [], detail: detail() });
   await emit(p, 'hudScout', { encounterId: 'enc-1', scouters: 3, entries: [{ subjectId: 's1', name: 'Growlithe' }, { subjectId: 's2', name: 'Houndoom', detail: detail() }] });
   await emit(p, 'hudTeam', [{ id: 'a1', name: 'Arcanine', speciesId: 'cobblemon:arcanine', rarityId: 'epic', level: 40 }]);
-  yes(await p.locator('.card').count() === 1, 'toast shown');
+  eq(await p.locator('#capture-root').count(), 0, 'the HUD cannot render a second capture card');
   yes(await p.locator('#panel.on').count() === 1, 'panel shown');
   await shot(p, 'hud');
   await p.locator('#opp button', { hasText: 'Scout' }).click();
@@ -482,12 +698,12 @@ await check('hud: capture card, scouting panel, buttons, closes itself when idle
   noErrors(p);
 });
 
-await check('hud: closes itself after the last card has been shown', async () => {
+await check('hud: idle overlay stays transparent and never closes itself', async () => {
   const p = await open(null, 'hud.html');
   await emit(p, 'hudScout', { encounterId: '', scouters: 0, entries: [] });
   await p.waitForTimeout(3200);
   const ch = (await sent(p)).map(m => m.channel);
-  yes(ch.includes('ascension_hud_closed') && ch.includes('close'), 'idle overlay closes: ' + ch.join(','));
+  yes(ch.includes('ascension_hud_idle') && !ch.includes('close'), 'idle overlay stays loaded: ' + ch.join(','));
 });
 
 await check('hud: bleed badges show side, stacks and turns, stay open while anyone bleeds, and clear', async () => {
@@ -501,7 +717,7 @@ await check('hud: bleed badges show side, stacks and turns, stay open while anyo
   await emit(p, 'hudBleed', []);
   eq(await p.locator('.bleed').count(), 0, 'cleared');
   await p.waitForTimeout(3200);
-  yes((await sent(p)).some(m => m.channel === 'close'), 'then it closes itself');
+  yes((await sent(p)).some(m => m.channel === 'ascension_hud_idle') && !(await sent(p)).some(m => m.channel === 'close'), 'then it idles without reopening the browser');
   noErrors(p);
 });
 
@@ -522,7 +738,7 @@ await check('hud: Momentum stays as a badge, Wardstone and Ensnaring flash once,
   await emit(p, 'hudEffects', { momentum: [], procs: [] });
   await p.waitForTimeout(4200);
   eq(await p.locator('.eff').count(), 0, 'the flashes ended by themselves');
-  yes((await sent(p)).some(m => m.channel === 'close'), 'then the overlay closes itself');
+  yes((await sent(p)).some(m => m.channel === 'ascension_hud_idle') && !(await sent(p)).some(m => m.channel === 'close'), 'then the overlay idles without closing');
   noErrors(p);
 });
 
@@ -773,7 +989,7 @@ await check('craft: the Haunting row (Halloween 2026): hidden when the server hi
 await check('pages degrade without WebGUI (no window.webgui): no crash', async () => {
   const ctx = await browser.newContext(); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', e => errors.push(e.message));
-  for (const f of ['craft.html', 'fusion.html', 'inspect.html', 'hud.html', 'wallet.html', 'party.html', 'completion.html', 'guide.html']) await p.goto(base + f);
+  for (const f of ['craft.html', 'fusion.html', 'inspect.html', 'hud.html', 'capture.html', 'wallet.html', 'party.html', 'completion.html', 'guide.html']) await p.goto(base + f);
   eq(errors, [], 'errors');
 });
 

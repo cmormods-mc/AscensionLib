@@ -63,7 +63,8 @@ class PageJsonTest {
         var owned = JsonParser.parseString(gson.toJson(Views.owned(new OwnedInspectPayload.Result("id", "Arcanine", "Arcanine", 1, 5, Optional.of(detail), extra), 2))).getAsJsonObject();
         has(owned, "pokemonId", "name", "species", "pending", "attunement", "detail", "extra");
         has(owned.getAsJsonObject("extra"), "speciesId", "origin", "initialRarity", "highestLevel", "milestones", "prefixCap", "suffixCap", "craftLocked");
-        var reveal = JsonParser.parseString(gson.toJson(new CaptureRevealPayload("id", "Arcanine", "cobblemon:arcanine", List.of(), detail))).getAsJsonObject();
+        var reveal = JsonParser.parseString(gson.toJson(new CaptureRevealPayload("id", "Arcanine", "cobblemon:arcanine", List.of(), detail, "reveal-id"))).getAsJsonObject();
+        assertEquals("reveal-id", reveal.get("revealId").getAsString());
         has(reveal, "pokemonId", "name", "speciesId", "detail");
         var team = JsonParser.parseString(gson.toJson(new Views.TeamView("id", "A", "cobblemon:a", "epic", 5))).getAsJsonObject();
         has(team, "id", "name", "speciesId", "rarityId", "level");

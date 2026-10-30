@@ -5,9 +5,7 @@ import com.ascensionlib.scout.CaptureRevealPayload;
 import com.ascensionlib.scout.InspectWeb;
 import com.ascensionlib.scout.ScoutPayloads;
 import com.cobblemon.mod.common.Cobblemon;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,19 +16,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * The overlay ({@code hud.html}): capture cards that appear for a few seconds, and, while the player is in a scouted encounter, a panel
- * of its enemies with the Scouter and a list of their party. It is a WebGUI HUD, so the player keeps playing and presses WebGUI's
- * interact key to click. The server opens it only when there is something to show and the page closes itself when the last thing has
- * been shown. Nothing here changes game state: a click only asks the server to scout (the Scouter rules decide) or to open a screen.
+ * The persistent battle overlay ({@code hud.html}): scouted enemies, the player's party and battle-effect badges. Its interact key is
+ * managed by WebGUI. Capture cards use {@link CaptureWeb}'s transparent GUI instead, which unlocks the cursor automatically.
+ * A HUD click only asks the server to scout (the Scouter rules decide) or to open an existing screen.
  */
 public final class HudWeb {
-    /** A reveal waiting for the page to load; the rest are shown as they arrive. At most this many are held. */
-    private static final int MAX_QUEUE = 8;
-
     /** Players whose overlay has loaded and can take events, and those asked to open it that have not reported in yet. */
     private static final Set<UUID> OPEN = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> OPENING = ConcurrentHashMap.newKeySet();
-    private static final Map<UUID, Deque<CaptureRevealPayload>> QUEUED = new ConcurrentHashMap<>();
     /** The bleeds last pushed to each player, re-sent when the overlay finishes loading. */
     private static final Map<UUID, List<Views.BleedView>> BLEEDS = new ConcurrentHashMap<>();
     /** The Momentum stacks last pushed to each player, re-sent the same way. */
@@ -60,6 +53,7 @@ public final class HudWeb {
         // The overlay never closes itself any more. Opening it is what flashes grey on the client (a new browser view paints before the page is
         // transparent), and that must never happen at a capture, so it is opened once after login and kept. The page's idle message is ignored.
         WebUi.listen("ascension_hud_idle", (player, o) -> { });
+        CaptureWeb.register();
         GuiPresence.register();
         ServerTickEvents.END_SERVER_TICK.register(HudWeb::flush);
         ServerTickEvents.END_SERVER_TICK.register(HudWeb::openDue);
@@ -91,10 +85,8 @@ public final class HudWeb {
         }
     }
 
-    /** Sends the overlay everything held for this player: waiting reveals, the bleed and Momentum strips, the scouting panel and the team. */
+    /** Re-sends the bleed and Momentum strips, the scouting panel and the team. */
     private static void resync(ServerPlayer player) {
-        var queued = QUEUED.remove(player.getUUID());
-        if (queued != null) queued.forEach(reveal -> { WebSprites.feed(player, List.of(reveal.speciesId())); WebUi.emit(player, "hudReveal", reveal); });
         var bleeds = BLEEDS.get(player.getUUID());
         if (bleeds != null && !bleeds.isEmpty()) WebUi.emit(player, "hudBleed", bleeds);
         var momentum = MOMENTUM.get(player.getUUID());
@@ -120,7 +112,7 @@ public final class HudWeb {
     public static void forget(UUID player) {
         OPEN.remove(player);
         OPENING.remove(player);
-        QUEUED.remove(player);
+        CaptureWeb.forget(player);
         reopenAt.remove(player);
         REOPENS.remove(player);
         DEFERRED.remove(player);
@@ -136,18 +128,9 @@ public final class HudWeb {
         if (!OPEN.contains(player.getUUID()) && !OPENING.contains(player.getUUID()) && WebUi.openHud(player, "hud.html")) OPENING.add(player.getUUID());
     }
 
-    /** Shows a capture card. False when the player's client cannot show web pages (the chat line stays the only notice). */
+    /** Compatibility entrypoint for the capture GUI. False when the client needs the chat fallback. */
     public static boolean reveal(ServerPlayer player, CaptureRevealPayload payload) {
-        if (!WebUi.canShow(player)) return false;
-        if (OPEN.contains(player.getUUID()) && !GuiPresence.isOpen(player.getUUID())) {
-            WebSprites.feed(player, List.of(payload.speciesId()));
-            WebUi.emit(player, "hudReveal", payload);
-            return true;
-        }
-        var queue = QUEUED.computeIfAbsent(player.getUUID(), id -> new ArrayDeque<>());
-        if (queue.size() < MAX_QUEUE) queue.add(payload);
-        if (OPEN.contains(player.getUUID())) DEFERRED.add(player.getUUID()); else ensureOpen(player);
-        return true;
+        return CaptureWeb.reveal(player, payload);
     }
 
     /** The scouting state changed for this player: refresh the panel, opening the overlay when an encounter begins. */
