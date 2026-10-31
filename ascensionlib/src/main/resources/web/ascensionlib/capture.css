@@ -3,6 +3,7 @@
 #capture-root:empty { display: none; }
 .capture-card { pointer-events: auto; position: relative; width: 440px; perspective: 1400px; image-rendering: pixelated; }
 .capture-rotator { position: relative; display: grid; transform-style: preserve-3d; }
+.capture-flipping .capture-rotator { will-change: transform; } /* own compositor layer from the first frame, so the 3D flip is not rastered late as a blank one */
 .capture-front, .capture-back { background: var(--scr); background-clip: padding-box; border: 16px solid transparent; border-image: var(--bezel) 8 / 16px stretch; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .capture-front { position: relative; grid-area: 1 / 1; }
 .capture-back { position: absolute; inset: 0; transform: rotateY(180deg); }

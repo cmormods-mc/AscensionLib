@@ -14,8 +14,9 @@
     function done() {
       if (finished) return;
       finished = true;
+      rotator.style.transform = 'none';
       animations.forEach(function (a) { a.cancel(); });
-      rotator.style.transform = 'none'; front.inert = false;
+      front.inert = false;
       back.remove(); layer.remove(); card.classList.remove('capture-flipping');
     }
     function animate(el, frames, options) { var a = el.animate(frames, options); animations.push(a); return a; }
@@ -23,6 +24,7 @@
       done(); return { cancel: done, finished: Promise.resolve() };
     }
     card.classList.add('capture-flipping');
+    rotator.style.transform = 'translateY(14px) scale(.94) rotateY(180deg) rotateZ(-4deg)'; // the first pose, so the front face is never painted before the animation starts
     var rarity = Number(card.dataset.rarityIndex) || 0, power = .25 + rarity * .15, duration = 1800;
     var main = animate(rotator, [
       { transform: 'translateY(14px) scale(.94) rotateY(180deg) rotateZ(-4deg)', offset: 0 },
